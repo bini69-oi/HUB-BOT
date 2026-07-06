@@ -15,7 +15,7 @@ from src.application.events import SubscriptionPurchased
 from src.application.services.pricing import PricingService
 from src.application.services.subscription import SubscriptionService, _plan_snapshot
 from src.core.enums import PurchaseType, TransactionStatus, TransactionType
-from src.core.exceptions import PurchaseError
+from src.core.exceptions import InsufficientBalance, InvalidStateTransition, PurchaseError
 from src.infrastructure.database.models.subscription import Subscription
 from src.infrastructure.database.models.transaction import Transaction
 
@@ -59,6 +59,49 @@ class PurchaseService:
             )
             if moved:
                 await self.fulfill(uow, txn)
+        return txn, quote
+
+    async def resolve_purchase_type(
+        self, uow: UnitOfWork, user_id: int, plan_id: int
+    ) -> tuple[PurchaseType, int | None]:
+        """RENEW when the user's current subscription is on this plan and still usable, else NEW.
+
+        Shared by the bot and the mini-app so both surfaces detect renewals identically.
+        """
+        user = await uow.users.get(user_id)
+        sub = (
+            await uow.subscriptions.get(user.current_subscription_id)
+            if user is not None and user.current_subscription_id
+            else None
+        )
+        if sub is not None and sub.plan_id == plan_id and sub.status.is_usable:
+            return PurchaseType.RENEW, sub.id
+        return PurchaseType.NEW, None
+
+    async def checkout_from_balance(
+        self, uow: UnitOfWork, req: PurchaseRequest
+    ) -> tuple[Transaction, PriceQuote]:
+        """Buy from the wallet balance in one transaction (shared by bot + mini-app).
+
+        Does NOT commit — the caller owns the boundary, so a panel failure in ``fulfill`` rolls
+        the whole purchase (including the balance debit) back. Raises ``InsufficientBalance`` /
+        ``InvalidStateTransition`` / ``RemnawaveError`` for the caller to map to its response.
+        """
+        txn, quote = await self.start(uow, req)
+        if quote.is_free:
+            return txn, quote  # start() already completed + fulfilled the free purchase
+        user = await uow.users.get(req.user_id)
+        if user is None:
+            raise PurchaseError(f"user {req.user_id} not found")
+        if user.balance_minor < quote.final.amount_minor:
+            raise InsufficientBalance("insufficient balance")
+        await uow.users.increment_balance(user, -quote.final.amount_minor)
+        moved = await uow.transactions.transition_status(
+            txn.payment_id, TransactionStatus.COMPLETED, (TransactionStatus.PENDING,)
+        )
+        if not moved:
+            raise InvalidStateTransition("transaction already processed")
+        await self.fulfill(uow, txn)
         return txn, quote
 
     async def fulfill(self, uow: UnitOfWork, txn: Transaction) -> Subscription:

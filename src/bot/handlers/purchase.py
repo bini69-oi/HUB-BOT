@@ -17,7 +17,12 @@ from src.application.dto.pricing import PurchaseRequest
 from src.bot.gate import ensure_channel
 from src.bot.keyboards import simple_keyboard
 from src.core.enums import Currency, PurchaseType, TransactionStatus, TransactionType
-from src.core.exceptions import DomainError, RemnawaveError
+from src.core.exceptions import (
+    DomainError,
+    InsufficientBalance,
+    InvalidStateTransition,
+    RemnawaveError,
+)
 from src.core.logging import get_logger
 from src.infrastructure.database.models.transaction import Transaction
 from src.infrastructure.database.models.user import User
@@ -139,14 +144,7 @@ async def _resolve_purchase_type(
     container: AppContainer, user: User, plan_id: int
 ) -> tuple[PurchaseType, int | None]:
     async with container.uow() as uow:
-        sub = (
-            await uow.subscriptions.get(user.current_subscription_id)
-            if user.current_subscription_id
-            else None
-        )
-    if sub is not None and sub.plan_id == plan_id and sub.status.is_usable:
-        return PurchaseType.RENEW, sub.id
-    return PurchaseType.NEW, None
+        return await container.purchase.resolve_purchase_type(uow, user.id, plan_id)
 
 
 @router.callback_query(F.data.startswith("pay:"))
@@ -196,39 +194,26 @@ async def _pay_with_balance(
     cb: CallbackQuery, container: AppContainer, req: PurchaseRequest
 ) -> None:
     async with container.uow() as uow:
-        user = await uow.users.get(req.user_id)
-        if user is None:
-            await cb.answer("Ошибка", show_alert=True)
-            return
         try:
-            txn, quote = await container.purchase.start(uow, req)
+            await container.purchase.checkout_from_balance(uow, req)  # shared with the mini-app
+        except RemnawaveError as exc:
+            log.error("provision failed", error=str(exc))
+            await cb.answer("Оплата не списана: сервис выдачи временно недоступен", show_alert=True)
+            return  # no commit -> full rollback
+        except InsufficientBalance:
+            await cb.answer("Недостаточно средств на балансе", show_alert=True)
+            return
+        except InvalidStateTransition:
+            await cb.answer("Платёж уже обработан", show_alert=True)
+            return
         except DomainError as exc:
             await cb.answer(str(exc), show_alert=True)
             return
-        price = quote.final.amount_minor
-        if not quote.is_free:
-            if user.balance_minor < price:
-                await cb.answer("Недостаточно средств на балансе", show_alert=True)
-                return
-            await uow.users.increment_balance(user, -price)
-            moved = await uow.transactions.transition_status(
-                txn.payment_id, TransactionStatus.COMPLETED, (TransactionStatus.PENDING,)
-            )
-            if not moved:
-                await cb.answer("Платёж уже обработан", show_alert=True)
-                return
-            try:
-                await container.purchase.fulfill(uow, txn)
-            except RemnawaveError as exc:
-                log.error("provision failed", error=str(exc))
-                await cb.answer(
-                    "Оплата не списана: сервис выдачи временно недоступен", show_alert=True
-                )
-                return  # no commit -> full rollback
         await uow.commit()
+        user = await uow.users.get(req.user_id)
         sub = (
             await uow.subscriptions.get(user.current_subscription_id)
-            if user.current_subscription_id
+            if user and user.current_subscription_id
             else None
         )
         url = sub.subscription_url if sub else None

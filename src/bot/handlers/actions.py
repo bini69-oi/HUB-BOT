@@ -136,6 +136,65 @@ async def autopay_toggle(cb: CallbackQuery, container: AppContainer, db_user: Us
     await act_subscription(cb, container, db_user)
 
 
+@router.callback_query(F.data.startswith("act:cabinet"))
+async def act_cabinet(cb: CallbackQuery, container: AppContainer, db_user: User) -> None:
+    """Личный кабинет — one screen: profile, balance, subscription, referral, quick actions."""
+    import datetime as dt
+
+    async with container.uow() as uow:
+        sub = (
+            await uow.subscriptions.get(db_user.current_subscription_id)
+            if db_user.current_subscription_id
+            else None
+        )
+        invited = await uow.users.count(referred_by_id=db_user.id)
+        miniapp_url = str(await container.bot_config.value(uow, "SUBSCRIPTION_MINI_APP_URL") or "")
+
+    name = db_user.first_name or db_user.username or "друг"
+    lines = [
+        "<b>👤 Личный кабинет</b>",
+        "",
+        f"Привет, {name}!",
+        f"💰 Баланс: <b>{fmt_money(db_user.balance_minor)}</b>",
+    ]
+    if sub is not None and sub.status.is_usable:
+        days = ""
+        if sub.expire_at is not None:
+            left = max(0, (sub.expire_at - dt.datetime.now(dt.UTC)).days)
+            days = f" · осталось {left} дн."
+        lines.append(f"📶 Подписка: <b>активна</b>{days}")
+    else:
+        lines.append("📶 Подписка: <b>нет активной</b>")
+    if db_user.personal_discount_pct:
+        lines.append(f"🏷 Личная скидка: {db_user.personal_discount_pct}%")
+    lines.append(f"🎁 Приглашено друзей: {invited}")
+
+    kb: list[list[InlineKeyboardButton]] = [
+        [
+            InlineKeyboardButton(text="👤 Подписка", callback_data="act:subscription:0"),
+            InlineKeyboardButton(text="🔌 Подключить", callback_data="act:connect:0"),
+        ],
+        [
+            InlineKeyboardButton(text="💰 Баланс", callback_data="act:balance:0"),
+            InlineKeyboardButton(text="📊 История", callback_data="act:history:0"),
+        ],
+        [
+            InlineKeyboardButton(text="🎁 Рефералка", callback_data="act:referral:0"),
+            InlineKeyboardButton(text="🎟 Промокод", callback_data="act:promocode"),
+        ],
+    ]
+    if miniapp_url.startswith("https://"):
+        kb.append([webapp_button("📱 Открыть приложение", miniapp_url)])
+    kb.append([InlineKeyboardButton(text="‹ Меню", callback_data="nav:root")])
+    if cb.message is not None:
+        await cb.message.edit_text(  # type: ignore[union-attr]
+            "\n".join(lines),
+            reply_markup=InlineKeyboardMarkup(inline_keyboard=kb),
+            parse_mode="HTML",
+        )
+    await cb.answer()
+
+
 @router.callback_query(F.data.startswith("act:connect"))
 async def act_connect(cb: CallbackQuery, container: AppContainer, db_user: User) -> None:
     """Mini-app-parity Connect screen: subscription URL + per-client import links + WebApp."""

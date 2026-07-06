@@ -17,8 +17,13 @@ from src.application.dto.pricing import PurchaseRequest
 from src.application.services.connection import build_deep_links
 from src.application.services.ids import generate_referral_code
 from src.application.services.promo import PromoError
-from src.core.enums import Currency, Locale, PurchaseType, TransactionStatus, UserStatus
-from src.core.exceptions import DomainError, RemnawaveError
+from src.core.enums import Currency, Locale, PurchaseType, UserStatus
+from src.core.exceptions import (
+    DomainError,
+    InsufficientBalance,
+    InvalidStateTransition,
+    RemnawaveError,
+)
 from src.core.logging import get_logger
 from src.core.security import validate_init_data
 from src.infrastructure.database.models.plan import Plan
@@ -232,14 +237,7 @@ async def purchase(
     container: AppContainer = Depends(get_container),
 ) -> dict[str, Any]:
     async with container.uow() as uow:
-        sub = (
-            await uow.subscriptions.get(user.current_subscription_id)
-            if user.current_subscription_id
-            else None
-        )
-    ptype, sub_id = PurchaseType.NEW, None
-    if sub is not None and sub.plan_id == body.plan_id and sub.status.is_usable:
-        ptype, sub_id = PurchaseType.RENEW, sub.id
+        ptype, sub_id = await container.purchase.resolve_purchase_type(uow, user.id, body.plan_id)
     req = PurchaseRequest(
         user_id=user.id,
         plan_id=body.plan_id,
@@ -251,27 +249,18 @@ async def purchase(
 
     if body.method == "balance":
         async with container.uow() as uow:
-            u = await uow.users.get(user.id)
-            assert u is not None
             try:
-                txn, quote = await container.purchase.start(uow, req)
+                # Shared checkout path — identical to the bot's balance purchase.
+                await container.purchase.checkout_from_balance(uow, req)
+            except InsufficientBalance as exc:
+                raise HTTPException(402, "insufficient balance") from exc
+            except InvalidStateTransition as exc:
+                raise HTTPException(409, "already processed") from exc
+            except RemnawaveError as exc:
+                log.error("cabinet provision failed", error=str(exc))
+                raise HTTPException(502, "provisioning temporarily unavailable") from exc
             except DomainError as exc:
                 raise HTTPException(400, str(exc)) from exc
-            price = quote.final.amount_minor
-            if not quote.is_free:
-                if u.balance_minor < price:
-                    raise HTTPException(402, "insufficient balance")
-                await uow.users.increment_balance(u, -price)
-                moved = await uow.transactions.transition_status(
-                    txn.payment_id, TransactionStatus.COMPLETED, (TransactionStatus.PENDING,)
-                )
-                if not moved:
-                    raise HTTPException(409, "already processed")
-                try:
-                    await container.purchase.fulfill(uow, txn)
-                except RemnawaveError as exc:
-                    log.error("cabinet provision failed", error=str(exc))
-                    raise HTTPException(502, "provisioning temporarily unavailable") from exc
             await uow.commit()
         return {"ok": True, "paid_with": "balance"}
 

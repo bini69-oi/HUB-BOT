@@ -32,6 +32,7 @@ async def send_main_menu(
         start_text = str(await cfg.value(uow, "START_MESSAGE"))
         miniapp_url = str(await cfg.value(uow, "SUBSCRIPTION_MINI_APP_URL") or "")
         welcome_image = str(await cfg.value(uow, "WELCOME_IMAGE") or "")
+        welcome_sticker = str(await cfg.value(uow, "WELCOME_STICKER") or "")
         trial_enabled = bool(await cfg.value(uow, "TRIAL_ENABLED"))
         proxy_on = bool(await cfg.value(uow, "MTPROTO_PROXY_ENABLED")) and bool(
             await cfg.value(uow, "MTPROTO_PROXY_URL")
@@ -41,10 +42,13 @@ async def send_main_menu(
         markup = menu_keyboard(nodes, None, miniapp_url=miniapp_url or None)
     else:
         buttons = list(_DEFAULT_BUTTONS)
+        buttons.insert(0, ("👤 Личный кабинет", "act:cabinet:0"))
         if trial_enabled and db_user.is_trial_available:
             buttons.insert(1, ("🎁 Попробовать бесплатно", "act:trial:0"))
         if proxy_on:
             buttons.append(("🔌 MTProto-прокси", "act:proxy:0"))
+        if db_user.role.is_staff:
+            buttons.append(("🛠 Админка", "admin:menu"))
         markup = simple_keyboard(buttons)
         # Mini-app integration: a prominent WebApp button when the mini-app URL is configured.
         if miniapp_url.startswith("https://"):
@@ -58,8 +62,11 @@ async def send_main_menu(
                 await target.message.answer(start_text, reply_markup=markup)
         await target.answer()
     else:
-        # Fresh /start: show the configurable logo/welcome image above the menu.
-        if welcome_image:
-            with contextlib.suppress(Exception):  # bad file_id/URL must not break /start
+        # Fresh /start: show the configurable sticker or logo image above the menu.
+        if welcome_sticker:
+            with contextlib.suppress(Exception):  # bad file_id must not break /start
+                await target.answer_sticker(welcome_sticker)
+        elif welcome_image:
+            with contextlib.suppress(Exception):
                 await target.answer_photo(welcome_image)
         await target.answer(start_text, reply_markup=markup)
