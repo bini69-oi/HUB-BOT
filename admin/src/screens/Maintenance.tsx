@@ -191,10 +191,10 @@ export default function Maintenance() {
           </div>
           <div className="grid" style={{ gap: 10 }}>
             <Field label="GROUP ID">
-              <div className="row">
+              <div className="row" style={{ flexWrap: "wrap" }}>
                 <input
                   className="input mono"
-                  style={{ flex: 1 }}
+                  style={{ flex: "1 1 140px" }}
                   placeholder="-100…"
                   value={groupId ?? tp?.group_id ?? ""}
                   onChange={(e) => setGroupId(e.target.value)}
@@ -206,8 +206,17 @@ export default function Maintenance() {
             </Field>
             <div className="grid" style={{ gap: 8 }}>
               {(tp?.items ?? []).map((topic) => (
-                <div key={topic.id} className="row" style={{ fontSize: 12.5 }}>
-                  <span style={{ flex: 1, minWidth: 0 }}>
+                <div
+                  key={topic.id}
+                  style={{
+                    display: "grid",
+                    gridTemplateColumns: "minmax(0,1fr) 58px auto",
+                    gap: 8,
+                    alignItems: "center",
+                    fontSize: 12.5,
+                  }}
+                >
+                  <span style={{ minWidth: 0 }}>
                     {TOPIC_NAMES[topic.code] ?? topic.code}
                     <div className="dim mono" style={{ fontSize: 10 }}>
                       {topic.schedule ?? "—"}
@@ -215,8 +224,8 @@ export default function Maintenance() {
                   </span>
                   <input
                     className="input num"
-                    style={{ width: 64 }}
-                    placeholder="topic"
+                    style={{ width: 58 }}
+                    placeholder="ID"
                     defaultValue={topic.topic_id ?? ""}
                     onBlur={(e) => {
                       const v = Number(e.target.value) || null;

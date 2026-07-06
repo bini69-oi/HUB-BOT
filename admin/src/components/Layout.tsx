@@ -33,25 +33,25 @@ export default function Layout() {
 
   const items: {
     group?: string;
-    num: string;
+    icon: string;
     path: string;
     label: string;
     badge?: number;
   }[] = [
-    { num: "01", path: "/", label: t.dashboard },
-    { group: t.gProduct, num: "02", path: "/users", label: t.users, badge: counters.data?.all },
-    { num: "03", path: "/tariffs", label: t.tariffs },
-    { num: "04", path: "/promos", label: t.promos },
-    { group: t.gConstructor, num: "05", path: "/bot-buttons", label: t.botButtons },
-    { num: "06", path: "/miniapp", label: t.miniapp },
-    { group: t.gMarketing, num: "07", path: "/broadcasts", label: t.broadcasts },
-    { num: "08", path: "/smart", label: t.smart },
-    { num: "09", path: "/campaigns", label: t.campaigns },
-    { group: t.gOps, num: "10", path: "/payments", label: t.payments },
-    { num: "11", path: "/tickets", label: t.tickets, badge: tickets.data?.open_count },
-    { group: t.gSystem, num: "12", path: "/servers", label: t.servers },
-    { num: "13", path: "/settings", label: t.settings },
-    { num: "14", path: "/maintenance", label: t.maintenance },
+    { icon: "📊", path: "/", label: t.dashboard },
+    { group: t.gProduct, icon: "👥", path: "/users", label: t.users, badge: counters.data?.all },
+    { icon: "💳", path: "/tariffs", label: t.tariffs },
+    { icon: "🏷️", path: "/promos", label: t.promos },
+    { group: t.gConstructor, icon: "🧱", path: "/bot-buttons", label: t.botButtons },
+    { icon: "📱", path: "/miniapp", label: t.miniapp },
+    { group: t.gMarketing, icon: "📣", path: "/broadcasts", label: t.broadcasts },
+    { icon: "⏰", path: "/smart", label: t.smart },
+    { icon: "📈", path: "/campaigns", label: t.campaigns },
+    { group: t.gOps, icon: "💰", path: "/payments", label: t.payments },
+    { icon: "🎫", path: "/tickets", label: t.tickets, badge: tickets.data?.open_count },
+    { group: t.gSystem, icon: "🌍", path: "/servers", label: t.servers },
+    { icon: "⚙️", path: "/settings", label: t.settings },
+    { icon: "🛠️", path: "/maintenance", label: t.maintenance },
   ];
 
   const current = items.find(
@@ -73,7 +73,7 @@ export default function Layout() {
                 end={i.path === "/"}
                 className={({ isActive }) => "side-item" + (isActive ? " active" : "")}
               >
-                <span className="num">{i.num}</span>
+                <span className="ico">{i.icon}</span>
                 {i.label}
                 {i.badge !== undefined && i.badge > 0 && (
                   <span className="badge">{i.badge.toLocaleString("ru-RU")}</span>

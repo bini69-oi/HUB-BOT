@@ -110,11 +110,12 @@ body {
   background: var(--pill);
   color: var(--text);
 }
-.side-item .num {
-  font-family: "JetBrains Mono", monospace;
-  font-size: 10px;
-  color: var(--dim);
-  width: 18px;
+.side-item .ico {
+  width: 22px;
+  font-size: 15px;
+  text-align: center;
+  flex: 0 0 auto;
+  filter: grayscale(0.15);
 }
 .side-item .badge {
   margin-left: auto;
@@ -383,6 +384,13 @@ textarea.input:focus {
   border: 1px solid var(--border);
   border-radius: 4px;
   padding: 18px;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.kpi > .btn {
+  margin-top: auto;
+  align-self: flex-start;
 }
 .kpi .val {
   font-family: "JetBrains Mono", monospace;
