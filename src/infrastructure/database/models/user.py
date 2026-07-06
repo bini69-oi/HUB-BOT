@@ -45,6 +45,11 @@ class User(IntPk, TimestampMixin, Base):
     referred_by_id: Mapped[int | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"))
     referral_commission_percent: Mapped[int | None] = mapped_column()
 
+    # --- acquisition attribution (ad campaign deep-link, admin screen 09) ---
+    campaign_id: Mapped[int | None] = mapped_column(
+        ForeignKey("campaigns.id", ondelete="SET NULL"), index=True
+    )
+
     # --- discounts ---------------------------------------------------------
     personal_discount_pct: Mapped[int] = mapped_column(default=0)  # persists
     purchase_discount_pct: Mapped[int] = mapped_column(default=0)  # one-shot

@@ -27,5 +27,7 @@ class PaymentGateway(IntPk, TimestampMixin, Base):
     )
     is_active: Mapped[bool] = mapped_column(Boolean, default=False)
     display_name: Mapped[str | None] = mapped_column(String(64))
+    # Provider fee in basis points (250 = 2.5%) — feeds the net-profit math (screen 10).
+    fee_bp: Mapped[int] = mapped_column(default=0)
     # Per-provider credentials/options; secrets stored Fernet-encrypted.
     settings: Mapped[dict[str, Any]] = mapped_column(JsonB, default=dict)

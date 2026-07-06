@@ -61,6 +61,10 @@ src = ["src", "tests"]
 select = ["E", "F", "I", "UP", "B", "C4", "SIM", "TID", "RUF"]
 ignore = ["B008"]  # FastAPI Depends() in defaults
 
+[tool.ruff.lint.per-file-ignores]
+# Alembic autogenerate emits long lines and its own import order — don't fight it.
+"src/infrastructure/database/migrations/versions/*" = ["E501", "I001"]
+
 [tool.ruff.lint.isort]
 known-first-party = ["src"]
 

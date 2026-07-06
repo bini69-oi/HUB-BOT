@@ -189,3 +189,86 @@ class AuthType(StrEnum):
     TELEGRAM = "telegram"
     EMAIL = "email"
     OAUTH = "oauth"
+
+
+# --- admin cabinet domain ---------------------------------------------------
+
+
+class BroadcastAudience(StrEnum):
+    """Who a broadcast is sent to (mirrors the user-list filter)."""
+
+    ALL = "all"
+    ACTIVE = "active"
+    TRIAL = "trial"
+    EXPIRED = "expired"
+
+
+class BroadcastMedia(StrEnum):
+    TEXT = "text"
+    PHOTO = "photo"
+    VIDEO = "video"
+
+
+class BroadcastStatus(StrEnum):
+    PENDING = "pending"  # created, not yet picked up by the worker
+    RUNNING = "running"
+    DONE = "done"
+    FAILED = "failed"
+    CANCELED = "canceled"
+
+
+class TicketStatus(StrEnum):
+    OPEN = "open"
+    WAITING = "waiting"  # support replied, waiting for the user
+    CLOSED = "closed"
+
+
+class TicketAuthor(StrEnum):
+    USER = "user"
+    ADMIN = "admin"
+
+
+class MenuNodeKind(StrEnum):
+    """Bot menu-constructor node types (screen == submenu with its own text)."""
+
+    SCREEN = "screen"
+    ACTION = "action"
+    LINK = "link"
+    MINIAPP = "miniapp"
+    BACK = "back"
+
+
+class HolidayRewardType(StrEnum):
+    """Promo calendar reward: a discount %, bonus days, or balance credit."""
+
+    DISCOUNT = "discount"
+    DAYS = "days"
+    BALANCE = "balance"
+
+
+class ServerNodeStatus(StrEnum):
+    ONLINE = "online"
+    MAINTENANCE = "maintenance"
+    OFFLINE = "offline"
+
+
+class ConfigParamType(StrEnum):
+    """Editor type of a bot-config parameter (registry lives in code)."""
+
+    BOOL = "bool"
+    INT = "int"
+    STR = "str"
+    SECRET = "secret"
+
+
+class ConfigCategory(StrEnum):
+    """Bot-config parameter grouping (order matters for the settings screen)."""
+
+    MAIN = "main"
+    SUBSCRIPTIONS = "subs"
+    PAYMENTS = "pay"
+    NOTIFICATIONS = "notif"
+    REFERRAL = "ref"
+    SECURITY = "sec"
+    BACKUPS = "backup"
+    INTERFACE = "ui"
