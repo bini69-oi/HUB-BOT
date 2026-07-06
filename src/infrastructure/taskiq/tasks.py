@@ -384,3 +384,103 @@ async def send_broadcast(broadcast_id: int) -> None:
             b.finished_at = dt.datetime.now(dt.UTC)
             await uow.commit()
     log.info("send_broadcast done", broadcast_id=broadcast_id, sent=sent, failed=failed)
+
+
+@broker.task(schedule=[{"cron": "23 */2 * * *"}])
+async def process_autopay() -> int:
+    """Auto-renew from balance (#2): charge the wallet and extend subscriptions that are about
+    to expire and have autopay enabled. Idempotent — a renewed sub leaves the window."""
+    from sqlalchemy import select
+
+    from src.core.enums import SubscriptionStatus
+    from src.infrastructure.database.base import utcnow
+    from src.infrastructure.database.models.subscription import Subscription
+
+    container = get_container()
+    async with container.uow() as uow:
+        if not bool(await container.bot_config.value(uow, "AUTO_RENEWAL_ENABLED")):
+            return 0
+        days_before = int(await container.bot_config.value(uow, "AUTO_RENEWAL_DAYS_BEFORE"))
+    now = utcnow()
+    horizon = now + dt.timedelta(days=max(0, days_before))
+    async with container.uow() as uow:
+        rows = (
+            await uow.session.execute(
+                select(Subscription.id).where(
+                    Subscription.autopay_enabled.is_(True),
+                    Subscription.status.in_(
+                        [SubscriptionStatus.ACTIVE, SubscriptionStatus.LIMITED]
+                    ),
+                    Subscription.expire_at.is_not(None),
+                    Subscription.expire_at >= now,
+                    Subscription.expire_at <= horizon,
+                )
+            )
+        ).all()
+    renewed = 0
+    for (sub_id,) in rows:
+        try:
+            if await _autopay_one(container, sub_id):
+                renewed += 1
+        except Exception:
+            log.warning("autopay_failed", subscription_id=sub_id, exc_info=True)
+    log.info("process_autopay", candidates=len(rows), renewed=renewed)
+    return renewed
+
+
+async def _autopay_one(container: object, subscription_id: int) -> bool:
+    """Charge + renew one subscription from balance. Returns True on a successful renewal."""
+    from typing import cast
+
+    from src.application.dto.pricing import PurchaseRequest
+    from src.application.services.subscription import _plan_snapshot
+    from src.core.enums import Currency, PurchaseType
+    from src.core.enums import TransactionStatus as TS
+    from src.core.enums import TransactionType as TT
+    from src.infrastructure.database.models.transaction import Transaction
+    from src.infrastructure.di import AppContainer
+
+    c = cast(AppContainer, container)
+    async with c.uow() as uow:
+        sub = await uow.subscriptions.get(subscription_id)
+        if sub is None or not sub.autopay_enabled or sub.plan_id is None:
+            return False
+        user = await uow.users.get(sub.user_id)
+        plan = await uow.plans.get_with_durations(sub.plan_id)
+        if user is None or plan is None or not plan.durations:
+            return False
+        duration = next(
+            (d for d in plan.durations if d.days == sub.autopay_period_days), plan.durations[0]
+        )
+        req = PurchaseRequest(
+            user_id=user.id,
+            plan_id=plan.id,
+            duration_days=duration.days,
+            currency=Currency.RUB,
+            purchase_type=PurchaseType.RENEW,
+            subscription_id=sub.id,
+        )
+        quote = await c.pricing.quote(uow, req)
+        price = quote.final.amount_minor
+        if user.balance_minor < price:
+            return False  # insufficient balance — user keeps autopay on for next window
+
+        await uow.users.increment_balance(user, -price)
+        await uow.transactions.add(
+            Transaction(
+                user_id=user.id,
+                type=TT.SUBSCRIPTION_PAYMENT,
+                status=TS.COMPLETED,
+                amount_minor=price,
+                currency=Currency.RUB,
+                purchase_type=PurchaseType.RENEW,
+                plan_snapshot=_plan_snapshot(plan),
+                pricing={"duration_days": duration.days, "subscription_id": sub.id},
+            )
+        )
+        await c.subscriptions.renew(uow, sub, days=duration.days, telegram_id=user.telegram_id)
+        await uow.commit()
+        telegram_id = user.telegram_id
+    if telegram_id is not None:
+        await c.notifier.notify_user(telegram_id, "🔁 Автопродление выполнено — подписка продлена.")
+    return True

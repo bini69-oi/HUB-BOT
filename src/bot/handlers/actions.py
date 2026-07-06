@@ -9,6 +9,7 @@ from aiogram.types import CallbackQuery, InlineKeyboardButton, InlineKeyboardMar
 
 from src.application.dto.pricing import PurchaseRequest
 from src.application.services.connection import CLIENT_LABELS, build_deep_links
+from src.bot.gate import ensure_channel
 from src.bot.keyboards import menu_keyboard, simple_keyboard, url_keyboard, webapp_button
 from src.bot.menu_render import send_main_menu
 from src.core.enums import Currency, PurchaseType, TransactionStatus, TransactionType
@@ -77,6 +78,7 @@ async def act_subscription(cb: CallbackQuery, container: AppContainer, db_user: 
         )
         hide_link = bool(await container.bot_config.value(uow, "HIDE_SUBSCRIPTION_LINK"))
         miniapp_url = str(await container.bot_config.value(uow, "SUBSCRIPTION_MINI_APP_URL") or "")
+        autopay_global = bool(await container.bot_config.value(uow, "AUTO_RENEWAL_ENABLED"))
     if sub is None or not sub.status.is_usable:
         text = "У тебя пока нет активной подписки."
         markup = simple_keyboard([("🛒 Купить VPN", "act:buy:0"), ("‹ Меню", "nav:root")])
@@ -98,6 +100,15 @@ async def act_subscription(cb: CallbackQuery, container: AppContainer, db_user: 
             [InlineKeyboardButton(text="🔌 Подключить", callback_data="act:connect:0")],
             [InlineKeyboardButton(text="🔄 Продлить", callback_data=f"plan:{sub.plan_id or 0}")],
         ]
+        if autopay_global:
+            mark = "✅" if sub.autopay_enabled else "❌"
+            kb.append(
+                [
+                    InlineKeyboardButton(
+                        text=f"🔁 Автопродление: {mark}", callback_data="autopay:toggle"
+                    )
+                ]
+            )
         if miniapp_url.startswith("https://"):
             kb.append([webapp_button("📱 Открыть приложение", miniapp_url)])
         kb.append([InlineKeyboardButton(text="‹ Меню", callback_data="nav:root")])
@@ -105,6 +116,24 @@ async def act_subscription(cb: CallbackQuery, container: AppContainer, db_user: 
     if cb.message is not None:
         await cb.message.edit_text(text, reply_markup=markup, parse_mode="HTML")  # type: ignore[union-attr]
     await cb.answer()
+
+
+@router.callback_query(F.data == "autopay:toggle")
+async def autopay_toggle(cb: CallbackQuery, container: AppContainer, db_user: User) -> None:
+    async with container.uow() as uow:
+        sub = (
+            await uow.subscriptions.get(db_user.current_subscription_id)
+            if db_user.current_subscription_id
+            else None
+        )
+        if sub is None:
+            await cb.answer("Нет активной подписки", show_alert=True)
+            return
+        sub.autopay_enabled = not sub.autopay_enabled
+        await uow.commit()
+        enabled = sub.autopay_enabled
+    await cb.answer("Автопродление включено ✅" if enabled else "Автопродление выключено ❌")
+    await act_subscription(cb, container, db_user)
 
 
 @router.callback_query(F.data.startswith("act:connect"))
@@ -232,6 +261,8 @@ async def act_referral(cb: CallbackQuery, container: AppContainer, db_user: User
 
 @router.callback_query(F.data.startswith("act:trial"))
 async def act_trial(cb: CallbackQuery, container: AppContainer, db_user: User) -> None:
+    if not await ensure_channel(cb, container):  # channel-lock (#1)
+        return
     async with container.uow() as uow:
         cfg = container.bot_config
         if not bool(await cfg.value(uow, "TRIAL_ENABLED")):

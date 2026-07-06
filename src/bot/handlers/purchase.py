@@ -14,6 +14,7 @@ from aiogram import F, Router
 from aiogram.types import CallbackQuery, LabeledPrice, Message, PreCheckoutQuery
 
 from src.application.dto.pricing import PurchaseRequest
+from src.bot.gate import ensure_channel
 from src.bot.keyboards import simple_keyboard
 from src.core.enums import Currency, PurchaseType, TransactionStatus, TransactionType
 from src.core.exceptions import DomainError, RemnawaveError
@@ -35,6 +36,8 @@ def fmt_money(minor: int) -> str:
 
 
 async def show_plans(cb: CallbackQuery, container: AppContainer, db_user: User) -> None:
+    if not await ensure_channel(cb, container):  # channel-lock (#1)
+        return
     async with container.uow() as uow:
         plans = [p for p in await uow.plans.list_with_durations() if p.is_active and not p.is_trial]
     if not plans:
@@ -52,6 +55,13 @@ async def show_plans(cb: CallbackQuery, container: AppContainer, db_user: User) 
     if cb.message is not None:
         await cb.message.edit_text("Выбери тариф:", reply_markup=simple_keyboard(rows))  # type: ignore[union-attr]
     await cb.answer()
+
+
+@router.callback_query(F.data == "check:sub")
+async def check_sub(cb: CallbackQuery, container: AppContainer, db_user: User) -> None:
+    """'Я подписался' — re-check channel membership, then open the plans on success."""
+    if await ensure_channel(cb, container):
+        await show_plans(cb, container, db_user)
 
 
 @router.callback_query(F.data.startswith("plan:"))
