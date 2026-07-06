@@ -17,6 +17,22 @@ from types import TracebackType
 
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
+from src.infrastructure.database.dao.admin import (
+    AuditLogDAO,
+    BotConfigValueDAO,
+    BroadcastDAO,
+    CampaignDAO,
+    ConstructorPeriodDAO,
+    HolidayDAO,
+    MenuNodeDAO,
+    MiniappConfigDAO,
+    ReportTopicDAO,
+    ServerNodeDAO,
+    SmartReminderDAO,
+    TicketDAO,
+    TicketMessageDAO,
+    TrafficPackDAO,
+)
 from src.infrastructure.database.dao.catalog import (
     PaymentGatewayDAO,
     PlanDAO,
@@ -56,6 +72,21 @@ class UnitOfWork:
         self.promocode_activations = PromocodeActivationDAO(session)
         self.referrals = ReferralDAO(session)
         self.referral_earnings = ReferralEarningDAO(session)
+        # --- admin cabinet aggregates --------------------------------------
+        self.bot_config = BotConfigValueDAO(session)
+        self.menu_nodes = MenuNodeDAO(session)
+        self.miniapp = MiniappConfigDAO(session)
+        self.broadcasts = BroadcastDAO(session)
+        self.smart_reminder = SmartReminderDAO(session)
+        self.holidays = HolidayDAO(session)
+        self.campaigns = CampaignDAO(session)
+        self.tickets = TicketDAO(session)
+        self.ticket_messages = TicketMessageDAO(session)
+        self.report_topics = ReportTopicDAO(session)
+        self.server_nodes = ServerNodeDAO(session)
+        self.audit = AuditLogDAO(session)
+        self.constructor_periods = ConstructorPeriodDAO(session)
+        self.traffic_packs = TrafficPackDAO(session)
         return self
 
     async def __aexit__(

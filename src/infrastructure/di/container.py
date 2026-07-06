@@ -10,6 +10,8 @@ from __future__ import annotations
 from redis.asyncio import Redis
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker
 
+from src.application.services.bot_config import BotConfigService
+from src.application.services.panel_sync import PanelSyncService
 from src.application.services.payment import PaymentService
 from src.application.services.pricing import PricingService
 from src.application.services.promo import PromoService
@@ -58,6 +60,8 @@ class AppContainer:
         self.payments = PaymentService(self.purchase, self.event_bus)
         self.referrals = ReferralService(self.event_bus)
         self.promo = PromoService()
+        self.bot_config = BotConfigService(self.secret_box)
+        self.panel_sync = PanelSyncService(self.remnawave_client)
 
     @classmethod
     def from_env(cls) -> AppContainer:

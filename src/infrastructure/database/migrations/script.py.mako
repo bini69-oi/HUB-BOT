@@ -11,6 +11,8 @@ from collections.abc import Sequence
 
 from alembic import op
 import sqlalchemy as sa
+
+import src.infrastructure.database.base  # noqa: F401  (custom column types in autogen)
 ${imports if imports else ""}
 
 revision: str = ${repr(up_revision)}

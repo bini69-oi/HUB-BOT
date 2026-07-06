@@ -12,6 +12,7 @@ from functools import lru_cache
 from pydantic import model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+from src.core.config.admin import AdminSettings
 from src.core.config.app import AppSettings, Env
 from src.core.config.bot import BotSettings
 from src.core.config.database import DatabaseSettings
@@ -32,6 +33,7 @@ class Settings(BaseSettings):
         extra="ignore",
     )
 
+    admin: AdminSettings = AdminSettings()
     app: AppSettings = AppSettings()
     bot: BotSettings = BotSettings()
     database: DatabaseSettings = DatabaseSettings()

@@ -245,6 +245,11 @@ class RemnawaveHttpClient:
                 uuid=uuid.UUID(str(n["uuid"])),
                 name=str(n.get("name") or ""),
                 is_online=bool(n.get("isConnected") or n.get("isOnline")),
+                country_code=(n.get("countryCode") or None),
+                address=(n.get("address") or None),
+                users_online=int(n.get("usersOnline") or 0),
+                traffic_used_bytes=int(n.get("trafficUsedBytes") or 0),
+                is_disabled=bool(n.get("isDisabled")),
             )
             for n in items
         ]

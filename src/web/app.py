@@ -15,7 +15,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from src.core.config import get_settings
 from src.core.logging import configure_logging
 from src.infrastructure.di import AppContainer
-from src.web.routes import health, panel, payments
+from src.web.routes import admin, health, panel, payments
+from src.web.routes.admin.auth import bootstrap_admin
 
 
 @asynccontextmanager
@@ -24,6 +25,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     configure_logging(level=settings.log.level, json=settings.log.use_json)
     container = AppContainer(settings)
     app.state.container = container
+    await bootstrap_admin(container)
     try:
         yield
     finally:
@@ -44,6 +46,7 @@ def create_app() -> FastAPI:
     app.include_router(health.router)
     app.include_router(payments.router)
     app.include_router(panel.router)
+    app.include_router(admin.router)
     return app
 
 

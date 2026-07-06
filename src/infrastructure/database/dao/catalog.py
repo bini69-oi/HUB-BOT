@@ -2,10 +2,15 @@
 
 from __future__ import annotations
 
+from collections.abc import Sequence
+
+from sqlalchemy import select
+from sqlalchemy.orm import selectinload
+
 from src.core.enums import PaymentGatewayType
 from src.infrastructure.database.dao.base import BaseDAO
 from src.infrastructure.database.models.payment_gateway import PaymentGateway
-from src.infrastructure.database.models.plan import Plan
+from src.infrastructure.database.models.plan import Plan, PlanDuration
 from src.infrastructure.database.models.promo_group import PromoGroup
 from src.infrastructure.database.models.server_squad import ServerSquad
 from src.infrastructure.database.models.settings import Settings
@@ -16,6 +21,22 @@ class PlanDAO(BaseDAO[Plan]):
 
     async def get_by_code(self, public_code: str) -> Plan | None:
         return await self.find_one(public_code=public_code)
+
+    async def list_with_durations(self) -> Sequence[Plan]:
+        stmt = (
+            select(Plan)
+            .options(selectinload(Plan.durations).selectinload(PlanDuration.prices))
+            .order_by(Plan.order_index, Plan.id)
+        )
+        return (await self.session.scalars(stmt)).all()
+
+    async def get_with_durations(self, plan_id: int) -> Plan | None:
+        stmt = (
+            select(Plan)
+            .options(selectinload(Plan.durations).selectinload(PlanDuration.prices))
+            .where(Plan.id == plan_id)
+        )
+        return (await self.session.scalars(stmt)).first()
 
 
 class ServerSquadDAO(BaseDAO[ServerSquad]):

@@ -9,6 +9,7 @@ from src.infrastructure.database.models.audit_log import AuditLog
 from src.infrastructure.database.models.bot_config import BotConfigValue
 from src.infrastructure.database.models.broadcast import Broadcast
 from src.infrastructure.database.models.campaign import Campaign
+from src.infrastructure.database.models.constructor import ConstructorPeriod, TrafficPack
 from src.infrastructure.database.models.holiday import Holiday
 from src.infrastructure.database.models.menu_node import MenuNode
 from src.infrastructure.database.models.miniapp_config import MiniappConfig
@@ -33,6 +34,7 @@ __all__ = [
     "BotConfigValue",
     "Broadcast",
     "Campaign",
+    "ConstructorPeriod",
     "Holiday",
     "MenuNode",
     "MiniappConfig",
@@ -53,6 +55,7 @@ __all__ = [
     "Subscription",
     "Ticket",
     "TicketMessage",
+    "TrafficPack",
     "Transaction",
     "User",
     "UserPromoGroup",

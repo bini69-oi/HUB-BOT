@@ -40,6 +40,11 @@ class PanelNode:
     uuid: uuid.UUID
     name: str
     is_online: bool
+    country_code: str | None = None
+    address: str | None = None
+    users_online: int = 0
+    traffic_used_bytes: int = 0
+    is_disabled: bool = False
 
 
 @dataclass(frozen=True, slots=True)
