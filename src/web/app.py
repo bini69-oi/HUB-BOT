@@ -8,15 +8,20 @@ from __future__ import annotations
 
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
+from pathlib import Path
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 
 from src.core.config import get_settings
 from src.core.logging import configure_logging
 from src.infrastructure.di import AppContainer
 from src.web.routes import admin, health, panel, payments
 from src.web.routes.admin.auth import bootstrap_admin
+
+# Built admin SPA (admin/dist) — mounted when present (dev runs vite instead).
+_ADMIN_DIST = Path(__file__).resolve().parents[2] / "admin" / "dist"
 
 
 @asynccontextmanager
@@ -47,6 +52,8 @@ def create_app() -> FastAPI:
     app.include_router(payments.router)
     app.include_router(panel.router)
     app.include_router(admin.router)
+    if _ADMIN_DIST.is_dir():
+        app.mount("/admin", StaticFiles(directory=_ADMIN_DIST, html=True), name="admin-spa")
     return app
 
 

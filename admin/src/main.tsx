@@ -1,0 +1,72 @@
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { StrictMode } from "react";
+import { createRoot } from "react-dom/client";
+import { createHashRouter, Navigate, RouterProvider } from "react-router-dom";
+
+import Layout from "./components/Layout";
+import { getToken } from "./api/client";
+import { AppProvider } from "./state/app";
+import "./theme.css";
+
+import Broadcasts from "./screens/Broadcasts";
+import BotButtons from "./screens/BotButtons";
+import Campaigns from "./screens/Campaigns";
+import Dashboard from "./screens/Dashboard";
+import Login from "./screens/Login";
+import Maintenance from "./screens/Maintenance";
+import Miniapp from "./screens/Miniapp";
+import Payments from "./screens/Payments";
+import Promos from "./screens/Promos";
+import Servers from "./screens/Servers";
+import Settings from "./screens/Settings";
+import Smart from "./screens/Smart";
+import Tariffs from "./screens/Tariffs";
+import Tickets from "./screens/Tickets";
+import Users from "./screens/Users";
+
+function Guard({ children }: { children: React.ReactElement }) {
+  if (!getToken()) return <Navigate to="/login" replace />;
+  return children;
+}
+
+const router = createHashRouter([
+  { path: "/login", element: <Login /> },
+  {
+    path: "/",
+    element: (
+      <Guard>
+        <Layout />
+      </Guard>
+    ),
+    children: [
+      { index: true, element: <Dashboard /> },
+      { path: "users", element: <Users /> },
+      { path: "tariffs", element: <Tariffs /> },
+      { path: "promos", element: <Promos /> },
+      { path: "bot-buttons", element: <BotButtons /> },
+      { path: "miniapp", element: <Miniapp /> },
+      { path: "broadcasts", element: <Broadcasts /> },
+      { path: "smart", element: <Smart /> },
+      { path: "campaigns", element: <Campaigns /> },
+      { path: "payments", element: <Payments /> },
+      { path: "tickets", element: <Tickets /> },
+      { path: "servers", element: <Servers /> },
+      { path: "settings", element: <Settings /> },
+      { path: "maintenance", element: <Maintenance /> },
+    ],
+  },
+]);
+
+const qc = new QueryClient({
+  defaultOptions: { queries: { retry: 1, refetchOnWindowFocus: false } },
+});
+
+createRoot(document.getElementById("root")!).render(
+  <StrictMode>
+    <QueryClientProvider client={qc}>
+      <AppProvider>
+        <RouterProvider router={router} />
+      </AppProvider>
+    </QueryClientProvider>
+  </StrictMode>,
+);
