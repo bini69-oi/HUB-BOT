@@ -144,31 +144,184 @@ async def payment_stats(
 
 # --- providers ----------------------------------------------------------------
 
+# Catalog: human name, payment methods, config fields the UI should render.
+# ``ready`` marks gateways whose charge flow is implemented in the base today;
+# the rest are UI-configurable and activate once their drop-in lands.
+PROVIDER_META: dict[PaymentGatewayType, dict[str, Any]] = {
+    PaymentGatewayType.TELEGRAM_STARS: {
+        "title": "Telegram Stars",
+        "methods": "XTR-инвойсы в боте и мини-аппе",
+        "fields": [],
+        "ready": True,
+        "emoji": "⭐",
+    },
+    PaymentGatewayType.MANUAL: {
+        "title": "Вручную / баланс",
+        "methods": "начисление админом",
+        "fields": [],
+        "ready": True,
+        "emoji": "💼",
+    },
+    PaymentGatewayType.YOOKASSA: {
+        "title": "YooKassa",
+        "methods": "карта, СБП, SberPay",
+        "fields": ["shop_id", "secret_key"],
+        "ready": False,
+        "emoji": "🏦",
+    },
+    PaymentGatewayType.CRYPTOBOT: {
+        "title": "CryptoBot",
+        "methods": "USDT, TON, BTC",
+        "fields": ["api_token"],
+        "ready": False,
+        "emoji": "🤖",
+    },
+    PaymentGatewayType.CRYPTOMUS: {
+        "title": "Cryptomus",
+        "methods": "крипта, 15+ монет",
+        "fields": ["merchant_id", "api_key"],
+        "ready": False,
+        "emoji": "🪙",
+    },
+    PaymentGatewayType.TRIBUTE: {
+        "title": "Tribute",
+        "methods": "карта, подписки",
+        "fields": ["api_key"],
+        "ready": False,
+        "emoji": "💠",
+    },
+    PaymentGatewayType.PLATEGA: {
+        "title": "Platega",
+        "methods": "карта, СБП",
+        "fields": ["merchant_id", "secret"],
+        "ready": False,
+        "emoji": "🏦",
+    },
+    PaymentGatewayType.HELEKET: {
+        "title": "Heleket",
+        "methods": "крипта",
+        "fields": ["merchant_id", "api_key"],
+        "ready": False,
+        "emoji": "🪙",
+    },
+    PaymentGatewayType.WATA: {
+        "title": "WATA",
+        "methods": "карта, СБП",
+        "fields": ["api_key"],
+        "ready": False,
+        "emoji": "🏦",
+    },
+    PaymentGatewayType.FREEKASSA: {
+        "title": "Freekassa",
+        "methods": "карта, СБП, кошельки",
+        "fields": ["shop_id", "api_key", "secret1", "secret2"],
+        "ready": False,
+        "emoji": "🏦",
+    },
+    PaymentGatewayType.PAYPALYCH: {
+        "title": "PayPalych",
+        "methods": "карта, СБП",
+        "fields": ["api_token", "shop_id"],
+        "ready": False,
+        "emoji": "🏦",
+    },
+    PaymentGatewayType.CLOUDPAYMENTS: {
+        "title": "CloudPayments",
+        "methods": "карта",
+        "fields": ["public_id", "api_secret"],
+        "ready": False,
+        "emoji": "🏦",
+    },
+    PaymentGatewayType.MULENPAY: {
+        "title": "MulenPay",
+        "methods": "карта, СБП",
+        "fields": ["api_key", "secret_key", "shop_id"],
+        "ready": False,
+        "emoji": "🏦",
+    },
+    PaymentGatewayType.KASSA_AI: {
+        "title": "Kassa.ai",
+        "methods": "карта, СБП",
+        "fields": ["shop_id", "api_key"],
+        "ready": False,
+        "emoji": "🏦",
+    },
+    PaymentGatewayType.RIOPAY: {
+        "title": "RioPay",
+        "methods": "карта, СБП",
+        "fields": ["api_key"],
+        "ready": False,
+        "emoji": "🏦",
+    },
+    PaymentGatewayType.SEVERPAY: {
+        "title": "SeverPay",
+        "methods": "карта, СБП",
+        "fields": ["api_key", "shop_id"],
+        "ready": False,
+        "emoji": "🏦",
+    },
+    PaymentGatewayType.PAYPEAR: {
+        "title": "PayPear",
+        "methods": "карта, СБП",
+        "fields": ["api_key"],
+        "ready": False,
+        "emoji": "🏦",
+    },
+    PaymentGatewayType.AURAPAY: {
+        "title": "AuraPay",
+        "methods": "карта, СБП",
+        "fields": ["api_key", "merchant_id"],
+        "ready": False,
+        "emoji": "🏦",
+    },
+    PaymentGatewayType.OVERPAY: {
+        "title": "Overpay",
+        "methods": "карта, крипта",
+        "fields": ["api_key", "secret"],
+        "ready": False,
+        "emoji": "🏦",
+    },
+    PaymentGatewayType.ROLLYPAY: {
+        "title": "RollyPay",
+        "methods": "СБП, крипта",
+        "fields": ["api_key", "shop_id"],
+        "ready": False,
+        "emoji": "🏦",
+    },
+}
 
-def _provider_row(g: PaymentGateway) -> dict[str, Any]:
+
+def _provider_row(g: PaymentGateway | None, gtype: PaymentGatewayType) -> dict[str, Any]:
     # Secrets are never echoed: only which config keys are present.
+    meta = PROVIDER_META.get(
+        gtype,
+        {"title": gtype.value, "methods": "", "fields": [], "ready": False, "emoji": "🏦"},
+    )
     return {
-        "id": g.id,
-        "type": g.type.value,
-        "display_name": g.display_name or g.type.value,
-        "is_active": g.is_active,
-        "currency": g.currency.value,
-        "fee_bp": g.fee_bp,
-        "configured_keys": sorted(g.settings.keys()),
+        "id": g.id if g else None,
+        "type": gtype.value,
+        "title": meta["title"],
+        "emoji": meta["emoji"],
+        "methods": meta["methods"],
+        "fields": meta["fields"],
+        "ready": meta["ready"],
+        "display_name": (g.display_name if g else None) or meta["title"],
+        "is_active": g.is_active if g else False,
+        "currency": g.currency.value if g else "RUB",
+        "fee_bp": g.fee_bp if g else 0,
+        "configured_keys": sorted(g.settings.keys()) if g else [],
     }
 
 
 @router.get("/providers")
 async def list_providers(container: AppContainer = Depends(get_container)) -> dict[str, Any]:
     async with container.uow() as uow:
-        rows = await uow.payment_gateways.list()
-        known = {g.type for g in rows}
-        # Surface not-yet-created gateway types too, so the UI can offer to enable them.
-        missing = [t for t in PaymentGatewayType if t not in known]
-    return {
-        "items": [_provider_row(g) for g in sorted(rows, key=lambda g: g.order_index)],
-        "available_types": [t.value for t in missing],
-    }
+        rows = {g.type: g for g in await uow.payment_gateways.list()}
+    # One row per known type: configured gateways merged over the catalog.
+    items = [_provider_row(rows.get(gtype), gtype) for gtype in PROVIDER_META]
+    # Ready + active first, then ready, then the rest alphabetically.
+    items.sort(key=lambda p: (not p["is_active"], not p["ready"], p["title"].lower()))
+    return {"items": items}
 
 
 class ProviderIn(BaseModel):
@@ -222,7 +375,7 @@ async def upsert_provider(
             fee_bp=gw.fee_bp,
         )
         await uow.commit()
-        return _provider_row(gw)
+        return _provider_row(gw, gw.type)
 
 
 @router.post("/providers/{gateway_type}/test")

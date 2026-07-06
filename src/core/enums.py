@@ -160,6 +160,20 @@ class PaymentGatewayType(StrEnum):
     CRYPTOMUS = "cryptomus"
     CRYPTOBOT = "cryptobot"
     TRIBUTE = "tribute"
+    PLATEGA = "platega"
+    HELEKET = "heleket"
+    WATA = "wata"
+    FREEKASSA = "freekassa"
+    PAYPALYCH = "paypalych"
+    CLOUDPAYMENTS = "cloudpayments"
+    MULENPAY = "mulenpay"
+    KASSA_AI = "kassa_ai"
+    RIOPAY = "riopay"
+    SEVERPAY = "severpay"
+    PAYPEAR = "paypear"
+    AURAPAY = "aurapay"
+    OVERPAY = "overpay"
+    ROLLYPAY = "rollypay"
 
 
 class RewardType(StrEnum):

@@ -26,8 +26,13 @@ type Tx = {
   created_at: string | null;
 };
 type Provider = {
-  id: number;
+  id: number | null;
   type: string;
+  title: string;
+  emoji: string;
+  methods: string;
+  fields: string[];
+  ready: boolean;
   display_name: string;
   is_active: boolean;
   fee_bp: number;
@@ -61,8 +66,7 @@ export default function Payments() {
   });
   const providers = useQuery({
     queryKey: ["providers"],
-    queryFn: () =>
-      api.get<{ items: Provider[]; available_types: string[] }>("/api/admin/providers"),
+    queryFn: () => api.get<{ items: Provider[] }>("/api/admin/providers"),
   });
 
   const s = stats.data;
@@ -88,17 +92,7 @@ export default function Payments() {
     }
   }
 
-  const allProviders: Provider[] = [
-    ...(providers.data?.items ?? []),
-    ...(providers.data?.available_types ?? []).map((type, i) => ({
-      id: -1 - i,
-      type,
-      display_name: type,
-      is_active: false,
-      fee_bp: 0,
-      configured_keys: [],
-    })),
-  ];
+  const allProviders: Provider[] = providers.data?.items ?? [];
 
   return (
     <>
@@ -219,49 +213,87 @@ export default function Payments() {
         <div className="tbl">
           {allProviders.map((p) => (
             <div key={p.type}>
-              <div className="tr" style={{ gridTemplateColumns: "auto 1.6fr 1fr 1fr auto auto" }}>
-                <span className={`st ${p.is_active ? "on" : "off"}`}>{p.is_active ? "●" : "○"}</span>
-                <b style={{ fontWeight: 500 }}>{p.display_name}</b>
-                <span className="row" style={{ gap: 6 }}>
-                  <input
-                    className="input num"
-                    style={{ width: 76 }}
-                    type="number"
-                    step="0.1"
-                    defaultValue={(p.fee_bp / 100).toFixed(1)}
-                    onBlur={(e) =>
-                      void saveProvider(p.type, {
-                        fee_bp: Math.round(Number(e.target.value) * 100) || 0,
-                      })
-                    }
+              <div
+                className="tr click"
+                style={{ gridTemplateColumns: "auto auto 1.5fr 1.2fr 1fr auto auto" }}
+                onClick={() => setExpanded(expanded === p.type ? null : p.type)}
+              >
+                <span className={`st ${p.is_active ? "on" : "off"}`}>
+                  {p.is_active ? "●" : "○"}
+                </span>
+                <span style={{ fontSize: 16 }}>{p.emoji}</span>
+                <span style={{ minWidth: 0 }}>
+                  <b style={{ fontWeight: 600 }}>{p.display_name}</b>
+                  <div className="dim" style={{ fontSize: 11.5 }}>
+                    {p.title} · {p.methods}
+                  </div>
+                </span>
+                <span className="mono dim" style={{ fontSize: 11 }}>
+                  {p.configured_keys.length
+                    ? `✓ ${p.configured_keys.join(" · ")}`
+                    : p.fields.length
+                      ? "не настроен"
+                      : "без ключей"}
+                </span>
+                <span className={`cap-pill ${p.ready ? "" : "dim"}`}>
+                  {p.ready ? "встроен" : "drop-in"}
+                </span>
+                <span onClick={(e) => e.stopPropagation()}>
+                  <Toggle
+                    on={p.is_active}
+                    onChange={(v) => void saveProvider(p.type, { is_active: v })}
                   />
-                  <span className="dim" style={{ fontSize: 12 }}>
-                    {t.feePct}
-                  </span>
                 </span>
-                <span className="mono dim">
-                  {p.configured_keys.length ? p.configured_keys.join(" · ") : "—"}
-                </span>
-                <Toggle on={p.is_active} onChange={(v) => void saveProvider(p.type, { is_active: v })} />
-                <button
-                  className="btn secondary sm"
-                  onClick={() => setExpanded(expanded === p.type ? null : p.type)}
-                >
-                  ▾
-                </button>
+                <span className="dim">{expanded === p.type ? "▴" : "▾"}</span>
               </div>
               {expanded === p.type && (
-                <div className="tr" style={{ gridTemplateColumns: "1fr", background: "var(--panel2)" }}>
-                  <div className="grid" style={{ gap: 10, maxWidth: 520 }}>
-                    {["api_key", "merchant_id", "webhook_secret"].map((k) => (
+                <div
+                  className="tr"
+                  style={{ gridTemplateColumns: "1fr", background: "var(--panel2)" }}
+                >
+                  <div className="grid" style={{ gap: 10, maxWidth: 560 }}>
+                    <label className="row">
+                      <span className="caps" style={{ width: 130, flex: "0 0 auto" }}>
+                        {t.providerTitle}
+                      </span>
+                      <input
+                        className="input"
+                        style={{ flex: 1 }}
+                        placeholder={p.title}
+                        defaultValue={p.display_name}
+                        onBlur={(e) => {
+                          const v = e.target.value.trim();
+                          if (v && v !== p.display_name)
+                            void saveProvider(p.type, { display_name: v });
+                        }}
+                      />
+                    </label>
+                    <label className="row">
+                      <span className="caps" style={{ width: 130, flex: "0 0 auto" }}>
+                        {t.feePct}
+                      </span>
+                      <input
+                        className="input num"
+                        style={{ width: 90 }}
+                        type="number"
+                        step="0.1"
+                        defaultValue={(p.fee_bp / 100).toFixed(1)}
+                        onBlur={(e) =>
+                          void saveProvider(p.type, {
+                            fee_bp: Math.round(Number(e.target.value) * 100) || 0,
+                          })
+                        }
+                      />
+                    </label>
+                    {p.fields.map((k) => (
                       <label key={k} className="row">
                         <span className="caps" style={{ width: 130, flex: "0 0 auto" }}>
-                          {k.replace("_", " ")}
+                          {k.replace(/_/g, " ")}
                         </span>
                         <input
                           className="input mono"
                           style={{ flex: 1 }}
-                          type={k === "merchant_id" ? "text" : "password"}
+                          type={/id$/.test(k) ? "text" : "password"}
                           placeholder={p.configured_keys.includes(k) ? "••••••••" : ""}
                           value={draft[`${p.type}.${k}`] ?? ""}
                           onChange={(e) =>
@@ -278,7 +310,7 @@ export default function Payments() {
                         className="btn primary sm"
                         onClick={() => {
                           const settings: Record<string, string> = {};
-                          for (const k of ["api_key", "merchant_id", "webhook_secret"]) {
+                          for (const k of p.fields) {
                             const v = draft[`${p.type}.${k}`];
                             if (v) settings[k] = v;
                           }
@@ -287,6 +319,11 @@ export default function Payments() {
                       >
                         {t.save}
                       </button>
+                      {!p.ready && (
+                        <span className="dim" style={{ fontSize: 11.5 }}>
+                          {t.providerDropinNote}
+                        </span>
+                      )}
                     </div>
                   </div>
                 </div>

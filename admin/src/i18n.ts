@@ -202,6 +202,8 @@ const ru = {
   refunds: "Возвраты",
   feePct: "комиссия %",
   checkApi: "Проверить API и баланс",
+  providerTitle: "Название для юзера",
+  providerDropinNote: "Ключи сохранятся — способ включится, когда подключим провайдера",
   providerShares: "Доли провайдеров",
   // tickets
   supportChannels: "Каналы поддержки",
@@ -436,6 +438,8 @@ const en: typeof ru = {
   refunds: "Refunds",
   feePct: "fee %",
   checkApi: "Check API & balance",
+  providerTitle: "Customer-facing name",
+  providerDropinNote: "Keys are saved — the method activates once the provider lands",
   providerShares: "Provider shares",
   supportChannels: "Support channels",
   sepBot: "Separate TG bot",
