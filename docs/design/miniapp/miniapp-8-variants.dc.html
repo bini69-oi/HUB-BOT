@@ -1,0 +1,1229 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet data-dc-atomics>
+<meta name="design_doc_mode" content="canvas">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="anonymous">
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif&family=Nunito:wght@600;700;800;900&family=JetBrains+Mono:wght@400;600;700&family=Archivo+Black&family=Unbounded:wght@700&display=swap" rel="stylesheet">
+<style>body{margin:0;background:#F0EEE9;font-family:system-ui,sans-serif}.dv-turn{padding:40px 44px 32px;border-bottom:1px solid rgba(0,0,0,.08);scroll-margin-top:16px}.dv-thd{display:flex;align-items:baseline;gap:10px;margin:0 0 14px}.dv-tid{font:600 10px ui-monospace,Menlo,monospace;padding:3px 7px;background:#1a1a1a;color:#fff;border-radius:4px;text-decoration:none}.dv-tname{font:600 13px/1.2 system-ui,sans-serif;color:#1a1a1a}.dv-opts{display:flex;flex-wrap:wrap;gap:36px;align-items:flex-start}.dv-opt{flex:none;display:flex;flex-direction:column;gap:10px;scroll-margin-top:16px}.dv-oid{font:600 10.5px ui-monospace,Menlo,monospace;padding:3px 7px;background:rgba(0,0,0,.08);color:#1a1a1a;border-radius:5px;text-decoration:none}.dv-olabel{display:flex;align-items:baseline;gap:8px;font:400 11.5px/1.3 system-ui,sans-serif;color:rgba(0,0,0,.55)}.dv-opt:target .dv-oid{background:#2a78d6;color:#fff}.dv-next{margin:24px 0 0;font:12px/1.5 system-ui,sans-serif;color:rgba(0,0,0,.5)}</style>
+</helmet>
+<section class="dv-turn" id="t2">
+  <div class="dv-thd"><a class="dv-tid" href="#t2">2</a><span class="dv-tname">Ещё пять направлений · вкладка «Подключение» везде — инструкция: приложение → персональная ссылка (Remnawave) → автонастройка</span></div>
+  <div style="{{ chromeVars }}">
+    <div style="display:flex;flex-wrap:wrap;gap:14px;align-items:center;margin:0 0 24px">
+      <div style="display:inline-flex;background:rgba(0,0,0,0.07);border-radius:99px;padding:3px;gap:2px">
+        <button onClick="{{ ui.light }}" style="border:0;border-radius:99px;padding:6px 14px;font-size:12.5px;font-weight:600;cursor:pointer;font-family:inherit;background:var(--tl,#1A1A1A);color:var(--tlc,#FFFFFF)">Светлая</button>
+        <button onClick="{{ ui.dark }}" style="border:0;border-radius:99px;padding:6px 14px;font-size:12.5px;font-weight:600;cursor:pointer;font-family:inherit;background:var(--td,transparent);color:var(--tdc,#6B6B6B)">Тёмная</button>
+      </div>
+      <div style="display:inline-flex;background:rgba(0,0,0,0.07);border-radius:99px;padding:3px;gap:2px">
+        <button onClick="{{ ui.ru }}" style="border:0;border-radius:99px;padding:6px 14px;font-size:12.5px;font-weight:600;cursor:pointer;font-family:inherit;background:var(--lr,#1A1A1A);color:var(--lrc,#FFFFFF)">RU</button>
+        <button onClick="{{ ui.en }}" style="border:0;border-radius:99px;padding:6px 14px;font-size:12.5px;font-weight:600;cursor:pointer;font-family:inherit;background:var(--le,transparent);color:var(--lec,#6B6B6B)">EN</button>
+      </div>
+      <span style="font-size:12px;color:rgba(0,0,0,0.45)">Кнопка «Получить ссылку» на экране «Подключение» — кликабельна</span>
+    </div>
+  </div>
+  <div class="dv-opts" style="{{ rowVars }}">
+
+    <div class="dv-opt" id="2a" data-screen-label="2a Нативный">
+      <div class="dv-olabel"><a class="dv-oid" href="#2a">2a</a><span>«Нативный» — как продолжение Telegram: системные списки, синий акцент</span></div>
+      <x-import component-from-global-scope="IOSDevice" from="./ios-frame.jsx" dark="{{ isDark }}" hint-size="402,874">
+        <div style="{{ vd }}">
+          <div style="height:100%;display:flex;flex-direction:column;overflow:hidden;background:var(--bg,#EFEFF4);color:var(--ink,#0A0A0A);font-family:-apple-system,BlinkMacSystemFont,'SF Pro Text','Helvetica Neue',sans-serif;line-height:1.35;transition:background-color .3s">
+            <div style="padding:58px 12px 0;background:var(--bg,#EFEFF4)">
+              <div style="display:flex;align-items:center;height:46px">
+                <div style="flex:1;display:flex"><button style="background:none;border:0;padding:4px 2px;font-family:inherit;font-size:16px;color:var(--acc,#2AA0DC);cursor:pointer"><span style="display:var(--ru,inline)">Закрыть</span><span style="display:var(--en,none)">Close</span></button></div>
+                <div style="font-size:16.5px;font-weight:600">VPN</div>
+                <div style="flex:1;display:flex;justify-content:flex-end"><div style="display:flex;align-items:center;border:1px solid var(--line,#E5E5EA);border-radius:99px;background:var(--card,#FFFFFF)"><span style="padding:3px 10px;color:var(--sub,#8E8E93);font-size:13px;letter-spacing:1px">•••</span><span style="width:1px;height:16px;background:var(--line,#E5E5EA)"></span><span style="padding:3px 10px;color:var(--sub,#8E8E93);font-size:11px">⌄</span></div></div>
+              </div>
+            </div>
+
+            <div data-screen-label="2a Главная" style="flex:1;min-height:0;overflow-y:auto;padding:10px 16px 16px;display:var(--sH,block)">
+              <div style="background:var(--card,#FFFFFF);border-radius:16px;overflow:hidden;margin-top:6px">
+                <div style="display:flex;align-items:center;gap:8px;padding:13px 16px;border-bottom:1px solid var(--line,#E5E5EA)">
+                  <span style="width:9px;height:9px;border-radius:50%;background:var(--ok,#34C759)"></span>
+                  <span style="flex:1;font-size:15px;font-weight:600"><span style="display:var(--ru,inline)">Подписка активна</span><span style="display:var(--en,none)">Subscription active</span></span>
+                  <span style="font-size:13px;color:var(--sub,#8E8E93)"><span style="display:var(--ru,inline)">до {{ tillRu }}</span><span style="display:var(--en,none)">until {{ tillEn }}</span></span>
+                </div>
+                <div style="padding:16px;border-bottom:1px solid var(--line,#E5E5EA)">
+                  <div style="display:flex;align-items:baseline;gap:8px">
+                    <span style="font-size:36px;font-weight:700;letter-spacing:-1px;line-height:1">{{ days }}</span>
+                    <span style="font-size:14px;color:var(--sub,#8E8E93)"><span style="display:var(--ru,inline)">{{ dayRu }} осталось</span><span style="display:var(--en,none)">days left</span></span>
+                  </div>
+                  <div style="height:5px;border-radius:3px;background:var(--chip,#F2F2F7);margin-top:12px;overflow:hidden"><div style="height:100%;width:var(--prog,25.6%);border-radius:3px;background:var(--acc,#2AA0DC)"></div></div>
+                </div>
+                <button style="width:100%;background:none;border:0;padding:14px;font-family:inherit;font-size:16px;font-weight:600;color:var(--acc,#2AA0DC);cursor:pointer"><span style="display:var(--ru,inline)">Продлить</span><span style="display:var(--en,none)">Renew</span></button>
+              </div>
+
+              <div style="font-size:13px;color:var(--sub,#8E8E93);text-transform:uppercase;letter-spacing:0.4px;margin:18px 16px 7px"><span style="display:var(--ru,inline)">Тариф</span><span style="display:var(--en,none)">Plan</span></div>
+              <div style="background:var(--card,#FFFFFF);border-radius:16px;overflow:hidden">
+                <button onClick="{{ pl.d0 }}" style="width:100%;display:flex;align-items:center;gap:8px;background:none;border:0;border-bottom:1px solid var(--line,#E5E5EA);padding:13px 16px;font-family:inherit;cursor:pointer;text-align:left">
+                  <span style="flex:1;font-size:15px;color:var(--ink,#0A0A0A)"><span style="display:var(--ru,inline)">1 месяц</span><span style="display:var(--en,none)">1 month</span></span>
+                  <span style="font-size:14px;color:var(--sub,#8E8E93)"><span style="display:var(--ru,inline)">199 ₽</span><span style="display:var(--en,none)">$2.49</span></span>
+                  <span style="font-weight:700;color:var(--q0,transparent)">✓</span>
+                </button>
+                <button onClick="{{ pl.d1 }}" style="width:100%;display:flex;align-items:center;gap:8px;background:none;border:0;border-bottom:1px solid var(--line,#E5E5EA);padding:13px 16px;font-family:inherit;cursor:pointer;text-align:left">
+                  <span style="flex:1;font-size:15px;color:var(--ink,#0A0A0A)"><span style="display:var(--ru,inline)">3 месяца · −16%</span><span style="display:var(--en,none)">3 months · −16%</span></span>
+                  <span style="font-size:14px;color:var(--sub,#8E8E93)"><span style="display:var(--ru,inline)">499 ₽</span><span style="display:var(--en,none)">$5.99</span></span>
+                  <span style="font-weight:700;color:var(--q1,#2AA0DC)">✓</span>
+                </button>
+                <button onClick="{{ pl.d2 }}" style="width:100%;display:flex;align-items:center;gap:8px;background:none;border:0;padding:13px 16px;font-family:inherit;cursor:pointer;text-align:left">
+                  <span style="flex:1;font-size:15px;color:var(--ink,#0A0A0A)"><span style="display:var(--ru,inline)">12 месяцев · −38%</span><span style="display:var(--en,none)">12 months · −38%</span></span>
+                  <span style="font-size:14px;color:var(--sub,#8E8E93)"><span style="display:var(--ru,inline)">1 490 ₽</span><span style="display:var(--en,none)">$16.99</span></span>
+                  <span style="font-weight:700;color:var(--q2,transparent)">✓</span>
+                </button>
+              </div>
+
+              <div style="background:var(--card,#FFFFFF);border-radius:16px;overflow:hidden;margin-top:18px">
+                <button style="width:100%;display:flex;align-items:center;gap:8px;background:none;border:0;border-bottom:1px solid var(--line,#E5E5EA);padding:13px 16px;font-family:inherit;cursor:pointer;text-align:left">
+                  <span style="flex:1;font-size:15px;color:var(--ink,#0A0A0A)"><span style="display:var(--ru,inline)">Способы оплаты</span><span style="display:var(--en,none)">Payment methods</span></span>
+                  <span style="font-size:13px;color:var(--sub,#8E8E93)"><span style="display:var(--ru,inline)">СБП, карта, USDT, Stars</span><span style="display:var(--en,none)">SBP, card, USDT, Stars</span></span>
+                  <span style="color:var(--sub,#8E8E93)">›</span>
+                </button>
+                <button style="width:100%;display:flex;align-items:center;gap:8px;background:none;border:0;padding:13px 16px;font-family:inherit;cursor:pointer;text-align:left">
+                  <span style="flex:1;font-size:15px;color:var(--ink,#0A0A0A)"><span style="display:var(--ru,inline)">Пригласить друга</span><span style="display:var(--en,none)">Invite a friend</span></span>
+                  <span style="font-size:13px;color:var(--acc,#2AA0DC);font-weight:600"><span style="display:var(--ru,inline)">+7 дней</span><span style="display:var(--en,none)">+7 days</span></span>
+                  <span style="color:var(--sub,#8E8E93)">›</span>
+                </button>
+              </div>
+            </div>
+
+            <div data-screen-label="2a Подключение" style="flex:1;min-height:0;overflow-y:auto;padding:10px 16px 16px;display:var(--sC,none)">
+              <div style="font-size:13px;color:var(--sub,#8E8E93);margin:8px 4px 12px;line-height:1.45"><span style="display:var(--ru,inline)">VPN работает в отдельном приложении. Два шага — и готово.</span><span style="display:var(--en,none)">The VPN runs in a separate app. Two steps and you are set.</span></div>
+              <div style="font-size:13px;color:var(--sub,#8E8E93);text-transform:uppercase;letter-spacing:0.4px;margin:0 16px 7px"><span style="display:var(--ru,inline)">Шаг 1</span><span style="display:var(--en,none)">Step 1</span></div>
+              <div style="background:var(--card,#FFFFFF);border-radius:16px;padding:16px">
+                <div style="font-size:15.5px;font-weight:600"><span style="display:var(--ru,inline)">Скачайте приложение</span><span style="display:var(--en,none)">Get the app</span></div>
+                <div style="font-size:13px;color:var(--sub,#8E8E93);margin:5px 0 12px"><span style="display:var(--ru,inline)">Ваше устройство: iPhone — определили автоматически</span><span style="display:var(--en,none)">Your device: iPhone — detected automatically</span></div>
+                <button style="width:100%;background:var(--acc,#2AA0DC);color:var(--accInk,#FFFFFF);border:0;border-radius:12px;padding:13px;font-family:inherit;font-size:15px;font-weight:600;cursor:pointer"><span style="display:var(--ru,inline)">Скачать в App Store</span><span style="display:var(--en,none)">Get on the App Store</span></button>
+                <div style="text-align:center;font-size:12px;color:var(--sub,#8E8E93);margin-top:9px">iOS · Android · macOS · Windows</div>
+              </div>
+              <div style="font-size:13px;color:var(--sub,#8E8E93);text-transform:uppercase;letter-spacing:0.4px;margin:16px 16px 7px"><span style="display:var(--ru,inline)">Шаг 2</span><span style="display:var(--en,none)">Step 2</span></div>
+              <div style="background:var(--card,#FFFFFF);border-radius:16px;padding:16px">
+                <div style="font-size:15.5px;font-weight:600"><span style="display:var(--ru,inline)">Добавьте подписку</span><span style="display:var(--en,none)">Add your subscription</span></div>
+                <div style="font-size:13px;color:var(--sub,#8E8E93);margin:5px 0 12px"><span style="display:var(--ru,inline)">Ссылка настроит приложение автоматически</span><span style="display:var(--en,none)">The link configures the app automatically</span></div>
+                <button onClick="{{ lk.d }}" style="width:100%;background:var(--soft,#E7F4FC);color:var(--acc,#2AA0DC);border:0;border-radius:12px;padding:13px;font-family:inherit;font-size:15px;font-weight:600;cursor:pointer"><span style="display:var(--lki,inline)"><span style="display:var(--ru,inline)">Получить ссылку</span><span style="display:var(--en,none)">Get my link</span></span><span style="display:var(--lkoi,none)"><span style="display:var(--ru,inline)">Обновить ссылку</span><span style="display:var(--en,none)">Refresh the link</span></span></button>
+                <div style="display:var(--lk,none);margin-top:10px">
+                  <div style="background:var(--chip,#F2F2F7);border-radius:12px;padding:12px;font-family:ui-monospace,Menlo,monospace;font-size:12px;word-break:break-all">https://sub.vpn.app/u/8fk2…9a3</div>
+                  <button style="width:100%;background:var(--acc,#2AA0DC);color:var(--accInk,#FFFFFF);border:0;border-radius:12px;padding:13px;font-family:inherit;font-size:15px;font-weight:600;cursor:pointer;margin-top:8px"><span style="display:var(--ru,inline)">Открыть в приложении</span><span style="display:var(--en,none)">Open in the app</span></button>
+                  <button style="width:100%;background:none;color:var(--acc,#2AA0DC);border:0;padding:10px;font-family:inherit;font-size:14.5px;font-weight:600;cursor:pointer;margin-top:2px"><span style="display:var(--ru,inline)">Скопировать</span><span style="display:var(--en,none)">Copy</span></button>
+                </div>
+              </div>
+              <div style="text-align:center;font-size:12.5px;color:var(--sub,#8E8E93);margin-top:14px"><span style="display:var(--ru,inline)">Затем в приложении нажмите «Подключить»</span><span style="display:var(--en,none)">Then tap Connect in the app</span></div>
+            </div>
+
+            <div data-screen-label="2a Кабинет" style="flex:1;min-height:0;overflow-y:auto;padding:10px 16px 16px;display:var(--sK,none)">
+              <div style="display:flex;align-items:center;gap:14px;padding:12px 4px 16px">
+                <div style="width:54px;height:54px;border-radius:50%;background:var(--soft,#E7F4FC);color:var(--acc,#2AA0DC);display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:700">АК</div>
+                <div>
+                  <div style="font-size:17px;font-weight:700"><span style="display:var(--ru,inline)">Алексей</span><span style="display:var(--en,none)">Alexey</span></div>
+                  <div style="font-size:13px;color:var(--sub,#8E8E93)">@alex_k</div>
+                </div>
+              </div>
+              <div style="background:var(--card,#FFFFFF);border-radius:16px;overflow:hidden">
+                <div style="display:flex;align-items:center;gap:8px;border-bottom:1px solid var(--line,#E5E5EA);padding:13px 16px">
+                  <span style="flex:1;font-size:15px"><span style="display:var(--ru,inline)">Подписка</span><span style="display:var(--en,none)">Subscription</span></span>
+                  <span style="font-size:13px;color:var(--sub,#8E8E93)"><span style="display:var(--ru,inline)">до {{ tillRu }}</span><span style="display:var(--en,none)">until {{ tillEn }}</span></span>
+                </div>
+                <div style="display:flex;align-items:center;gap:8px;border-bottom:1px solid var(--line,#E5E5EA);padding:13px 16px">
+                  <span style="flex:1;font-size:15px"><span style="display:var(--ru,inline)">Устройства</span><span style="display:var(--en,none)">Devices</span></span>
+                  <span style="font-size:13px;color:var(--sub,#8E8E93)"><span style="display:var(--ru,inline)">2 из 5</span><span style="display:var(--en,none)">2 of 5</span></span>
+                </div>
+                <button style="width:100%;display:flex;align-items:center;gap:8px;background:none;border:0;border-bottom:1px solid var(--line,#E5E5EA);padding:13px 16px;font-family:inherit;cursor:pointer;text-align:left">
+                  <span style="flex:1;font-size:15px;color:var(--ink,#0A0A0A)"><span style="display:var(--ru,inline)">История платежей</span><span style="display:var(--en,none)">Payment history</span></span>
+                  <span style="color:var(--sub,#8E8E93)">›</span>
+                </button>
+                <button style="width:100%;display:flex;align-items:center;gap:8px;background:none;border:0;border-bottom:1px solid var(--line,#E5E5EA);padding:13px 16px;font-family:inherit;cursor:pointer;text-align:left">
+                  <span style="flex:1;font-size:15px;color:var(--ink,#0A0A0A)"><span style="display:var(--ru,inline)">Реферальная программа</span><span style="display:var(--en,none)">Referral program</span></span>
+                  <span style="color:var(--sub,#8E8E93)">›</span>
+                </button>
+                <button style="width:100%;display:flex;align-items:center;gap:8px;background:none;border:0;padding:13px 16px;font-family:inherit;cursor:pointer;text-align:left">
+                  <span style="flex:1;font-size:15px;color:var(--ink,#0A0A0A)"><span style="display:var(--ru,inline)">Поддержка</span><span style="display:var(--en,none)">Support</span></span>
+                  <span style="color:var(--sub,#8E8E93)">›</span>
+                </button>
+              </div>
+            </div>
+
+            <div style="display:flex;border-top:1px solid var(--line,#E5E5EA);background:var(--tabbg,#F9F9F9);padding:6px 10px 24px">
+              <button onClick="{{ nav.dH }}" style="flex:1;background:none;border:0;padding:9px 4px;font-family:inherit;font-size:12.5px;font-weight:600;color:var(--tH,#2AA0DC);cursor:pointer"><span style="display:var(--ru,inline)">Главная</span><span style="display:var(--en,none)">Home</span></button>
+              <button onClick="{{ nav.dC }}" style="flex:1;background:none;border:0;padding:9px 4px;font-family:inherit;font-size:12.5px;font-weight:600;color:var(--tC,#8E8E93);cursor:pointer"><span style="display:var(--ru,inline)">Подключение</span><span style="display:var(--en,none)">Connect</span></button>
+              <button onClick="{{ nav.dK }}" style="flex:1;background:none;border:0;padding:9px 4px;font-family:inherit;font-size:12.5px;font-weight:600;color:var(--tK,#8E8E93);cursor:pointer"><span style="display:var(--ru,inline)">Кабинет</span><span style="display:var(--en,none)">Account</span></button>
+            </div>
+          </div>
+        </div>
+      </x-import>
+    </div>
+
+    <div class="dv-opt" id="2b" data-screen-label="2b Терминал">
+      <div class="dv-olabel"><a class="dv-oid" href="#2b">2b</a><span>«Терминал» — моноширинный, техно, для гиков · включите тёмную тему</span></div>
+      <x-import component-from-global-scope="IOSDevice" from="./ios-frame.jsx" dark="{{ isDark }}" hint-size="402,874">
+        <div style="{{ ve }}">
+          <div style="height:100%;display:flex;flex-direction:column;overflow:hidden;background:var(--bg,#F2F4F1);color:var(--ink,#17201B);font-family:'JetBrains Mono',ui-monospace,SFMono-Regular,monospace;line-height:1.4;transition:background-color .3s">
+            <div style="padding:58px 12px 0;background:var(--bg,#F2F4F1)">
+              <div style="display:flex;align-items:center;height:46px">
+                <div style="flex:1;display:flex"><button style="background:none;border:0;padding:4px 2px;font-family:inherit;font-size:14px;color:var(--acc,#0C8F4E);cursor:pointer"><span style="display:var(--ru,inline)">закрыть</span><span style="display:var(--en,none)">close</span></button></div>
+                <div style="font-size:15px;font-weight:700;letter-spacing:1px">vpn_</div>
+                <div style="flex:1;display:flex;justify-content:flex-end"><div style="display:flex;align-items:center;border:1px solid var(--line,#DFE5DF);border-radius:99px;background:var(--card,#FFFFFF)"><span style="padding:3px 10px;color:var(--sub,#6F7D74);font-size:13px;letter-spacing:1px">•••</span><span style="width:1px;height:16px;background:var(--line,#DFE5DF)"></span><span style="padding:3px 10px;color:var(--sub,#6F7D74);font-size:11px">⌄</span></div></div>
+              </div>
+            </div>
+
+            <div data-screen-label="2b Главная" style="flex:1;min-height:0;overflow-y:auto;padding:10px 16px 16px;display:var(--sH,block)">
+              <div style="background:var(--card,#FFFFFF);border:1px solid var(--line,#DFE5DF);border-radius:10px;padding:16px;margin-top:6px">
+                <div style="display:flex;align-items:center;gap:8px">
+                  <span style="font-size:12.5px;color:var(--ok,#0C8F4E)">●</span>
+                  <span style="flex:1;font-size:12.5px;font-weight:600;color:var(--ok,#0C8F4E)"><span style="display:var(--ru,inline)">подписка активна</span><span style="display:var(--en,none)">subscription active</span></span>
+                  <span style="font-size:11px;color:var(--sub,#6F7D74)">wg · aes-256</span>
+                </div>
+                <div style="display:flex;align-items:baseline;gap:8px;margin-top:12px">
+                  <span style="font-size:42px;font-weight:700;letter-spacing:-1px;line-height:1">{{ days }}d</span>
+                  <span style="font-size:12.5px;color:var(--sub,#6F7D74)"><span style="display:var(--ru,inline)">осталось · до {{ tillRuS }}</span><span style="display:var(--en,none)">left · until {{ tillEnS }}</span></span>
+                </div>
+                <div style="display:flex;align-items:center;gap:10px;margin:14px 0 16px">
+                  <div style="flex:1;height:8px;border-radius:2px;background:var(--chip,#EAEFEA);overflow:hidden"><div style="height:100%;width:var(--prog,25.6%);background:var(--acc,#0C8F4E)"></div></div>
+                  <span style="font-size:11px;color:var(--sub,#6F7D74)">{{ days }}/90</span>
+                </div>
+                <button style="width:100%;background:var(--acc,#0C8F4E);color:var(--accInk,#FFFFFF);border:0;border-radius:8px;padding:13px;font-family:inherit;font-size:14px;font-weight:700;cursor:pointer"><span style="display:var(--ru,inline)">продлить →</span><span style="display:var(--en,none)">renew →</span></button>
+              </div>
+
+              <div style="font-size:12px;color:var(--sub,#6F7D74);margin:16px 4px 8px"><span style="display:var(--ru,inline)"># тариф</span><span style="display:var(--en,none)"># plan</span></div>
+              <button onClick="{{ pl.e0 }}" style="width:100%;display:flex;align-items:center;gap:8px;background:var(--g0,#FFFFFF);border:1px solid var(--p0,#DFE5DF);border-radius:8px;padding:12px 14px;margin-bottom:6px;font-family:inherit;color:var(--ink,#17201B);cursor:pointer;text-align:left">
+                <span style="flex:1;font-size:13px;font-weight:600"><span style="display:var(--ru,inline)">1 мес</span><span style="display:var(--en,none)">1 mo</span></span>
+                <span style="font-size:13px;font-weight:700"><span style="display:var(--ru,inline)">199 ₽</span><span style="display:var(--en,none)">$2.49</span></span>
+              </button>
+              <button onClick="{{ pl.e1 }}" style="width:100%;display:flex;align-items:center;gap:8px;background:var(--g1,#E3F3E9);border:1px solid var(--p1,#0C8F4E);border-radius:8px;padding:12px 14px;margin-bottom:6px;font-family:inherit;color:var(--ink,#17201B);cursor:pointer;text-align:left">
+                <span style="flex:1;font-size:13px;font-weight:600"><span style="display:var(--ru,inline)">3 мес · −16%</span><span style="display:var(--en,none)">3 mo · −16%</span></span>
+                <span style="font-size:13px;font-weight:700"><span style="display:var(--ru,inline)">499 ₽</span><span style="display:var(--en,none)">$5.99</span></span>
+              </button>
+              <button onClick="{{ pl.e2 }}" style="width:100%;display:flex;align-items:center;gap:8px;background:var(--g2,#FFFFFF);border:1px solid var(--p2,#DFE5DF);border-radius:8px;padding:12px 14px;font-family:inherit;color:var(--ink,#17201B);cursor:pointer;text-align:left">
+                <span style="flex:1;font-size:13px;font-weight:600"><span style="display:var(--ru,inline)">12 мес · −38%</span><span style="display:var(--en,none)">12 mo · −38%</span></span>
+                <span style="font-size:13px;font-weight:700"><span style="display:var(--ru,inline)">1 490 ₽</span><span style="display:var(--en,none)">$16.99</span></span>
+              </button>
+              <div style="font-size:11.5px;color:var(--sub,#6F7D74);margin:14px 4px 0"><span style="display:var(--ru,inline)">оплата: сбп · карта · usdt · stars</span><span style="display:var(--en,none)">pay: sbp · card · usdt · stars</span></div>
+              <button style="width:100%;background:none;border:0;padding:12px 4px 4px;font-family:inherit;font-size:12.5px;font-weight:700;color:var(--acc,#0C8F4E);cursor:pointer;text-align:left"><span style="display:var(--ru,inline)">+7 дней за друга →</span><span style="display:var(--en,none)">+7 days per friend →</span></button>
+            </div>
+
+            <div data-screen-label="2b Подключение" style="flex:1;min-height:0;overflow-y:auto;padding:10px 16px 16px;display:var(--sC,none)">
+              <div style="font-size:12px;color:var(--sub,#6F7D74);margin:8px 4px 12px;line-height:1.5"><span style="display:var(--ru,inline)">vpn работает в клиенте. два шага:</span><span style="display:var(--en,none)">the vpn runs in a client app. two steps:</span></div>
+              <div style="background:var(--card,#FFFFFF);border:1px solid var(--line,#DFE5DF);border-radius:10px;padding:16px;margin-bottom:8px">
+                <div style="display:flex;align-items:baseline;gap:10px">
+                  <span style="font-size:14px;font-weight:700;color:var(--acc,#0C8F4E)">01</span>
+                  <span style="font-size:14px;font-weight:700"><span style="display:var(--ru,inline)">клиент</span><span style="display:var(--en,none)">client</span></span>
+                </div>
+                <div style="font-size:12px;color:var(--sub,#6F7D74);margin:6px 0 12px"><span style="display:var(--ru,inline)">устройство: iphone · определено авто</span><span style="display:var(--en,none)">device: iphone · auto-detected</span></div>
+                <button style="width:100%;background:var(--acc,#0C8F4E);color:var(--accInk,#FFFFFF);border:0;border-radius:8px;padding:12px;font-family:inherit;font-size:13px;font-weight:700;cursor:pointer"><span style="display:var(--ru,inline)">скачать в app store</span><span style="display:var(--en,none)">get on app store</span></button>
+                <div style="text-align:center;font-size:11px;color:var(--sub,#6F7D74);margin-top:8px">ios · android · macos · windows</div>
+              </div>
+              <div style="background:var(--card,#FFFFFF);border:1px solid var(--line,#DFE5DF);border-radius:10px;padding:16px;margin-bottom:8px">
+                <div style="display:flex;align-items:baseline;gap:10px">
+                  <span style="font-size:14px;font-weight:700;color:var(--acc,#0C8F4E)">02</span>
+                  <span style="font-size:14px;font-weight:700"><span style="display:var(--ru,inline)">подписка</span><span style="display:var(--en,none)">subscription</span></span>
+                </div>
+                <div style="font-size:12px;color:var(--sub,#6F7D74);margin:6px 0 12px"><span style="display:var(--ru,inline)">персональную ссылку выдаёт remnawave</span><span style="display:var(--en,none)">personal link issued by remnawave</span></div>
+                <button onClick="{{ lk.e }}" style="width:100%;background:none;color:var(--acc,#0C8F4E);border:1px solid var(--acc,#0C8F4E);border-radius:8px;padding:12px;font-family:inherit;font-size:13px;font-weight:700;cursor:pointer"><span style="display:var(--lki,inline)"><span style="display:var(--ru,inline)">получить ссылку</span><span style="display:var(--en,none)">get link</span></span><span style="display:var(--lkoi,none)"><span style="display:var(--ru,inline)">ссылка получена ✓</span><span style="display:var(--en,none)">link received ✓</span></span></button>
+                <div style="display:var(--lk,none);margin-top:8px">
+                  <div style="background:var(--chip,#EAEFEA);border-radius:8px;padding:11px 12px;font-size:11.5px;word-break:break-all">https://sub.vpn.app/u/8fk2…9a3</div>
+                  <button style="width:100%;background:var(--acc,#0C8F4E);color:var(--accInk,#FFFFFF);border:0;border-radius:8px;padding:12px;font-family:inherit;font-size:13px;font-weight:700;cursor:pointer;margin-top:8px"><span style="display:var(--ru,inline)">открыть в приложении</span><span style="display:var(--en,none)">open in app</span></button>
+                  <button style="width:100%;background:none;color:var(--ink,#17201B);border:1px solid var(--line,#DFE5DF);border-radius:8px;padding:11px;font-family:inherit;font-size:12.5px;font-weight:700;cursor:pointer;margin-top:8px"><span style="display:var(--ru,inline)">копировать</span><span style="display:var(--en,none)">copy</span></button>
+                </div>
+              </div>
+              <div style="font-size:12px;color:var(--sub,#6F7D74);padding:2px 4px"><span style="color:var(--ok,#0C8F4E)">03</span> · connect → <span style="color:var(--ok,#0C8F4E)">done</span></div>
+            </div>
+
+            <div data-screen-label="2b Кабинет" style="flex:1;min-height:0;overflow-y:auto;padding:10px 16px 16px;display:var(--sK,none)">
+              <div style="padding:12px 4px 14px">
+                <div style="font-size:16px;font-weight:700">@alex_k</div>
+                <div style="font-size:11.5px;color:var(--sub,#6F7D74)"><span style="display:var(--ru,inline)">uid 04921 · с 2024</span><span style="display:var(--en,none)">uid 04921 · since 2024</span></div>
+              </div>
+              <div style="background:var(--card,#FFFFFF);border:1px solid var(--line,#DFE5DF);border-radius:10px;overflow:hidden">
+                <div style="display:flex;gap:8px;border-bottom:1px solid var(--line,#DFE5DF);padding:12px 14px;font-size:12.5px">
+                  <span style="flex:1"><span style="display:var(--ru,inline)">подписка</span><span style="display:var(--en,none)">sub</span></span>
+                  <span style="color:var(--sub,#6F7D74)"><span style="display:var(--ru,inline)">до {{ tillRuS }}</span><span style="display:var(--en,none)">until {{ tillEnS }}</span></span>
+                </div>
+                <div style="display:flex;gap:8px;border-bottom:1px solid var(--line,#DFE5DF);padding:12px 14px;font-size:12.5px">
+                  <span style="flex:1"><span style="display:var(--ru,inline)">устройства</span><span style="display:var(--en,none)">devices</span></span>
+                  <span style="color:var(--sub,#6F7D74)">2/5</span>
+                </div>
+                <button style="width:100%;display:flex;gap:8px;background:none;border:0;border-bottom:1px solid var(--line,#DFE5DF);padding:12px 14px;font-family:inherit;font-size:12.5px;color:var(--ink,#17201B);cursor:pointer;text-align:left">
+                  <span style="flex:1"><span style="display:var(--ru,inline)">платежи</span><span style="display:var(--en,none)">payments</span></span>
+                  <span style="color:var(--sub,#6F7D74)">›</span>
+                </button>
+                <button style="width:100%;display:flex;gap:8px;background:none;border:0;border-bottom:1px solid var(--line,#DFE5DF);padding:12px 14px;font-family:inherit;font-size:12.5px;color:var(--ink,#17201B);cursor:pointer;text-align:left">
+                  <span style="flex:1"><span style="display:var(--ru,inline)">рефералка · +7d</span><span style="display:var(--en,none)">referrals · +7d</span></span>
+                  <span style="color:var(--sub,#6F7D74)">›</span>
+                </button>
+                <button style="width:100%;display:flex;gap:8px;background:none;border:0;padding:12px 14px;font-family:inherit;font-size:12.5px;color:var(--ink,#17201B);cursor:pointer;text-align:left">
+                  <span style="flex:1"><span style="display:var(--ru,inline)">поддержка</span><span style="display:var(--en,none)">support</span></span>
+                  <span style="color:var(--sub,#6F7D74)">›</span>
+                </button>
+              </div>
+              <div style="text-align:center;font-size:11px;color:var(--sub,#6F7D74);margin-top:16px">v2.4.1 · wireguard</div>
+            </div>
+
+            <div style="display:flex;border-top:1px solid var(--line,#DFE5DF);background:var(--tabbg,#FFFFFF);padding:6px 10px 24px">
+              <button onClick="{{ nav.eH }}" style="flex:1;background:none;border:0;padding:9px 4px;font-family:inherit;font-size:12px;font-weight:700;color:var(--tH,#0C8F4E);cursor:pointer"><span style="display:var(--ru,inline)">главная</span><span style="display:var(--en,none)">home</span></button>
+              <button onClick="{{ nav.eC }}" style="flex:1;background:none;border:0;padding:9px 4px;font-family:inherit;font-size:12px;font-weight:700;color:var(--tC,#6F7D74);cursor:pointer"><span style="display:var(--ru,inline)">подключение</span><span style="display:var(--en,none)">setup</span></button>
+              <button onClick="{{ nav.eK }}" style="flex:1;background:none;border:0;padding:9px 4px;font-family:inherit;font-size:12px;font-weight:700;color:var(--tK,#6F7D74);cursor:pointer"><span style="display:var(--ru,inline)">кабинет</span><span style="display:var(--en,none)">account</span></button>
+            </div>
+          </div>
+        </div>
+      </x-import>
+    </div>
+
+    <div class="dv-opt" id="2c" data-screen-label="2c Журнал">
+      <div class="dv-olabel"><a class="dv-oid" href="#2c">2c</a><span>«Журнал» — editorial: сериф, крем, красный акцент, линейки вместо карточек</span></div>
+      <x-import component-from-global-scope="IOSDevice" from="./ios-frame.jsx" dark="{{ isDark }}" hint-size="402,874">
+        <div style="{{ vf }}">
+          <div style="height:100%;display:flex;flex-direction:column;overflow:hidden;background:var(--bg,#F7F3EA);color:var(--ink,#191512);font-family:-apple-system,BlinkMacSystemFont,'SF Pro Text','Helvetica Neue',sans-serif;line-height:1.4;transition:background-color .3s">
+            <div style="padding:58px 12px 0;background:var(--bg,#F7F3EA)">
+              <div style="display:flex;align-items:center;height:46px">
+                <div style="flex:1;display:flex"><button style="background:none;border:0;padding:4px 2px;font-family:inherit;font-size:15.5px;color:var(--acc,#C03B2D);cursor:pointer"><span style="display:var(--ru,inline)">Закрыть</span><span style="display:var(--en,none)">Close</span></button></div>
+                <div style="font-family:'Instrument Serif',Georgia,serif;font-size:19px;letter-spacing:1.5px">VPN</div>
+                <div style="flex:1;display:flex;justify-content:flex-end"><div style="display:flex;align-items:center;border:1px solid var(--line,#D8D0C0);border-radius:99px"><span style="padding:3px 10px;color:var(--sub,#857D70);font-size:13px;letter-spacing:1px">•••</span><span style="width:1px;height:16px;background:var(--line,#D8D0C0)"></span><span style="padding:3px 10px;color:var(--sub,#857D70);font-size:11px">⌄</span></div></div>
+              </div>
+            </div>
+
+            <div data-screen-label="2c Главная" style="flex:1;min-height:0;overflow-y:auto;padding:8px 20px 16px;display:var(--sH,block)">
+              <div style="border-top:2px solid var(--ink,#191512);margin-top:8px;padding-top:3px"><div style="border-top:1px solid var(--ink,#191512);padding-top:12px"></div></div>
+              <div style="font-family:'Instrument Serif',Georgia,serif;font-size:27px;line-height:1.15"><span style="display:var(--ru,inline)">Ваша подписка</span><span style="display:var(--en,none)">Your subscription</span></div>
+              <div style="display:flex;align-items:baseline;gap:10px;margin:10px 0 4px">
+                <span style="font-family:'Instrument Serif',Georgia,serif;font-size:60px;line-height:1">{{ days }}</span>
+                <span style="font-family:'Instrument Serif',Georgia,serif;font-size:26px"><span style="display:var(--ru,inline)">{{ dayRu }}</span><span style="display:var(--en,none)">days</span></span>
+              </div>
+              <div style="font-size:13px;color:var(--sub,#857D70)"><span style="display:var(--ru,inline)">активна до {{ tillRu }}</span><span style="display:var(--en,none)">active until {{ tillEn }}</span></div>
+              <div style="height:3px;background:var(--chip,#EFE9DB);margin:14px 0 16px"><div style="height:100%;width:var(--prog,25.6%);background:var(--acc,#C03B2D)"></div></div>
+              <button style="width:100%;background:var(--ink,#191512);color:var(--bg,#F7F3EA);border:0;border-radius:4px;padding:14px;font-family:inherit;font-size:14.5px;font-weight:600;letter-spacing:0.3px;cursor:pointer"><span style="display:var(--ru,inline)">Продлить подписку</span><span style="display:var(--en,none)">Renew subscription</span></button>
+
+              <div style="font-size:11px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--sub,#857D70);margin:22px 0 4px"><span style="display:var(--ru,inline)">Тарифы</span><span style="display:var(--en,none)">Plans</span></div>
+              <div style="border-top:1px solid var(--ink,#191512)">
+                <button onClick="{{ pl.f0 }}" style="width:100%;display:flex;align-items:center;gap:12px;background:none;border:0;border-bottom:1px solid var(--line,#D8D0C0);padding:13px 2px;font-family:inherit;cursor:pointer;text-align:left">
+                  <span style="width:15px;height:15px;border-radius:50%;border:1.5px solid var(--ink,#191512);display:flex;align-items:center;justify-content:center;flex-shrink:0"><span style="width:7px;height:7px;border-radius:50%;background:var(--q0,transparent)"></span></span>
+                  <span style="flex:1;font-size:14.5px;color:var(--ink,#191512)"><span style="display:var(--ru,inline)">1 месяц</span><span style="display:var(--en,none)">1 month</span></span>
+                  <span style="font-family:'Instrument Serif',Georgia,serif;font-size:17px;color:var(--ink,#191512)"><span style="display:var(--ru,inline)">199 ₽</span><span style="display:var(--en,none)">$2.49</span></span>
+                </button>
+                <button onClick="{{ pl.f1 }}" style="width:100%;display:flex;align-items:center;gap:12px;background:none;border:0;border-bottom:1px solid var(--line,#D8D0C0);padding:13px 2px;font-family:inherit;cursor:pointer;text-align:left">
+                  <span style="width:15px;height:15px;border-radius:50%;border:1.5px solid var(--ink,#191512);display:flex;align-items:center;justify-content:center;flex-shrink:0"><span style="width:7px;height:7px;border-radius:50%;background:var(--q1,#C03B2D)"></span></span>
+                  <span style="flex:1;font-size:14.5px;color:var(--ink,#191512)"><span style="display:var(--ru,inline)">3 месяца <span style="color:var(--acc,#C03B2D)">−16%</span></span><span style="display:var(--en,none)">3 months <span style="color:var(--acc,#C03B2D)">−16%</span></span></span>
+                  <span style="font-family:'Instrument Serif',Georgia,serif;font-size:17px;color:var(--ink,#191512)"><span style="display:var(--ru,inline)">499 ₽</span><span style="display:var(--en,none)">$5.99</span></span>
+                </button>
+                <button onClick="{{ pl.f2 }}" style="width:100%;display:flex;align-items:center;gap:12px;background:none;border:0;border-bottom:1px solid var(--line,#D8D0C0);padding:13px 2px;font-family:inherit;cursor:pointer;text-align:left">
+                  <span style="width:15px;height:15px;border-radius:50%;border:1.5px solid var(--ink,#191512);display:flex;align-items:center;justify-content:center;flex-shrink:0"><span style="width:7px;height:7px;border-radius:50%;background:var(--q2,transparent)"></span></span>
+                  <span style="flex:1;font-size:14.5px;color:var(--ink,#191512)"><span style="display:var(--ru,inline)">12 месяцев <span style="color:var(--acc,#C03B2D)">−38%</span></span><span style="display:var(--en,none)">12 months <span style="color:var(--acc,#C03B2D)">−38%</span></span></span>
+                  <span style="font-family:'Instrument Serif',Georgia,serif;font-size:17px;color:var(--ink,#191512)"><span style="display:var(--ru,inline)">1 490 ₽</span><span style="display:var(--en,none)">$16.99</span></span>
+                </button>
+              </div>
+              <div style="font-size:12px;color:var(--sub,#857D70);margin:12px 0 0"><span style="display:var(--ru,inline)">Оплата: СБП, карта, USDT, Telegram Stars.</span><span style="display:var(--en,none)">Payment: SBP, card, USDT, Telegram Stars.</span></div>
+              <button style="background:none;border:0;padding:10px 0 0;font-family:inherit;font-size:13px;font-weight:600;color:var(--acc,#C03B2D);cursor:pointer;text-align:left"><span style="display:var(--ru,inline)">Пригласите друга — по +7 дней каждому →</span><span style="display:var(--en,none)">Invite a friend — +7 days each →</span></button>
+            </div>
+
+            <div data-screen-label="2c Подключение" style="flex:1;min-height:0;overflow-y:auto;padding:8px 20px 16px;display:var(--sC,none)">
+              <div style="border-top:2px solid var(--ink,#191512);margin-top:8px;padding-top:3px"><div style="border-top:1px solid var(--ink,#191512);padding-top:12px"></div></div>
+              <div style="font-family:'Instrument Serif',Georgia,serif;font-size:26px;line-height:1.15"><span style="display:var(--ru,inline)">Как подключиться</span><span style="display:var(--en,none)">How to connect</span></div>
+              <div style="font-size:13px;color:var(--sub,#857D70);margin:6px 0 16px"><span style="display:var(--ru,inline)">VPN работает в отдельном приложении.</span><span style="display:var(--en,none)">The VPN runs in a separate app.</span></div>
+
+              <div style="display:flex;gap:14px">
+                <span style="font-family:'Instrument Serif',Georgia,serif;font-size:38px;line-height:0.9;color:var(--acc,#C03B2D);width:30px;flex-shrink:0">1.</span>
+                <div style="flex:1">
+                  <div style="font-size:15px;font-weight:700"><span style="display:var(--ru,inline)">Установите приложение</span><span style="display:var(--en,none)">Install the app</span></div>
+                  <div style="font-size:12.5px;color:var(--sub,#857D70);margin:4px 0 10px"><span style="display:var(--ru,inline)">Ваше устройство: iPhone — определено автоматически</span><span style="display:var(--en,none)">Your device: iPhone — detected automatically</span></div>
+                  <button style="width:100%;background:var(--ink,#191512);color:var(--bg,#F7F3EA);border:0;border-radius:4px;padding:12px;font-family:inherit;font-size:13.5px;font-weight:600;cursor:pointer"><span style="display:var(--ru,inline)">Загрузить из App Store</span><span style="display:var(--en,none)">Download from the App Store</span></button>
+                  <div style="text-align:center;font-size:11.5px;color:var(--sub,#857D70);margin-top:7px">iOS · Android · macOS · Windows</div>
+                </div>
+              </div>
+              <div style="border-top:1px solid var(--line,#D8D0C0);margin:16px 0"></div>
+              <div style="display:flex;gap:14px">
+                <span style="font-family:'Instrument Serif',Georgia,serif;font-size:38px;line-height:0.9;color:var(--acc,#C03B2D);width:30px;flex-shrink:0">2.</span>
+                <div style="flex:1">
+                  <div style="font-size:15px;font-weight:700"><span style="display:var(--ru,inline)">Активируйте подписку</span><span style="display:var(--en,none)">Activate the subscription</span></div>
+                  <div style="font-size:12.5px;color:var(--sub,#857D70);margin:4px 0 10px"><span style="display:var(--ru,inline)">Персональная ссылка настроит приложение сама</span><span style="display:var(--en,none)">Your personal link configures the app itself</span></div>
+                  <button onClick="{{ lk.f }}" style="width:100%;background:var(--acc,#C03B2D);color:var(--accInk,#FFF9EF);border:0;border-radius:4px;padding:12px;font-family:inherit;font-size:13.5px;font-weight:600;cursor:pointer"><span style="display:var(--lki,inline)"><span style="display:var(--ru,inline)">Получить ссылку</span><span style="display:var(--en,none)">Get the link</span></span><span style="display:var(--lkoi,none)"><span style="display:var(--ru,inline)">Ссылка готова</span><span style="display:var(--en,none)">Link ready</span></span></button>
+                  <div style="display:var(--lk,none);margin-top:8px">
+                    <div style="background:var(--chip,#EFE9DB);border-radius:4px;padding:11px 12px;font-family:ui-monospace,Menlo,monospace;font-size:11.5px;word-break:break-all">https://sub.vpn.app/u/8fk2…9a3</div>
+                    <button style="width:100%;background:var(--ink,#191512);color:var(--bg,#F7F3EA);border:0;border-radius:4px;padding:12px;font-family:inherit;font-size:13.5px;font-weight:600;cursor:pointer;margin-top:8px"><span style="display:var(--ru,inline)">Открыть в приложении</span><span style="display:var(--en,none)">Open in the app</span></button>
+                    <button style="width:100%;background:none;color:var(--acc,#C03B2D);border:0;padding:9px;font-family:inherit;font-size:13px;font-weight:600;cursor:pointer;text-decoration:underline"><span style="display:var(--ru,inline)">Скопировать ссылку</span><span style="display:var(--en,none)">Copy the link</span></button>
+                  </div>
+                </div>
+              </div>
+              <div style="border-top:1px solid var(--line,#D8D0C0);margin:16px 0"></div>
+              <div style="display:flex;gap:14px">
+                <span style="font-family:'Instrument Serif',Georgia,serif;font-size:38px;line-height:0.9;color:var(--acc,#C03B2D);width:30px;flex-shrink:0">3.</span>
+                <div style="flex:1">
+                  <div style="font-size:15px;font-weight:700"><span style="display:var(--ru,inline)">Нажмите «Подключить»</span><span style="display:var(--en,none)">Press Connect</span></div>
+                  <div style="font-size:12.5px;color:var(--sub,#857D70);margin-top:4px"><span style="display:var(--ru,inline)">На этом всё.</span><span style="display:var(--en,none)">That is all.</span></div>
+                </div>
+              </div>
+            </div>
+
+            <div data-screen-label="2c Кабинет" style="flex:1;min-height:0;overflow-y:auto;padding:8px 20px 16px;display:var(--sK,none)">
+              <div style="border-top:2px solid var(--ink,#191512);margin-top:8px;padding-top:3px"><div style="border-top:1px solid var(--ink,#191512);padding-top:12px"></div></div>
+              <div style="font-family:'Instrument Serif',Georgia,serif;font-size:26px;line-height:1.15"><span style="display:var(--ru,inline)">Кабинет</span><span style="display:var(--en,none)">Account</span></div>
+              <div style="font-size:14px;font-weight:600;margin:12px 0 2px"><span style="display:var(--ru,inline)">Алексей К.</span><span style="display:var(--en,none)">Alexey K.</span></div>
+              <div style="font-size:12.5px;color:var(--sub,#857D70);margin-bottom:12px">@alex_k · <span style="display:var(--ru,inline)">с 2024</span><span style="display:var(--en,none)">since 2024</span></div>
+              <div style="border-top:1px solid var(--ink,#191512)">
+                <div style="display:flex;gap:8px;border-bottom:1px solid var(--line,#D8D0C0);padding:13px 2px;font-size:14px">
+                  <span style="flex:1"><span style="display:var(--ru,inline)">Подписка</span><span style="display:var(--en,none)">Subscription</span></span>
+                  <span style="color:var(--sub,#857D70)"><span style="display:var(--ru,inline)">до {{ tillRu }}</span><span style="display:var(--en,none)">until {{ tillEn }}</span></span>
+                </div>
+                <div style="display:flex;gap:8px;border-bottom:1px solid var(--line,#D8D0C0);padding:13px 2px;font-size:14px">
+                  <span style="flex:1"><span style="display:var(--ru,inline)">Устройства</span><span style="display:var(--en,none)">Devices</span></span>
+                  <span style="color:var(--sub,#857D70)"><span style="display:var(--ru,inline)">2 из 5</span><span style="display:var(--en,none)">2 of 5</span></span>
+                </div>
+                <button style="width:100%;display:flex;gap:8px;background:none;border:0;border-bottom:1px solid var(--line,#D8D0C0);padding:13px 2px;font-family:inherit;font-size:14px;color:var(--ink,#191512);cursor:pointer;text-align:left">
+                  <span style="flex:1"><span style="display:var(--ru,inline)">История платежей</span><span style="display:var(--en,none)">Payment history</span></span>
+                  <span style="color:var(--sub,#857D70)">→</span>
+                </button>
+                <button style="width:100%;display:flex;gap:8px;background:none;border:0;border-bottom:1px solid var(--line,#D8D0C0);padding:13px 2px;font-family:inherit;font-size:14px;color:var(--ink,#191512);cursor:pointer;text-align:left">
+                  <span style="flex:1"><span style="display:var(--ru,inline)">Партнёрская программа — 20%</span><span style="display:var(--en,none)">Partner program — 20%</span></span>
+                  <span style="color:var(--sub,#857D70)">→</span>
+                </button>
+                <button style="width:100%;display:flex;gap:8px;background:none;border:0;border-bottom:1px solid var(--line,#D8D0C0);padding:13px 2px;font-family:inherit;font-size:14px;color:var(--ink,#191512);cursor:pointer;text-align:left">
+                  <span style="flex:1"><span style="display:var(--ru,inline)">Поддержка</span><span style="display:var(--en,none)">Support</span></span>
+                  <span style="color:var(--sub,#857D70)">→</span>
+                </button>
+              </div>
+              <div style="font-size:11px;color:var(--sub,#857D70);margin-top:14px;text-align:center">v2.4.1 · WireGuard</div>
+            </div>
+
+            <div style="display:flex;border-top:1px solid var(--line,#D8D0C0);background:var(--tabbg,#F7F3EA);padding:8px 10px 24px">
+              <button onClick="{{ nav.fH }}" style="flex:1;background:none;border:0;padding:9px 4px;font-family:inherit;font-size:11px;font-weight:700;letter-spacing:1.6px;text-transform:uppercase;color:var(--tH,#C03B2D);cursor:pointer"><span style="display:var(--ru,inline)">Главная</span><span style="display:var(--en,none)">Home</span></button>
+              <button onClick="{{ nav.fC }}" style="flex:1;background:none;border:0;padding:9px 4px;font-family:inherit;font-size:11px;font-weight:700;letter-spacing:1.6px;text-transform:uppercase;color:var(--tC,#857D70);cursor:pointer"><span style="display:var(--ru,inline)">Подключение</span><span style="display:var(--en,none)">Connect</span></button>
+              <button onClick="{{ nav.fK }}" style="flex:1;background:none;border:0;padding:9px 4px;font-family:inherit;font-size:11px;font-weight:700;letter-spacing:1.6px;text-transform:uppercase;color:var(--tK,#857D70);cursor:pointer"><span style="display:var(--ru,inline)">Кабинет</span><span style="display:var(--en,none)">Account</span></button>
+            </div>
+          </div>
+        </div>
+      </x-import>
+    </div>
+
+    <div class="dv-opt" id="2d" data-screen-label="2d Неон">
+      <div class="dv-olabel"><a class="dv-oid" href="#2d">2d</a><span>«Неон» — глассморфизм, фиолетово-бирюзовый градиент, светится в тёмной теме</span></div>
+      <x-import component-from-global-scope="IOSDevice" from="./ios-frame.jsx" dark="{{ isDark }}" hint-size="402,874">
+        <div style="{{ vg }}">
+          <div style="height:100%;display:flex;flex-direction:column;overflow:hidden;background:var(--bg,linear-gradient(160deg,#EEE9FF,#E6F0FF 50%,#F3E8FF));color:var(--ink,#221A3A);font-family:-apple-system,BlinkMacSystemFont,'SF Pro Text','Helvetica Neue',sans-serif;line-height:1.35">
+            <div style="padding:58px 12px 0">
+              <div style="display:flex;align-items:center;height:46px">
+                <div style="flex:1;display:flex"><button style="background:none;border:0;padding:4px 2px;font-family:inherit;font-size:16px;color:var(--acc,#7C5CFF);cursor:pointer"><span style="display:var(--ru,inline)">Закрыть</span><span style="display:var(--en,none)">Close</span></button></div>
+                <div style="font-size:16.5px;font-weight:700;letter-spacing:0.5px">VPN</div>
+                <div style="flex:1;display:flex;justify-content:flex-end"><div style="display:flex;align-items:center;border:1px solid var(--line,rgba(124,92,255,0.22));border-radius:99px;background:var(--chip,rgba(255,255,255,0.55))"><span style="padding:3px 10px;color:var(--sub,#7B729A);font-size:13px;letter-spacing:1px">•••</span><span style="width:1px;height:16px;background:var(--line,rgba(124,92,255,0.22))"></span><span style="padding:3px 10px;color:var(--sub,#7B729A);font-size:11px">⌄</span></div></div>
+              </div>
+            </div>
+
+            <div data-screen-label="2d Главная" style="flex:1;min-height:0;overflow-y:auto;padding:10px 16px 16px;display:var(--sH,block)">
+              <div style="background:var(--card,rgba(255,255,255,0.6));backdrop-filter:blur(14px);border:1px solid var(--line,rgba(124,92,255,0.22));border-radius:20px;padding:20px;margin-top:6px">
+                <div style="display:flex;align-items:center;gap:8px">
+                  <span style="display:inline-flex;align-items:center;gap:6px;background:var(--chip,rgba(255,255,255,0.55));border-radius:99px;padding:5px 11px;font-size:12px;font-weight:600"><span style="width:7px;height:7px;border-radius:50%;background:var(--ok,#22B573)"></span><span style="display:var(--ru,inline)">Активна</span><span style="display:var(--en,none)">Active</span></span>
+                  <span style="flex:1"></span>
+                  <span style="font-size:12.5px;color:var(--sub,#7B729A)"><span style="display:var(--ru,inline)">до {{ tillRu }}</span><span style="display:var(--en,none)">until {{ tillEn }}</span></span>
+                </div>
+                <div style="display:flex;align-items:baseline;gap:9px;margin-top:14px">
+                  <span style="font-size:46px;font-weight:800;letter-spacing:-1.5px;line-height:1">{{ days }}</span>
+                  <span style="font-size:14.5px;color:var(--sub,#7B729A)"><span style="display:var(--ru,inline)">{{ dayRu }} осталось</span><span style="display:var(--en,none)">days left</span></span>
+                </div>
+                <div style="height:8px;border-radius:4px;background:var(--chip,rgba(255,255,255,0.55));margin:14px 0 16px;overflow:hidden"><div style="height:100%;width:var(--prog,25.6%);border-radius:4px;background:linear-gradient(90deg,var(--acc,#7C5CFF),var(--acc2,#1FC7E0))"></div></div>
+                <button style="width:100%;background:linear-gradient(90deg,var(--acc,#7C5CFF),var(--acc2,#1FC7E0));color:#FFFFFF;border:0;border-radius:999px;padding:14px;font-family:inherit;font-size:15px;font-weight:700;cursor:pointer;box-shadow:0 8px 24px rgba(124,92,255,0.35)"><span style="display:var(--ru,inline)">Продлить</span><span style="display:var(--en,none)">Renew</span></button>
+              </div>
+
+              <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin:12px 0 4px">
+                <button onClick="{{ pl.g0 }}" style="background:var(--g0,rgba(255,255,255,0.6));backdrop-filter:blur(10px);border:1.5px solid var(--p0,rgba(124,92,255,0.22));border-radius:16px;padding:12px 6px;font-family:inherit;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:4px">
+                  <span style="font-size:13px;font-weight:700;color:var(--ink,#221A3A)"><span style="display:var(--ru,inline)">1 мес</span><span style="display:var(--en,none)">1 mo</span></span>
+                  <span style="font-size:12.5px;color:var(--sub,#7B729A)"><span style="display:var(--ru,inline)">199 ₽</span><span style="display:var(--en,none)">$2.49</span></span>
+                </button>
+                <button onClick="{{ pl.g1 }}" style="background:var(--g1,rgba(255,255,255,0.6));backdrop-filter:blur(10px);border:1.5px solid var(--p1,#7C5CFF);border-radius:16px;padding:12px 6px;font-family:inherit;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:4px">
+                  <span style="font-size:13px;font-weight:700;color:var(--ink,#221A3A)"><span style="display:var(--ru,inline)">3 мес</span><span style="display:var(--en,none)">3 mo</span></span>
+                  <span style="font-size:12.5px;color:var(--sub,#7B729A)"><span style="display:var(--ru,inline)">499 ₽</span><span style="display:var(--en,none)">$5.99</span></span>
+                  <span style="font-size:9.5px;font-weight:700;color:var(--acc,#7C5CFF)">−16%</span>
+                </button>
+                <button onClick="{{ pl.g2 }}" style="background:var(--g2,rgba(255,255,255,0.6));backdrop-filter:blur(10px);border:1.5px solid var(--p2,rgba(124,92,255,0.22));border-radius:16px;padding:12px 6px;font-family:inherit;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:4px">
+                  <span style="font-size:13px;font-weight:700;color:var(--ink,#221A3A)"><span style="display:var(--ru,inline)">12 мес</span><span style="display:var(--en,none)">12 mo</span></span>
+                  <span style="font-size:12.5px;color:var(--sub,#7B729A)"><span style="display:var(--ru,inline)">1 490 ₽</span><span style="display:var(--en,none)">$16.99</span></span>
+                  <span style="font-size:9.5px;font-weight:700;color:var(--acc,#7C5CFF)">−38%</span>
+                </button>
+              </div>
+
+              <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px">
+                <span style="background:var(--chip,rgba(255,255,255,0.55));border-radius:10px;padding:7px 12px;font-size:12px;font-weight:600">СБП</span>
+                <span style="background:var(--chip,rgba(255,255,255,0.55));border-radius:10px;padding:7px 12px;font-size:12px;font-weight:600"><span style="display:var(--ru,inline)">Карта</span><span style="display:var(--en,none)">Card</span></span>
+                <span style="background:var(--chip,rgba(255,255,255,0.55));border-radius:10px;padding:7px 12px;font-size:12px;font-weight:600">USDT</span>
+                <span style="background:var(--chip,rgba(255,255,255,0.55));border-radius:10px;padding:7px 12px;font-size:12px;font-weight:600">★ Stars</span>
+              </div>
+
+              <div style="display:flex;align-items:center;gap:12px;background:var(--card,rgba(255,255,255,0.6));backdrop-filter:blur(10px);border:1px solid var(--line,rgba(124,92,255,0.22));border-radius:18px;padding:13px 16px;margin-top:12px">
+                <span style="width:38px;height:38px;border-radius:50%;background:linear-gradient(135deg,var(--acc,#7C5CFF),var(--acc2,#1FC7E0));color:#FFFFFF;display:flex;align-items:center;justify-content:center;font-size:12.5px;font-weight:800;flex-shrink:0">+7</span>
+                <span style="flex:1;font-size:13px;font-weight:600;line-height:1.35"><span style="display:var(--ru,inline)">Пригласи друга — по +7 дней каждому</span><span style="display:var(--en,none)">Invite a friend — +7 days each</span></span>
+                <span style="color:var(--sub,#7B729A)">›</span>
+              </div>
+            </div>
+
+            <div data-screen-label="2d Подключение" style="flex:1;min-height:0;overflow-y:auto;padding:10px 16px 16px;display:var(--sC,none)">
+              <div style="font-size:13px;color:var(--sub,#7B729A);margin:8px 4px 12px;line-height:1.45"><span style="display:var(--ru,inline)">VPN работает в отдельном приложении. Два шага.</span><span style="display:var(--en,none)">The VPN runs in a separate app. Two steps.</span></div>
+              <div style="background:var(--card,rgba(255,255,255,0.6));backdrop-filter:blur(14px);border:1px solid var(--line,rgba(124,92,255,0.22));border-radius:20px;padding:18px;margin-bottom:10px">
+                <div style="display:flex;align-items:center;gap:10px">
+                  <span style="width:26px;height:26px;border-radius:50%;background:linear-gradient(135deg,var(--acc,#7C5CFF),var(--acc2,#1FC7E0));color:#FFFFFF;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:800;flex-shrink:0">1</span>
+                  <span style="font-size:15.5px;font-weight:700"><span style="display:var(--ru,inline)">Скачайте приложение</span><span style="display:var(--en,none)">Get the app</span></span>
+                </div>
+                <div style="font-size:13px;color:var(--sub,#7B729A);margin:8px 0 12px"><span style="display:var(--ru,inline)">Ваше устройство: iPhone — определили автоматически</span><span style="display:var(--en,none)">Your device: iPhone — detected automatically</span></div>
+                <button style="width:100%;background:linear-gradient(90deg,var(--acc,#7C5CFF),var(--acc2,#1FC7E0));color:#FFFFFF;border:0;border-radius:999px;padding:13px;font-family:inherit;font-size:14.5px;font-weight:700;cursor:pointer"><span style="display:var(--ru,inline)">Скачать в App Store</span><span style="display:var(--en,none)">Get on the App Store</span></button>
+                <div style="text-align:center;font-size:12px;color:var(--sub,#7B729A);margin-top:9px">iOS · Android · macOS · Windows</div>
+              </div>
+              <div style="background:var(--card,rgba(255,255,255,0.6));backdrop-filter:blur(14px);border:1px solid var(--line,rgba(124,92,255,0.22));border-radius:20px;padding:18px;margin-bottom:10px">
+                <div style="display:flex;align-items:center;gap:10px">
+                  <span style="width:26px;height:26px;border-radius:50%;background:linear-gradient(135deg,var(--acc,#7C5CFF),var(--acc2,#1FC7E0));color:#FFFFFF;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:800;flex-shrink:0">2</span>
+                  <span style="font-size:15.5px;font-weight:700"><span style="display:var(--ru,inline)">Добавьте подписку</span><span style="display:var(--en,none)">Add your subscription</span></span>
+                </div>
+                <div style="font-size:13px;color:var(--sub,#7B729A);margin:8px 0 12px"><span style="display:var(--ru,inline)">Персональная ссылка всё настроит сама</span><span style="display:var(--en,none)">Your personal link sets it all up</span></div>
+                <button onClick="{{ lk.g }}" style="width:100%;background:var(--chip,rgba(255,255,255,0.55));color:var(--acc,#7C5CFF);border:1px solid var(--line,rgba(124,92,255,0.22));border-radius:999px;padding:13px;font-family:inherit;font-size:14.5px;font-weight:700;cursor:pointer"><span style="display:var(--lki,inline)"><span style="display:var(--ru,inline)">Получить ссылку</span><span style="display:var(--en,none)">Get my link</span></span><span style="display:var(--lkoi,none)"><span style="display:var(--ru,inline)">Обновить ссылку</span><span style="display:var(--en,none)">Refresh the link</span></span></button>
+                <div style="display:var(--lk,none);margin-top:10px">
+                  <div style="background:var(--chip,rgba(255,255,255,0.55));border-radius:14px;padding:12px;font-family:ui-monospace,Menlo,monospace;font-size:12px;word-break:break-all">https://sub.vpn.app/u/8fk2…9a3</div>
+                  <button style="width:100%;background:linear-gradient(90deg,var(--acc,#7C5CFF),var(--acc2,#1FC7E0));color:#FFFFFF;border:0;border-radius:999px;padding:13px;font-family:inherit;font-size:14.5px;font-weight:700;cursor:pointer;margin-top:8px"><span style="display:var(--ru,inline)">Открыть в приложении</span><span style="display:var(--en,none)">Open in the app</span></button>
+                  <button style="width:100%;background:none;color:var(--ink,#221A3A);border:1px solid var(--line,rgba(124,92,255,0.22));border-radius:999px;padding:12px;font-family:inherit;font-size:14px;font-weight:600;cursor:pointer;margin-top:8px"><span style="display:var(--ru,inline)">Скопировать</span><span style="display:var(--en,none)">Copy</span></button>
+                </div>
+              </div>
+              <div style="display:flex;align-items:flex-start;gap:8px;padding:2px 6px">
+                <span style="color:var(--ok,#22B573);font-weight:700">✓</span>
+                <span style="font-size:13px;color:var(--sub,#7B729A);line-height:1.45"><span style="display:var(--ru,inline)">В приложении нажмите «Подключить» — готово.</span><span style="display:var(--en,none)">Tap Connect in the app — done.</span></span>
+              </div>
+            </div>
+
+            <div data-screen-label="2d Кабинет" style="flex:1;min-height:0;overflow-y:auto;padding:10px 16px 16px;display:var(--sK,none)">
+              <div style="display:flex;align-items:center;gap:14px;padding:12px 4px 16px">
+                <div style="width:56px;height:56px;border-radius:50%;background:linear-gradient(135deg,var(--acc,#7C5CFF),var(--acc2,#1FC7E0));color:#FFFFFF;display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:800">АК</div>
+                <div>
+                  <div style="font-size:17px;font-weight:700"><span style="display:var(--ru,inline)">Алексей</span><span style="display:var(--en,none)">Alexey</span></div>
+                  <div style="font-size:13px;color:var(--sub,#7B729A)">@alex_k</div>
+                </div>
+              </div>
+              <div style="background:var(--card,rgba(255,255,255,0.6));backdrop-filter:blur(14px);border:1px solid var(--line,rgba(124,92,255,0.22));border-radius:18px;overflow:hidden">
+                <div style="display:flex;align-items:center;gap:8px;border-bottom:1px solid var(--line,rgba(124,92,255,0.22));padding:13px 16px">
+                  <span style="flex:1;font-size:14.5px;font-weight:600"><span style="display:var(--ru,inline)">Подписка</span><span style="display:var(--en,none)">Subscription</span></span>
+                  <span style="font-size:13px;color:var(--sub,#7B729A)"><span style="display:var(--ru,inline)">до {{ tillRu }}</span><span style="display:var(--en,none)">until {{ tillEn }}</span></span>
+                </div>
+                <div style="display:flex;align-items:center;gap:8px;border-bottom:1px solid var(--line,rgba(124,92,255,0.22));padding:13px 16px">
+                  <span style="flex:1;font-size:14.5px;font-weight:600"><span style="display:var(--ru,inline)">Устройства</span><span style="display:var(--en,none)">Devices</span></span>
+                  <span style="font-size:13px;color:var(--sub,#7B729A)"><span style="display:var(--ru,inline)">2 из 5</span><span style="display:var(--en,none)">2 of 5</span></span>
+                </div>
+                <button style="width:100%;display:flex;align-items:center;gap:8px;background:none;border:0;border-bottom:1px solid var(--line,rgba(124,92,255,0.22));padding:13px 16px;font-family:inherit;cursor:pointer;text-align:left">
+                  <span style="flex:1;font-size:14.5px;font-weight:600;color:var(--ink,#221A3A)"><span style="display:var(--ru,inline)">История платежей</span><span style="display:var(--en,none)">Payment history</span></span>
+                  <span style="color:var(--sub,#7B729A)">›</span>
+                </button>
+                <button style="width:100%;display:flex;align-items:center;gap:8px;background:none;border:0;padding:13px 16px;font-family:inherit;cursor:pointer;text-align:left">
+                  <span style="flex:1;font-size:14.5px;font-weight:600;color:var(--ink,#221A3A)"><span style="display:var(--ru,inline)">Поддержка</span><span style="display:var(--en,none)">Support</span></span>
+                  <span style="color:var(--sub,#7B729A)">›</span>
+                </button>
+              </div>
+              <div style="display:flex;align-items:center;gap:12px;background:var(--card,rgba(255,255,255,0.6));backdrop-filter:blur(10px);border:1px solid var(--line,rgba(124,92,255,0.22));border-radius:18px;padding:13px 16px;margin-top:12px">
+                <span style="width:38px;height:38px;border-radius:50%;background:linear-gradient(135deg,var(--acc,#7C5CFF),var(--acc2,#1FC7E0));color:#FFFFFF;display:flex;align-items:center;justify-content:center;font-size:12.5px;font-weight:800;flex-shrink:0">+7</span>
+                <span style="flex:1;font-size:13px;font-weight:600;line-height:1.35"><span style="display:var(--ru,inline)">Реферальная программа</span><span style="display:var(--en,none)">Referral program</span></span>
+                <span style="color:var(--sub,#7B729A)">›</span>
+              </div>
+            </div>
+
+            <div style="display:flex;border-top:1px solid var(--line,rgba(124,92,255,0.22));background:var(--tabbg,rgba(255,255,255,0.65));backdrop-filter:blur(14px);padding:8px 8px 24px">
+              <button onClick="{{ nav.gH }}" style="flex:1;background:var(--tbH,rgba(255,255,255,0.55));border:0;border-radius:12px;margin:0 3px;padding:10px 4px;font-family:inherit;font-size:12.5px;font-weight:700;color:var(--tH,#7C5CFF);cursor:pointer"><span style="display:var(--ru,inline)">Главная</span><span style="display:var(--en,none)">Home</span></button>
+              <button onClick="{{ nav.gC }}" style="flex:1;background:var(--tbC,transparent);border:0;border-radius:12px;margin:0 3px;padding:10px 4px;font-family:inherit;font-size:12.5px;font-weight:700;color:var(--tC,#7B729A);cursor:pointer"><span style="display:var(--ru,inline)">Подключение</span><span style="display:var(--en,none)">Connect</span></button>
+              <button onClick="{{ nav.gK }}" style="flex:1;background:var(--tbK,transparent);border:0;border-radius:12px;margin:0 3px;padding:10px 4px;font-family:inherit;font-size:12.5px;font-weight:700;color:var(--tK,#7B729A);cursor:pointer"><span style="display:var(--ru,inline)">Кабинет</span><span style="display:var(--en,none)">Account</span></button>
+            </div>
+          </div>
+        </div>
+      </x-import>
+    </div>
+
+    <div class="dv-opt" id="2e" data-screen-label="2e Поп">
+      <div class="dv-olabel"><a class="dv-oid" href="#2e">2e</a><span>«Поп» — дуотон лайм+чёрный, толстые обводки, стикеры, кричащий тон</span></div>
+      <x-import component-from-global-scope="IOSDevice" from="./ios-frame.jsx" dark="{{ isDark }}" hint-size="402,874">
+        <div style="{{ vh }}">
+          <div style="height:100%;display:flex;flex-direction:column;overflow:hidden;background:var(--bg,#F6F4EC);color:var(--ink,#101010);font-family:-apple-system,BlinkMacSystemFont,'SF Pro Text','Helvetica Neue',sans-serif;line-height:1.35;transition:background-color .3s">
+            <div style="padding:58px 12px 0;background:var(--bg,#F6F4EC)">
+              <div style="display:flex;align-items:center;height:46px">
+                <div style="flex:1;display:flex"><button style="background:none;border:0;padding:4px 2px;font-family:inherit;font-size:15px;font-weight:700;color:var(--ink,#101010);cursor:pointer"><span style="display:var(--ru,inline)">Закрыть</span><span style="display:var(--en,none)">Close</span></button></div>
+                <div style="font-family:'Unbounded','Archivo Black',-apple-system,sans-serif;font-size:14px;letter-spacing:0.5px">VPN</div>
+                <div style="flex:1;display:flex;justify-content:flex-end"><div style="display:flex;align-items:center;border:2px solid var(--line,#101010);border-radius:99px;background:var(--card,#FFFFFF)"><span style="padding:2px 9px;color:var(--ink,#101010);font-size:13px;letter-spacing:1px">•••</span><span style="width:2px;height:16px;background:var(--line,#101010)"></span><span style="padding:2px 9px;color:var(--ink,#101010);font-size:11px">⌄</span></div></div>
+              </div>
+            </div>
+
+            <div data-screen-label="2e Главная" style="flex:1;min-height:0;overflow-y:auto;padding:12px 16px 16px;display:var(--sH,block)">
+              <div style="display:inline-block;background:var(--acc,#C8F04B);border:2px solid var(--line,#101010);border-radius:10px;padding:5px 12px;transform:rotate(-2deg);box-shadow:3px 3px 0 var(--line,#101010)">
+                <span style="font-family:'Unbounded','Archivo Black',-apple-system,sans-serif;font-size:11px;color:var(--accInk,#101010)"><span style="display:var(--ru,inline)">АКТИВНА</span><span style="display:var(--en,none)">ACTIVE</span></span>
+              </div>
+              <div style="font-family:'Unbounded','Archivo Black',-apple-system,sans-serif;font-size:56px;line-height:1;margin:14px 0 4px">{{ days }}</div>
+              <div style="font-size:13px;font-weight:800;text-transform:uppercase;letter-spacing:0.5px"><span style="display:var(--ru,inline)">{{ dayRu }} защиты · до {{ tillRu }}</span><span style="display:var(--en,none)">days of cover · until {{ tillEn }}</span></div>
+              <div style="height:14px;border:2px solid var(--line,#101010);border-radius:8px;background:var(--card,#FFFFFF);margin:12px 0 14px;overflow:hidden"><div style="height:100%;width:var(--prog,25.6%);background:var(--acc,#C8F04B)"></div></div>
+              <button style="width:100%;background:var(--ink,#101010);color:var(--acc,#C8F04B);border:2px solid var(--line,#101010);border-radius:14px;padding:15px;font-family:'Unbounded','Archivo Black',-apple-system,sans-serif;font-size:14px;cursor:pointer;box-shadow:4px 4px 0 var(--line,#101010)"><span style="display:var(--ru,inline)">ПРОДЛИТЬ</span><span style="display:var(--en,none)">RENEW</span></button>
+
+              <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin:16px 0 4px">
+                <button onClick="{{ pl.h0 }}" style="background:var(--g0,#FFFFFF);border:2px solid var(--line,#101010);border-radius:14px;padding:12px 6px;font-family:inherit;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:4px;box-shadow:3px 3px 0 var(--line,#101010)">
+                  <span style="font-family:'Unbounded','Archivo Black',-apple-system,sans-serif;font-size:11px;color:var(--ink,#101010)"><span style="display:var(--ru,inline)">1 МЕС</span><span style="display:var(--en,none)">1 MO</span></span>
+                  <span style="font-size:12.5px;font-weight:800;color:var(--ink,#101010)"><span style="display:var(--ru,inline)">199 ₽</span><span style="display:var(--en,none)">$2.49</span></span>
+                </button>
+                <button onClick="{{ pl.h1 }}" style="background:var(--g1,#C8F04B);border:2px solid var(--line,#101010);border-radius:14px;padding:12px 6px;font-family:inherit;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:4px;box-shadow:3px 3px 0 var(--line,#101010)">
+                  <span style="font-family:'Unbounded','Archivo Black',-apple-system,sans-serif;font-size:11px;color:var(--ink,#101010)"><span style="display:var(--ru,inline)">3 МЕС</span><span style="display:var(--en,none)">3 MO</span></span>
+                  <span style="font-size:12.5px;font-weight:800;color:var(--ink,#101010)"><span style="display:var(--ru,inline)">499 ₽</span><span style="display:var(--en,none)">$5.99</span></span>
+                  <span style="font-size:10px;font-weight:800;color:var(--ink,#101010)">−16%</span>
+                </button>
+                <button onClick="{{ pl.h2 }}" style="background:var(--g2,#FFFFFF);border:2px solid var(--line,#101010);border-radius:14px;padding:12px 6px;font-family:inherit;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:4px;box-shadow:3px 3px 0 var(--line,#101010)">
+                  <span style="font-family:'Unbounded','Archivo Black',-apple-system,sans-serif;font-size:11px;color:var(--ink,#101010)"><span style="display:var(--ru,inline)">12 МЕС</span><span style="display:var(--en,none)">12 MO</span></span>
+                  <span style="font-size:12.5px;font-weight:800;color:var(--ink,#101010)"><span style="display:var(--ru,inline)">1 490 ₽</span><span style="display:var(--en,none)">$16.99</span></span>
+                  <span style="font-size:10px;font-weight:800;color:var(--ink,#101010)">−38%</span>
+                </button>
+              </div>
+
+              <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px">
+                <span style="background:var(--card,#FFFFFF);border:2px solid var(--line,#101010);border-radius:10px;padding:6px 11px;font-size:12px;font-weight:800">СБП</span>
+                <span style="background:var(--card,#FFFFFF);border:2px solid var(--line,#101010);border-radius:10px;padding:6px 11px;font-size:12px;font-weight:800"><span style="display:var(--ru,inline)">КАРТА</span><span style="display:var(--en,none)">CARD</span></span>
+                <span style="background:var(--card,#FFFFFF);border:2px solid var(--line,#101010);border-radius:10px;padding:6px 11px;font-size:12px;font-weight:800">USDT</span>
+                <span style="background:var(--card,#FFFFFF);border:2px solid var(--line,#101010);border-radius:10px;padding:6px 11px;font-size:12px;font-weight:800">★ STARS</span>
+              </div>
+
+              <div style="display:flex;align-items:center;gap:12px;background:var(--soft,#ECF7C8);border:2px solid var(--line,#101010);border-radius:14px;padding:13px 14px;margin-top:14px;box-shadow:3px 3px 0 var(--line,#101010)">
+                <span style="width:38px;height:38px;border-radius:10px;background:var(--acc,#C8F04B);border:2px solid var(--line,#101010);color:var(--accInk,#101010);display:flex;align-items:center;justify-content:center;font-family:'Unbounded','Archivo Black',-apple-system,sans-serif;font-size:11px;flex-shrink:0">+7</span>
+                <span style="flex:1;font-size:12.5px;font-weight:800;line-height:1.35;text-transform:uppercase"><span style="display:var(--ru,inline)">Друг = +7 дней обоим</span><span style="display:var(--en,none)">Friend = +7 days each</span></span>
+                <button style="background:var(--ink,#101010);color:var(--acc,#C8F04B);border:0;border-radius:10px;padding:9px 13px;font-family:'Unbounded','Archivo Black',-apple-system,sans-serif;font-size:10px;cursor:pointer;flex-shrink:0"><span style="display:var(--ru,inline)">ЗВАТЬ</span><span style="display:var(--en,none)">INVITE</span></button>
+              </div>
+            </div>
+
+            <div data-screen-label="2e Подключение" style="flex:1;min-height:0;overflow-y:auto;padding:12px 16px 16px;display:var(--sC,none)">
+              <div style="font-family:'Unbounded','Archivo Black',-apple-system,sans-serif;font-size:19px;margin:2px 0 4px"><span style="display:var(--ru,inline)">ДВА ШАГА</span><span style="display:var(--en,none)">TWO STEPS</span></div>
+              <div style="font-size:12.5px;font-weight:700;color:var(--sub,#62625A);margin-bottom:12px"><span style="display:var(--ru,inline)">Сам VPN живёт в приложении — мы всё настроим</span><span style="display:var(--en,none)">The VPN lives in an app — we set it all up</span></div>
+              <div style="background:var(--card,#FFFFFF);border:2px solid var(--line,#101010);border-radius:14px;padding:16px;margin-bottom:12px;box-shadow:4px 4px 0 var(--line,#101010)">
+                <div style="display:flex;align-items:center;gap:10px">
+                  <span style="width:30px;height:30px;border-radius:8px;background:var(--acc,#C8F04B);border:2px solid var(--line,#101010);display:flex;align-items:center;justify-content:center;font-family:'Unbounded','Archivo Black',-apple-system,sans-serif;font-size:13px;color:var(--accInk,#101010);flex-shrink:0">1</span>
+                  <span style="font-family:'Unbounded','Archivo Black',-apple-system,sans-serif;font-size:12.5px"><span style="display:var(--ru,inline)">КАЧАЙ ПРИЛОЖЕНИЕ</span><span style="display:var(--en,none)">GET THE APP</span></span>
+                </div>
+                <div style="font-size:12.5px;font-weight:700;color:var(--sub,#62625A);margin:8px 0 12px"><span style="display:var(--ru,inline)">У тебя iPhone — уже знаем</span><span style="display:var(--en,none)">You are on iPhone — we know</span></div>
+                <button style="width:100%;background:var(--ink,#101010);color:var(--acc,#C8F04B);border:2px solid var(--line,#101010);border-radius:12px;padding:13px;font-family:'Unbounded','Archivo Black',-apple-system,sans-serif;font-size:11.5px;cursor:pointer">APP STORE ↗</button>
+                <div style="text-align:center;font-size:11px;font-weight:800;color:var(--sub,#62625A);margin-top:9px">IOS · ANDROID · MACOS · WINDOWS</div>
+              </div>
+              <div style="background:var(--card,#FFFFFF);border:2px solid var(--line,#101010);border-radius:14px;padding:16px;margin-bottom:12px;box-shadow:4px 4px 0 var(--line,#101010)">
+                <div style="display:flex;align-items:center;gap:10px">
+                  <span style="width:30px;height:30px;border-radius:8px;background:var(--acc,#C8F04B);border:2px solid var(--line,#101010);display:flex;align-items:center;justify-content:center;font-family:'Unbounded','Archivo Black',-apple-system,sans-serif;font-size:13px;color:var(--accInk,#101010);flex-shrink:0">2</span>
+                  <span style="font-family:'Unbounded','Archivo Black',-apple-system,sans-serif;font-size:12.5px"><span style="display:var(--ru,inline)">ЖМИ ССЫЛКУ</span><span style="display:var(--en,none)">GRAB THE LINK</span></span>
+                </div>
+                <div style="font-size:12.5px;font-weight:700;color:var(--sub,#62625A);margin:8px 0 12px"><span style="display:var(--ru,inline)">Она настроит всё сама</span><span style="display:var(--en,none)">It sets up everything</span></div>
+                <button onClick="{{ lk.h }}" style="width:100%;background:var(--acc,#C8F04B);color:var(--accInk,#101010);border:2px solid var(--line,#101010);border-radius:12px;padding:13px;font-family:'Unbounded','Archivo Black',-apple-system,sans-serif;font-size:11.5px;cursor:pointer;box-shadow:3px 3px 0 var(--line,#101010)"><span style="display:var(--lki,inline)"><span style="display:var(--ru,inline)">ПОЛУЧИТЬ ССЫЛКУ</span><span style="display:var(--en,none)">GET THE LINK</span></span><span style="display:var(--lkoi,none)"><span style="display:var(--ru,inline)">ССЫЛКА ТУТ ↓</span><span style="display:var(--en,none)">LINK IS HERE ↓</span></span></button>
+                <div style="display:var(--lk,none);margin-top:10px">
+                  <div style="background:var(--chip,#EFEDE0);border:2px solid var(--line,#101010);border-radius:12px;padding:12px;font-family:ui-monospace,Menlo,monospace;font-size:12px;word-break:break-all">https://sub.vpn.app/u/8fk2…9a3</div>
+                  <button style="width:100%;background:var(--ink,#101010);color:var(--acc,#C8F04B);border:2px solid var(--line,#101010);border-radius:12px;padding:13px;font-family:'Unbounded','Archivo Black',-apple-system,sans-serif;font-size:11.5px;cursor:pointer;margin-top:8px"><span style="display:var(--ru,inline)">ОТКРЫТЬ В ПРИЛОЖЕНИИ</span><span style="display:var(--en,none)">OPEN IN THE APP</span></button>
+                  <button style="width:100%;background:none;color:var(--ink,#101010);border:2px solid var(--line,#101010);border-radius:12px;padding:11px;font-family:inherit;font-size:12.5px;font-weight:800;cursor:pointer;margin-top:8px"><span style="display:var(--ru,inline)">СКОПИРОВАТЬ</span><span style="display:var(--en,none)">COPY</span></button>
+                </div>
+              </div>
+              <div style="font-size:12px;font-weight:800;color:var(--sub,#62625A);padding:0 2px"><span style="display:var(--ru,inline)">3 · В ПРИЛОЖЕНИИ ЖМИ «ПОДКЛЮЧИТЬ» — ВСЁ</span><span style="display:var(--en,none)">3 · HIT CONNECT IN THE APP — DONE</span></div>
+            </div>
+
+            <div data-screen-label="2e Кабинет" style="flex:1;min-height:0;overflow-y:auto;padding:12px 16px 16px;display:var(--sK,none)">
+              <div style="display:inline-block;background:var(--card,#FFFFFF);border:2px solid var(--line,#101010);border-radius:12px;padding:8px 14px;transform:rotate(-1.5deg);box-shadow:3px 3px 0 var(--line,#101010)">
+                <span style="font-family:'Unbounded','Archivo Black',-apple-system,sans-serif;font-size:14px"><span style="display:var(--ru,inline)">АЛЕКСЕЙ</span><span style="display:var(--en,none)">ALEXEY</span></span>
+              </div>
+              <div style="font-size:12.5px;font-weight:800;color:var(--sub,#62625A);margin:8px 0 14px">@alex_k</div>
+              <div style="background:var(--card,#FFFFFF);border:2px solid var(--line,#101010);border-radius:14px;overflow:hidden;box-shadow:4px 4px 0 var(--line,#101010)">
+                <div style="display:flex;align-items:center;gap:8px;border-bottom:2px solid var(--line,#101010);padding:13px 14px">
+                  <span style="flex:1;font-size:13px;font-weight:800;text-transform:uppercase"><span style="display:var(--ru,inline)">Подписка</span><span style="display:var(--en,none)">Sub</span></span>
+                  <span style="font-size:12.5px;font-weight:800"><span style="display:var(--ru,inline)">до {{ tillRu }}</span><span style="display:var(--en,none)">until {{ tillEn }}</span></span>
+                </div>
+                <div style="display:flex;align-items:center;gap:8px;border-bottom:2px solid var(--line,#101010);padding:13px 14px">
+                  <span style="flex:1;font-size:13px;font-weight:800;text-transform:uppercase"><span style="display:var(--ru,inline)">Устройства</span><span style="display:var(--en,none)">Devices</span></span>
+                  <span style="font-size:11.5px;font-weight:800;background:var(--chip,#EFEDE0);border:2px solid var(--line,#101010);border-radius:8px;padding:3px 8px">iPhone</span>
+                  <span style="font-size:11.5px;font-weight:800;background:var(--chip,#EFEDE0);border:2px solid var(--line,#101010);border-radius:8px;padding:3px 8px">MacBook</span>
+                </div>
+                <button style="width:100%;display:flex;align-items:center;gap:8px;background:none;border:0;border-bottom:2px solid var(--line,#101010);padding:13px 14px;font-family:inherit;cursor:pointer;text-align:left">
+                  <span style="flex:1;font-size:13px;font-weight:800;text-transform:uppercase;color:var(--ink,#101010)"><span style="display:var(--ru,inline)">Платежи</span><span style="display:var(--en,none)">Payments</span></span>
+                  <span style="color:var(--ink,#101010);font-weight:800">›</span>
+                </button>
+                <button style="width:100%;display:flex;align-items:center;gap:8px;background:none;border:0;padding:13px 14px;font-family:inherit;cursor:pointer;text-align:left">
+                  <span style="flex:1;font-size:13px;font-weight:800;text-transform:uppercase;color:var(--ink,#101010)"><span style="display:var(--ru,inline)">Помощь</span><span style="display:var(--en,none)">Help</span></span>
+                  <span style="color:var(--ink,#101010);font-weight:800">›</span>
+                </button>
+              </div>
+              <div style="display:flex;align-items:center;gap:12px;background:var(--soft,#ECF7C8);border:2px solid var(--line,#101010);border-radius:14px;padding:13px 14px;margin-top:14px;box-shadow:3px 3px 0 var(--line,#101010)">
+                <span style="width:38px;height:38px;border-radius:10px;background:var(--acc,#C8F04B);border:2px solid var(--line,#101010);color:var(--accInk,#101010);display:flex;align-items:center;justify-content:center;font-family:'Unbounded','Archivo Black',-apple-system,sans-serif;font-size:11px;flex-shrink:0">+7</span>
+                <span style="flex:1;font-size:12.5px;font-weight:800;text-transform:uppercase;line-height:1.35"><span style="display:var(--ru,inline)">Позови друга</span><span style="display:var(--en,none)">Invite a friend</span></span>
+                <span style="font-weight:800">›</span>
+              </div>
+            </div>
+
+            <div style="display:flex;border-top:2px solid var(--line,#101010);background:var(--tabbg,#FFFFFF);padding:8px 8px 24px">
+              <button onClick="{{ nav.hH }}" style="flex:1;background:var(--tbH,#C8F04B);border:0;border-radius:10px;margin:0 3px;padding:10px 4px;font-family:inherit;font-size:12px;font-weight:800;color:var(--tH,#101010);cursor:pointer"><span style="display:var(--ru,inline)">Главная</span><span style="display:var(--en,none)">Home</span></button>
+              <button onClick="{{ nav.hC }}" style="flex:1;background:var(--tbC,transparent);border:0;border-radius:10px;margin:0 3px;padding:10px 4px;font-family:inherit;font-size:12px;font-weight:800;color:var(--tC,#62625A);cursor:pointer"><span style="display:var(--ru,inline)">Подключение</span><span style="display:var(--en,none)">Connect</span></button>
+              <button onClick="{{ nav.hK }}" style="flex:1;background:var(--tbK,transparent);border:0;border-radius:10px;margin:0 3px;padding:10px 4px;font-family:inherit;font-size:12px;font-weight:800;color:var(--tK,#62625A);cursor:pointer"><span style="display:var(--ru,inline)">Кабинет</span><span style="display:var(--en,none)">Profile</span></button>
+            </div>
+          </div>
+        </div>
+      </x-import>
+    </div>
+
+  </div>
+  <p class="dv-next">Дальше можно: «инструкцию из <a class="dv-oid" href="#2a">2a</a> перенести в <a class="dv-oid" href="#1b">1b</a>» · «сделай <a class="dv-oid" href="#2d">2d</a> спокойнее» · «покажи экран оплаты»</p>
+</section>
+<section class="dv-turn" id="t1">
+  <div class="dv-thd"><a class="dv-tid" href="#t1">1</a><span class="dv-tname">VPN мини-апп в Telegram — три направления: экраны «Главная · Подключение · Кабинет»</span></div>
+  <div style="{{ chromeVars }}">
+    <div style="display:flex;flex-wrap:wrap;gap:14px;align-items:center;margin:0 0 24px">
+      <div style="display:inline-flex;background:rgba(0,0,0,0.07);border-radius:99px;padding:3px;gap:2px">
+        <button onClick="{{ ui.light }}" style="border:0;border-radius:99px;padding:6px 14px;font-size:12.5px;font-weight:600;cursor:pointer;font-family:inherit;background:var(--tl,#1A1A1A);color:var(--tlc,#FFFFFF)">Светлая</button>
+        <button onClick="{{ ui.dark }}" style="border:0;border-radius:99px;padding:6px 14px;font-size:12.5px;font-weight:600;cursor:pointer;font-family:inherit;background:var(--td,transparent);color:var(--tdc,#6B6B6B)">Тёмная</button>
+      </div>
+      <div style="display:inline-flex;background:rgba(0,0,0,0.07);border-radius:99px;padding:3px;gap:2px">
+        <button onClick="{{ ui.ru }}" style="border:0;border-radius:99px;padding:6px 14px;font-size:12.5px;font-weight:600;cursor:pointer;font-family:inherit;background:var(--lr,#1A1A1A);color:var(--lrc,#FFFFFF)">RU</button>
+        <button onClick="{{ ui.en }}" style="border:0;border-radius:99px;padding:6px 14px;font-size:12.5px;font-weight:600;cursor:pointer;font-family:inherit;background:var(--le,transparent);color:var(--lec,#6B6B6B)">EN</button>
+      </div>
+      <span style="font-size:12px;color:rgba(0,0,0,0.45)">Макеты кликабельны: вкладки, кнопка подключения, тарифы и локации</span>
+    </div>
+  </div>
+  <div class="dv-opts" style="{{ rowVars }}">
+
+    <div class="dv-opt" id="1a" data-screen-label="1a Минимал">
+      <div class="dv-olabel"><a class="dv-oid" href="#1a">1a</a><span>«Минимал» — светло и по делу · системный шрифт, один акцент, нейтральный тон</span></div>
+      <x-import component-from-global-scope="IOSDevice" from="./ios-frame.jsx" dark="{{ isDark }}" hint-size="402,874">
+        <div style="{{ va }}">
+          <div style="height:100%;display:flex;flex-direction:column;overflow:hidden;background:var(--bg,#F5F6F8);color:var(--ink,#161A20);font-family:-apple-system,BlinkMacSystemFont,'SF Pro Text','Helvetica Neue',sans-serif;line-height:1.35;transition:background-color .3s">
+            <div style="padding:58px 12px 0;background:var(--bg,#F5F6F8)">
+              <div style="display:flex;align-items:center;height:46px">
+                <div style="flex:1;display:flex"><button style="background:none;border:0;padding:4px 2px;font-family:inherit;font-size:16px;color:var(--acc,#2E63E7);cursor:pointer"><span style="display:var(--ru,inline)">Закрыть</span><span style="display:var(--en,none)">Close</span></button></div>
+                <div style="font-size:16.5px;font-weight:600;letter-spacing:-0.2px">VPN</div>
+                <div style="flex:1;display:flex;justify-content:flex-end"><div style="display:flex;align-items:center;border:1px solid var(--line,#E8EAEF);border-radius:99px;background:var(--card,#FFFFFF)"><span style="padding:3px 10px;color:var(--sub,#7A828E);font-size:13px;letter-spacing:1px">•••</span><span style="width:1px;height:16px;background:var(--line,#E8EAEF)"></span><span style="padding:3px 10px;color:var(--sub,#7A828E);font-size:11px">⌄</span></div></div>
+              </div>
+            </div>
+
+            <div data-screen-label="1a Главная" style="flex:1;min-height:0;overflow-y:auto;padding:10px 16px 16px;display:var(--sH,block)">
+              <div style="background:var(--card,#FFFFFF);border:1px solid var(--line,#E8EAEF);border-radius:20px;padding:20px;margin:6px 0 4px">
+                <div style="display:flex;align-items:center;gap:8px">
+                  <span style="width:8px;height:8px;border-radius:50%;background:var(--ok,#189A62)"></span>
+                  <span style="font-size:13px;font-weight:600;color:var(--ok,#189A62);letter-spacing:0.2px"><span style="display:var(--ru,inline)">Подписка активна</span><span style="display:var(--en,none)">Subscription active</span></span>
+                </div>
+                <div style="display:flex;align-items:baseline;gap:9px;margin-top:14px">
+                  <span style="font-size:46px;font-weight:700;letter-spacing:-1.5px;line-height:1">{{ days }}</span>
+                  <span style="font-size:14.5px;color:var(--sub,#7A828E)"><span style="display:var(--ru,inline)">{{ dayRu }} · до {{ tillRu }}</span><span style="display:var(--en,none)">days · until {{ tillEn }}</span></span>
+                </div>
+                <div style="height:6px;border-radius:3px;background:var(--chip,#F0F2F6);margin:16px 0 18px;overflow:hidden">
+                  <div style="height:100%;width:var(--prog,25.6%);border-radius:3px;background:var(--acc,#2E63E7);transition:width .3s"></div>
+                </div>
+                <button style="width:100%;background:var(--acc,#2E63E7);color:var(--accInk,#FFFFFF);border:0;border-radius:14px;padding:15px;font-family:inherit;font-size:15.5px;font-weight:600;cursor:pointer"><span style="display:var(--ru,inline)">Продлить</span><span style="display:var(--en,none)">Renew</span></button>
+              </div>
+
+              <div style="font-size:12px;font-weight:700;color:var(--sub,#7A828E);letter-spacing:0.8px;text-transform:uppercase;margin:18px 6px 8px"><span style="display:var(--ru,inline)">Тариф</span><span style="display:var(--en,none)">Plan</span></div>
+              <button onClick="{{ pl.a0 }}" style="width:100%;display:flex;align-items:center;gap:8px;background:var(--g0,#FFFFFF);border:1.5px solid var(--p0,#E8EAEF);border-radius:16px;padding:14px 16px;margin-bottom:8px;font-family:inherit;color:var(--ink,#161A20);cursor:pointer;text-align:left;transition:border-color .2s">
+                <span style="font-size:15px;font-weight:600;flex:1"><span style="display:var(--ru,inline)">1 месяц</span><span style="display:var(--en,none)">1 month</span></span>
+                <span style="font-size:15px;font-weight:600"><span style="display:var(--ru,inline)">199 ₽</span><span style="display:var(--en,none)">$2.49</span></span>
+              </button>
+              <button onClick="{{ pl.a1 }}" style="width:100%;display:flex;align-items:center;gap:8px;background:var(--g1,#EDF2FE);border:1.5px solid var(--p1,#2E63E7);border-radius:16px;padding:14px 16px;margin-bottom:8px;font-family:inherit;color:var(--ink,#161A20);cursor:pointer;text-align:left;transition:border-color .2s">
+                <span style="font-size:15px;font-weight:600;flex:1;display:flex;align-items:center;gap:8px"><span><span style="display:var(--ru,inline)">3 месяца</span><span style="display:var(--en,none)">3 months</span></span><span style="font-size:11px;font-weight:700;color:var(--acc,#2E63E7);border:1px solid var(--acc,#2E63E7);padding:2px 7px;border-radius:99px">−16%</span></span>
+                <span style="font-size:15px;font-weight:600"><span style="display:var(--ru,inline)">499 ₽</span><span style="display:var(--en,none)">$5.99</span></span>
+              </button>
+              <button onClick="{{ pl.a2 }}" style="width:100%;display:flex;align-items:center;gap:8px;background:var(--g2,#FFFFFF);border:1.5px solid var(--p2,#E8EAEF);border-radius:16px;padding:14px 16px;font-family:inherit;color:var(--ink,#161A20);cursor:pointer;text-align:left;transition:border-color .2s">
+                <span style="font-size:15px;font-weight:600;flex:1;display:flex;align-items:center;gap:8px"><span><span style="display:var(--ru,inline)">12 месяцев</span><span style="display:var(--en,none)">12 months</span></span><span style="font-size:11px;font-weight:700;color:var(--acc,#2E63E7);border:1px solid var(--acc,#2E63E7);padding:2px 7px;border-radius:99px">−38%</span></span>
+                <span style="font-size:15px;font-weight:600"><span style="display:var(--ru,inline)">1 490 ₽</span><span style="display:var(--en,none)">$16.99</span></span>
+              </button>
+
+              <div style="font-size:12px;font-weight:700;color:var(--sub,#7A828E);letter-spacing:0.8px;text-transform:uppercase;margin:18px 6px 8px"><span style="display:var(--ru,inline)">Оплата</span><span style="display:var(--en,none)">Payment</span></div>
+              <div style="display:flex;gap:8px;flex-wrap:wrap">
+                <span style="background:var(--chip,#F0F2F6);border-radius:10px;padding:7px 12px;font-size:12.5px;font-weight:600"><span style="display:var(--ru,inline)">СБП</span><span style="display:var(--en,none)">SBP</span></span>
+                <span style="background:var(--chip,#F0F2F6);border-radius:10px;padding:7px 12px;font-size:12.5px;font-weight:600"><span style="display:var(--ru,inline)">Карта</span><span style="display:var(--en,none)">Card</span></span>
+                <span style="background:var(--chip,#F0F2F6);border-radius:10px;padding:7px 12px;font-size:12.5px;font-weight:600">USDT</span>
+                <span style="background:var(--chip,#F0F2F6);border-radius:10px;padding:7px 12px;font-size:12.5px;font-weight:600">★ Stars</span>
+              </div>
+
+              <button style="width:100%;display:flex;align-items:center;gap:10px;background:none;border:0;padding:16px 6px 6px;font-family:inherit;cursor:pointer;text-align:left">
+                <span style="flex:1;font-size:13.5px;color:var(--sub,#7A828E)"><span style="display:var(--ru,inline)">Пригласите друга — по +7 дней каждому</span><span style="display:var(--en,none)">Invite a friend — +7 days each</span></span>
+                <span style="color:var(--sub,#7A828E)">›</span>
+              </button>
+            </div>
+
+            <div data-screen-label="1a Подключение" style="flex:1;min-height:0;overflow-y:auto;padding:10px 16px 16px;display:var(--sC,none)">
+              <div style="font-size:13.5px;color:var(--sub,#7A828E);margin:8px 4px 14px;line-height:1.45"><span style="display:var(--ru,inline)">VPN работает в отдельном приложении. Настройка — два шага.</span><span style="display:var(--en,none)">The VPN runs in a separate app. Setup takes two steps.</span></div>
+              <div style="background:var(--card,#FFFFFF);border:1px solid var(--line,#E8EAEF);border-radius:20px;padding:18px;margin-bottom:10px">
+                <div style="display:flex;align-items:center;gap:10px">
+                  <span style="width:26px;height:26px;border-radius:50%;background:var(--soft,#EDF2FE);color:var(--acc,#2E63E7);display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;flex-shrink:0">1</span>
+                  <span style="font-size:15.5px;font-weight:700"><span style="display:var(--ru,inline)">Скачайте приложение</span><span style="display:var(--en,none)">Get the app</span></span>
+                </div>
+                <div style="font-size:13px;color:var(--sub,#7A828E);margin:8px 0 12px;line-height:1.4"><span style="display:var(--ru,inline)">Ваше устройство: iPhone — определили автоматически</span><span style="display:var(--en,none)">Your device: iPhone — detected automatically</span></div>
+                <button style="width:100%;background:var(--acc,#2E63E7);color:var(--accInk,#FFFFFF);border:0;border-radius:12px;padding:13px;font-family:inherit;font-size:14.5px;font-weight:600;cursor:pointer"><span style="display:var(--ru,inline)">Скачать в App Store</span><span style="display:var(--en,none)">Get on the App Store</span></button>
+                <div style="text-align:center;font-size:12px;color:var(--sub,#7A828E);margin-top:10px">iOS · Android · macOS · Windows</div>
+              </div>
+              <div style="background:var(--card,#FFFFFF);border:1px solid var(--line,#E8EAEF);border-radius:20px;padding:18px;margin-bottom:10px">
+                <div style="display:flex;align-items:center;gap:10px">
+                  <span style="width:26px;height:26px;border-radius:50%;background:var(--soft,#EDF2FE);color:var(--acc,#2E63E7);display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;flex-shrink:0">2</span>
+                  <span style="font-size:15.5px;font-weight:700"><span style="display:var(--ru,inline)">Добавьте подписку</span><span style="display:var(--en,none)">Add your subscription</span></span>
+                </div>
+                <div style="font-size:13px;color:var(--sub,#7A828E);margin:8px 0 12px;line-height:1.4"><span style="display:var(--ru,inline)">Персональная ссылка настроит приложение сама</span><span style="display:var(--en,none)">Your personal link sets the app up automatically</span></div>
+                <button onClick="{{ lk.a }}" style="width:100%;background:var(--soft,#EDF2FE);color:var(--acc,#2E63E7);border:0;border-radius:12px;padding:13px;font-family:inherit;font-size:14.5px;font-weight:600;cursor:pointer"><span style="display:var(--lki,inline)"><span style="display:var(--ru,inline)">Получить ссылку</span><span style="display:var(--en,none)">Get my link</span></span><span style="display:var(--lkoi,none)"><span style="display:var(--ru,inline)">Обновить ссылку</span><span style="display:var(--en,none)">Refresh the link</span></span></button>
+                <div style="display:var(--lk,none);margin-top:10px">
+                  <div style="background:var(--chip,#F0F2F6);border-radius:12px;padding:12px;font-family:ui-monospace,Menlo,monospace;font-size:12px;word-break:break-all">https://sub.vpn.app/u/8fk2…9a3</div>
+                  <button style="width:100%;background:var(--acc,#2E63E7);color:var(--accInk,#FFFFFF);border:0;border-radius:12px;padding:13px;font-family:inherit;font-size:14.5px;font-weight:600;cursor:pointer;margin-top:8px"><span style="display:var(--ru,inline)">Открыть в приложении</span><span style="display:var(--en,none)">Open in the app</span></button>
+                  <button style="width:100%;background:none;color:var(--ink,#161A20);border:1px solid var(--line,#E8EAEF);border-radius:12px;padding:12px;font-family:inherit;font-size:14px;font-weight:600;cursor:pointer;margin-top:8px"><span style="display:var(--ru,inline)">Скопировать</span><span style="display:var(--en,none)">Copy</span></button>
+                </div>
+              </div>
+              <div style="display:flex;align-items:flex-start;gap:8px;padding:4px 6px">
+                <span style="color:var(--ok,#189A62);font-weight:700">✓</span>
+                <span style="font-size:13px;color:var(--sub,#7A828E);line-height:1.45"><span style="display:var(--ru,inline)">В приложении нажмите «Подключить» — готово.</span><span style="display:var(--en,none)">Tap Connect in the app — done.</span></span>
+              </div>
+            </div>
+
+            <div data-screen-label="1a Кабинет" style="flex:1;min-height:0;overflow-y:auto;padding:10px 16px 16px;display:var(--sK,none)">
+              <div style="display:flex;align-items:center;gap:14px;padding:12px 4px 18px">
+                <div style="width:56px;height:56px;border-radius:50%;background:var(--soft,#EDF2FE);color:var(--acc,#2E63E7);display:flex;align-items:center;justify-content:center;font-size:19px;font-weight:700">АК</div>
+                <div>
+                  <div style="font-size:17px;font-weight:700"><span style="display:var(--ru,inline)">Алексей</span><span style="display:var(--en,none)">Alexey</span></div>
+                  <div style="font-size:13px;color:var(--sub,#7A828E)">@alex_k</div>
+                </div>
+              </div>
+              <div style="background:var(--card,#FFFFFF);border:1px solid var(--line,#E8EAEF);border-radius:16px;overflow:hidden">
+                <div style="display:flex;align-items:center;gap:8px;border-bottom:1px solid var(--line,#E8EAEF);padding:13px 16px">
+                  <span style="flex:1;font-size:15px"><span style="display:var(--ru,inline)">Подписка</span><span style="display:var(--en,none)">Subscription</span></span>
+                  <span style="font-size:13.5px;color:var(--sub,#7A828E)"><span style="display:var(--ru,inline)">до {{ tillRu }}</span><span style="display:var(--en,none)">until {{ tillEn }}</span></span>
+                </div>
+                <div style="display:flex;align-items:center;gap:8px;border-bottom:1px solid var(--line,#E8EAEF);padding:13px 16px">
+                  <span style="flex:1;font-size:15px"><span style="display:var(--ru,inline)">Устройства</span><span style="display:var(--en,none)">Devices</span></span>
+                  <span style="font-size:13.5px;color:var(--sub,#7A828E)"><span style="display:var(--ru,inline)">2 из 5</span><span style="display:var(--en,none)">2 of 5</span></span>
+                </div>
+                <button style="width:100%;display:flex;align-items:center;gap:8px;background:none;border:0;border-bottom:1px solid var(--line,#E8EAEF);padding:13px 16px;font-family:inherit;cursor:pointer;text-align:left">
+                  <span style="flex:1;font-size:15px;color:var(--ink,#161A20)"><span style="display:var(--ru,inline)">История платежей</span><span style="display:var(--en,none)">Payment history</span></span>
+                  <span style="color:var(--sub,#7A828E)">›</span>
+                </button>
+                <button style="width:100%;display:flex;align-items:center;gap:8px;background:none;border:0;border-bottom:1px solid var(--line,#E8EAEF);padding:13px 16px;font-family:inherit;cursor:pointer;text-align:left">
+                  <span style="flex:1;font-size:15px;color:var(--ink,#161A20)"><span style="display:var(--ru,inline)">Реферальная программа</span><span style="display:var(--en,none)">Referral program</span></span>
+                  <span style="font-size:13.5px;color:var(--acc,#2E63E7);font-weight:600"><span style="display:var(--ru,inline)">+7 дней</span><span style="display:var(--en,none)">+7 days</span></span>
+                  <span style="color:var(--sub,#7A828E)">›</span>
+                </button>
+                <button style="width:100%;display:flex;align-items:center;gap:8px;background:none;border:0;padding:13px 16px;font-family:inherit;cursor:pointer;text-align:left">
+                  <span style="flex:1;font-size:15px;color:var(--ink,#161A20)"><span style="display:var(--ru,inline)">Поддержка</span><span style="display:var(--en,none)">Support</span></span>
+                  <span style="color:var(--sub,#7A828E)">›</span>
+                </button>
+              </div>
+              <div style="text-align:center;font-family:ui-monospace,Menlo,monospace;font-size:11px;color:var(--sub,#7A828E);margin-top:18px">v2.4.1 · WireGuard</div>
+            </div>
+
+            <div style="display:flex;border-top:1px solid var(--line,#E8EAEF);background:var(--tabbg,#FFFFFF);padding:6px 10px 24px">
+              <button onClick="{{ nav.aH }}" style="flex:1;background:none;border:0;padding:9px 4px;font-family:inherit;font-size:12.5px;font-weight:600;letter-spacing:0.2px;color:var(--tH,#2E63E7);cursor:pointer"><span style="display:var(--ru,inline)">Главная</span><span style="display:var(--en,none)">Home</span></button>
+              <button onClick="{{ nav.aC }}" style="flex:1;background:none;border:0;padding:9px 4px;font-family:inherit;font-size:12.5px;font-weight:600;letter-spacing:0.2px;color:var(--tC,#7A828E);cursor:pointer"><span style="display:var(--ru,inline)">Подключение</span><span style="display:var(--en,none)">Connect</span></button>
+              <button onClick="{{ nav.aK }}" style="flex:1;background:none;border:0;padding:9px 4px;font-family:inherit;font-size:12.5px;font-weight:600;letter-spacing:0.2px;color:var(--tK,#7A828E);cursor:pointer"><span style="display:var(--ru,inline)">Кабинет</span><span style="display:var(--en,none)">Account</span></button>
+            </div>
+          </div>
+        </div>
+      </x-import>
+    </div>
+
+    <div class="dv-opt" id="1b" data-screen-label="1b Прайват">
+      <div class="dv-olabel"><a class="dv-oid" href="#1b">1b</a><span>«Прайват» — строгий, «банковский» · серифные цифры, тариф-карта, формальный тон</span></div>
+      <x-import component-from-global-scope="IOSDevice" from="./ios-frame.jsx" dark="{{ isDark }}" hint-size="402,874">
+        <div style="{{ vb }}">
+          <div style="height:100%;display:flex;flex-direction:column;overflow:hidden;background:var(--bg,#F4F2EC);color:var(--ink,#1D1A14);font-family:-apple-system,BlinkMacSystemFont,'SF Pro Text','Helvetica Neue',sans-serif;line-height:1.35;transition:background-color .3s">
+            <div style="padding:58px 12px 0;background:var(--bg,#F4F2EC)">
+              <div style="display:flex;align-items:center;height:46px">
+                <div style="flex:1;display:flex"><button style="background:none;border:0;padding:4px 2px;font-family:inherit;font-size:16px;color:var(--acc,#1E4B39);cursor:pointer"><span style="display:var(--ru,inline)">Закрыть</span><span style="display:var(--en,none)">Close</span></button></div>
+                <div style="font-size:15px;font-weight:600;letter-spacing:2.5px">VPN PRIVATE</div>
+                <div style="flex:1;display:flex;justify-content:flex-end"><div style="display:flex;align-items:center;border:1px solid var(--line,#E6E1D2);border-radius:99px;background:var(--card,#FFFFFF)"><span style="padding:3px 10px;color:var(--sub,#8A8272);font-size:13px;letter-spacing:1px">•••</span><span style="width:1px;height:16px;background:var(--line,#E6E1D2)"></span><span style="padding:3px 10px;color:var(--sub,#8A8272);font-size:11px">⌄</span></div></div>
+              </div>
+            </div>
+
+            <div data-screen-label="1b Главная" style="flex:1;min-height:0;overflow-y:auto;padding:8px 16px 16px;display:var(--sH,block)">
+              <div style="font-size:13.5px;color:var(--sub,#8A8272);margin:8px 4px 0"><span style="display:var(--ru,inline)">Добрый день, Алексей</span><span style="display:var(--en,none)">Good afternoon, Alexey</span></div>
+              <div style="font-size:11px;font-weight:600;letter-spacing:1.4px;text-transform:uppercase;color:var(--sub,#8A8272);margin:16px 4px 2px"><span style="display:var(--ru,inline)">Остаток подписки</span><span style="display:var(--en,none)">Subscription balance</span></div>
+              <div style="font-family:'Instrument Serif',Georgia,serif;font-size:54px;line-height:1.05;margin:0 4px 4px">{{ days }} <span style="font-size:30px"><span style="display:var(--ru,inline)">{{ dayRu }}</span><span style="display:var(--en,none)">days</span></span></div>
+              <div style="font-size:12.5px;color:var(--sub,#8A8272);margin:0 4px 16px"><span style="display:var(--ru,inline)">действует до {{ tillRuS }}</span><span style="display:var(--en,none)">valid thru {{ tillEnS }}</span></div>
+
+              <div style="background:var(--cardface,#132A20);border-radius:18px;padding:18px 20px;display:flex;flex-direction:column;gap:20px;box-shadow:0 14px 30px rgba(25,35,25,0.16)">
+                <div style="display:flex;justify-content:space-between;align-items:center">
+                  <span style="font-size:11.5px;letter-spacing:3px;font-weight:600;color:var(--cardink,#E8DFC4)">PRIVATE</span>
+                  <span style="width:34px;height:25px;border-radius:6px;background:var(--gold,#A5824A);box-shadow:inset 0 0 0 1px rgba(255,255,255,0.28)"></span>
+                </div>
+                <div style="font-family:ui-monospace,Menlo,monospace;font-size:15px;letter-spacing:3.5px;color:var(--cardink,#E8DFC4)">•••• •••• 4921</div>
+                <div style="display:flex;justify-content:space-between;align-items:flex-end">
+                  <span><span style="display:block;font-size:10px;letter-spacing:1.2px;text-transform:uppercase;color:var(--cardsub,rgba(232,223,196,0.55));margin-bottom:2px"><span style="display:var(--ru,inline)">Тариф</span><span style="display:var(--en,none)">Plan</span></span><span style="font-size:14px;color:var(--cardink,#E8DFC4)"><span style="display:var(--ru,inline)">3 месяца</span><span style="display:var(--en,none)">3 months</span></span></span>
+                  <span style="text-align:right"><span style="display:block;font-size:10px;letter-spacing:1.2px;text-transform:uppercase;color:var(--cardsub,rgba(232,223,196,0.55));margin-bottom:2px"><span style="display:var(--ru,inline)">до</span><span style="display:var(--en,none)">thru</span></span><span style="font-size:14px;color:var(--cardink,#E8DFC4)"><span style="display:var(--ru,inline)">{{ tillRuS }}</span><span style="display:var(--en,none)">{{ tillEnS }}</span></span></span>
+                </div>
+              </div>
+
+              <button style="width:100%;margin:12px 0 4px;background:var(--acc,#1E4B39);color:var(--accInk,#F4F1E6);border:0;border-radius:12px;padding:15px;font-family:inherit;font-size:15px;font-weight:600;letter-spacing:0.2px;cursor:pointer"><span style="display:var(--ru,inline)">Продлить подписку</span><span style="display:var(--en,none)">Renew subscription</span></button>
+
+              <div style="font-size:11px;font-weight:600;letter-spacing:1.4px;text-transform:uppercase;color:var(--sub,#8A8272);margin:18px 4px 8px"><span style="display:var(--ru,inline)">Тарифные планы</span><span style="display:var(--en,none)">Plans</span></div>
+              <div style="background:var(--card,#FFFFFF);border:1px solid var(--line,#E6E1D2);border-radius:14px;overflow:hidden">
+                <button onClick="{{ pl.b0 }}" style="width:100%;display:flex;align-items:center;gap:12px;background:none;border:0;border-bottom:1px solid var(--line,#E6E1D2);padding:14px 16px;font-family:inherit;cursor:pointer;text-align:left">
+                  <span style="width:19px;height:19px;border-radius:50%;border:1.5px solid var(--gold,#A5824A);display:flex;align-items:center;justify-content:center;flex-shrink:0"><span style="width:9px;height:9px;border-radius:50%;background:var(--q0,transparent)"></span></span>
+                  <span style="flex:1"><span style="display:block;font-size:15px;color:var(--ink,#1D1A14)"><span style="display:var(--ru,inline)">1 месяц</span><span style="display:var(--en,none)">1 month</span></span><span style="display:block;font-size:12px;color:var(--sub,#8A8272)">149 ★</span></span>
+                  <span style="font-size:15px;font-weight:600"><span style="display:var(--ru,inline)">199 ₽</span><span style="display:var(--en,none)">$2.49</span></span>
+                </button>
+                <button onClick="{{ pl.b1 }}" style="width:100%;display:flex;align-items:center;gap:12px;background:none;border:0;border-bottom:1px solid var(--line,#E6E1D2);padding:14px 16px;font-family:inherit;cursor:pointer;text-align:left">
+                  <span style="width:19px;height:19px;border-radius:50%;border:1.5px solid var(--gold,#A5824A);display:flex;align-items:center;justify-content:center;flex-shrink:0"><span style="width:9px;height:9px;border-radius:50%;background:var(--q1,#1E4B39)"></span></span>
+                  <span style="flex:1"><span style="display:block;font-size:15px;color:var(--ink,#1D1A14)"><span style="display:var(--ru,inline)">3 месяца</span><span style="display:var(--en,none)">3 months</span></span><span style="display:block;font-size:12px;color:var(--sub,#8A8272)">379 ★ · −16%</span></span>
+                  <span style="font-size:15px;font-weight:600"><span style="display:var(--ru,inline)">499 ₽</span><span style="display:var(--en,none)">$5.99</span></span>
+                </button>
+                <button onClick="{{ pl.b2 }}" style="width:100%;display:flex;align-items:center;gap:12px;background:none;border:0;padding:14px 16px;font-family:inherit;cursor:pointer;text-align:left">
+                  <span style="width:19px;height:19px;border-radius:50%;border:1.5px solid var(--gold,#A5824A);display:flex;align-items:center;justify-content:center;flex-shrink:0"><span style="width:9px;height:9px;border-radius:50%;background:var(--q2,transparent)"></span></span>
+                  <span style="flex:1"><span style="display:block;font-size:15px;color:var(--ink,#1D1A14)"><span style="display:var(--ru,inline)">12 месяцев</span><span style="display:var(--en,none)">12 months</span></span><span style="display:block;font-size:12px;color:var(--sub,#8A8272)">1 090 ★ · −38%</span></span>
+                  <span style="font-size:15px;font-weight:600"><span style="display:var(--ru,inline)">1 490 ₽</span><span style="display:var(--en,none)">$16.99</span></span>
+                </button>
+              </div>
+
+              <div style="font-size:11px;font-weight:600;letter-spacing:1.4px;text-transform:uppercase;color:var(--sub,#8A8272);margin:18px 4px 8px"><span style="display:var(--ru,inline)">Способы оплаты</span><span style="display:var(--en,none)">Payment methods</span></div>
+              <div style="background:var(--card,#FFFFFF);border:1px solid var(--line,#E6E1D2);border-radius:14px;overflow:hidden">
+                <div style="display:flex;align-items:center;gap:8px;border-bottom:1px solid var(--line,#E6E1D2);padding:13px 16px"><span style="flex:1;font-size:14.5px">СБП</span><span style="color:var(--sub,#8A8272)">›</span></div>
+                <div style="display:flex;align-items:center;gap:8px;border-bottom:1px solid var(--line,#E6E1D2);padding:13px 16px"><span style="flex:1;font-size:14.5px"><span style="display:var(--ru,inline)">Банковская карта</span><span style="display:var(--en,none)">Bank card</span></span><span style="color:var(--sub,#8A8272)">›</span></div>
+                <div style="display:flex;align-items:center;gap:8px;border-bottom:1px solid var(--line,#E6E1D2);padding:13px 16px"><span style="flex:1;font-size:14.5px">USDT · TRC-20</span><span style="color:var(--sub,#8A8272)">›</span></div>
+                <div style="display:flex;align-items:center;gap:8px;padding:13px 16px"><span style="flex:1;font-size:14.5px">Telegram Stars</span><span style="color:var(--sub,#8A8272)">›</span></div>
+              </div>
+
+              <div style="display:flex;align-items:center;gap:8px;padding:16px 6px 4px">
+                <span style="flex:1;font-size:13px;color:var(--sub,#8A8272)"><span style="display:var(--ru,inline)">Партнёрская программа — 20% от платежей</span><span style="display:var(--en,none)">Partner program — 20% of payments</span></span>
+                <span style="color:var(--sub,#8A8272)">›</span>
+              </div>
+            </div>
+
+            <div data-screen-label="1b Подключение" style="flex:1;min-height:0;overflow-y:auto;padding:8px 16px 16px;display:var(--sC,none)">
+              <div style="font-size:11px;font-weight:600;letter-spacing:1.4px;text-transform:uppercase;color:var(--sub,#8A8272);margin:10px 4px 8px"><span style="display:var(--ru,inline)">Инструкция по подключению</span><span style="display:var(--en,none)">Connection guide</span></div>
+              <div style="font-size:12.5px;color:var(--sub,#8A8272);margin:0 4px 12px;line-height:1.45"><span style="display:var(--ru,inline)">Сервис работает через отдельное приложение. Выполните три шага.</span><span style="display:var(--en,none)">The service runs in a dedicated app. Follow three steps.</span></div>
+              <div style="background:var(--card,#FFFFFF);border:1px solid var(--line,#E6E1D2);border-radius:14px;overflow:hidden">
+                <div style="display:flex;gap:14px;padding:16px;border-bottom:1px solid var(--line,#E6E1D2)">
+                  <span style="font-family:'Instrument Serif',Georgia,serif;font-size:24px;line-height:1;color:var(--gold,#A5824A);width:22px;flex-shrink:0">1</span>
+                  <span style="flex:1">
+                    <span style="display:block;font-size:15px;font-weight:600"><span style="display:var(--ru,inline)">Установите приложение</span><span style="display:var(--en,none)">Install the app</span></span>
+                    <span style="display:block;font-size:12.5px;color:var(--sub,#8A8272);margin-top:3px"><span style="display:var(--ru,inline)">Устройство определено: iPhone</span><span style="display:var(--en,none)">Device detected: iPhone</span></span>
+                    <button style="width:100%;margin-top:12px;background:var(--acc,#1E4B39);color:var(--accInk,#F4F1E6);border:0;border-radius:10px;padding:12px;font-family:inherit;font-size:14px;font-weight:600;cursor:pointer"><span style="display:var(--ru,inline)">Скачать в App Store</span><span style="display:var(--en,none)">Get on the App Store</span></button>
+                    <span style="display:block;text-align:center;font-size:11.5px;color:var(--sub,#8A8272);margin-top:8px">iOS · Android · macOS · Windows</span>
+                  </span>
+                </div>
+                <div style="display:flex;gap:14px;padding:16px;border-bottom:1px solid var(--line,#E6E1D2)">
+                  <span style="font-family:'Instrument Serif',Georgia,serif;font-size:24px;line-height:1;color:var(--gold,#A5824A);width:22px;flex-shrink:0">2</span>
+                  <span style="flex:1">
+                    <span style="display:block;font-size:15px;font-weight:600"><span style="display:var(--ru,inline)">Активируйте подписку</span><span style="display:var(--en,none)">Activate the subscription</span></span>
+                    <span style="display:block;font-size:12.5px;color:var(--sub,#8A8272);margin-top:3px"><span style="display:var(--ru,inline)">Персональная ссылка формируется автоматически</span><span style="display:var(--en,none)">Your personal link is issued automatically</span></span>
+                    <button onClick="{{ lk.b }}" style="width:100%;margin-top:12px;background:none;color:var(--ink,#1D1A14);border:1px solid var(--gold,#A5824A);border-radius:10px;padding:12px;font-family:inherit;font-size:14px;font-weight:600;cursor:pointer"><span style="display:var(--lki,inline)"><span style="display:var(--ru,inline)">Получить ссылку доступа</span><span style="display:var(--en,none)">Get the access link</span></span><span style="display:var(--lkoi,none)"><span style="display:var(--ru,inline)">Ссылка сформирована</span><span style="display:var(--en,none)">Link issued</span></span></button>
+                    <span style="display:var(--lk,none);margin-top:10px">
+                      <span style="display:block;background:var(--soft,#EDE9DC);border-radius:10px;padding:11px 12px;font-family:ui-monospace,Menlo,monospace;font-size:11.5px;word-break:break-all">https://sub.vpn.app/u/8fk2…9a3</span>
+                      <button style="width:100%;margin-top:8px;background:var(--acc,#1E4B39);color:var(--accInk,#F4F1E6);border:0;border-radius:10px;padding:12px;font-family:inherit;font-size:14px;font-weight:600;cursor:pointer"><span style="display:var(--ru,inline)">Открыть в приложении</span><span style="display:var(--en,none)">Open in the app</span></button>
+                      <button style="width:100%;margin-top:8px;background:none;color:var(--ink,#1D1A14);border:1px solid var(--line,#E6E1D2);border-radius:10px;padding:11px;font-family:inherit;font-size:13.5px;font-weight:600;cursor:pointer"><span style="display:var(--ru,inline)">Скопировать</span><span style="display:var(--en,none)">Copy</span></button>
+                    </span>
+                  </span>
+                </div>
+                <div style="display:flex;gap:14px;padding:16px">
+                  <span style="font-family:'Instrument Serif',Georgia,serif;font-size:24px;line-height:1;color:var(--gold,#A5824A);width:22px;flex-shrink:0">3</span>
+                  <span style="flex:1">
+                    <span style="display:block;font-size:15px;font-weight:600"><span style="display:var(--ru,inline)">Нажмите «Подключить» в приложении</span><span style="display:var(--en,none)">Press Connect in the app</span></span>
+                    <span style="display:block;font-size:12.5px;color:var(--sub,#8A8272);margin-top:3px"><span style="display:var(--ru,inline)">Соединение защищено протоколом WireGuard</span><span style="display:var(--en,none)">The connection is secured by WireGuard</span></span>
+                  </span>
+                </div>
+              </div>
+              <div style="font-size:11.5px;color:var(--sub,#8A8272);margin:12px 6px 0"><span style="display:var(--ru,inline)">Ссылка выдаётся панелью Remnawave и действует только для вашего аккаунта.</span><span style="display:var(--en,none)">The link is issued by the Remnawave panel and works for your account only.</span></div>
+            </div>
+
+            <div data-screen-label="1b Кабинет" style="flex:1;min-height:0;overflow-y:auto;padding:8px 16px 16px;display:var(--sK,none)">
+              <div style="display:flex;align-items:center;gap:14px;padding:12px 4px 16px">
+                <div style="width:52px;height:52px;border-radius:12px;background:var(--soft,#EDE9DC);color:var(--gold,#A5824A);display:flex;align-items:center;justify-content:center;font-family:'Instrument Serif',Georgia,serif;font-size:20px">АК</div>
+                <div>
+                  <div style="font-size:16.5px;font-weight:600"><span style="display:var(--ru,inline)">Алексей К.</span><span style="display:var(--en,none)">Alexey K.</span></div>
+                  <div style="font-size:12.5px;color:var(--sub,#8A8272)"><span style="display:var(--ru,inline)">клиент с 2024 · договор VPN-04921</span><span style="display:var(--en,none)">client since 2024 · contract VPN-04921</span></div>
+                </div>
+              </div>
+
+              <div style="font-size:11px;font-weight:600;letter-spacing:1.4px;text-transform:uppercase;color:var(--sub,#8A8272);margin:0 4px 8px"><span style="display:var(--ru,inline)">Операции</span><span style="display:var(--en,none)">Transactions</span></div>
+              <div style="background:var(--card,#FFFFFF);border:1px solid var(--line,#E6E1D2);border-radius:14px;overflow:hidden">
+                <div style="display:flex;align-items:center;gap:10px;border-bottom:1px solid var(--line,#E6E1D2);padding:12px 16px">
+                  <span style="font-family:ui-monospace,Menlo,monospace;font-size:12px;color:var(--sub,#8A8272);width:70px">29.04.26</span>
+                  <span style="flex:1;font-size:13.5px">СБП</span>
+                  <span style="font-family:ui-monospace,Menlo,monospace;font-size:13px;font-weight:600">499 ₽</span>
+                </div>
+                <div style="display:flex;align-items:center;gap:10px;border-bottom:1px solid var(--line,#E6E1D2);padding:12px 16px">
+                  <span style="font-family:ui-monospace,Menlo,monospace;font-size:12px;color:var(--sub,#8A8272);width:70px">29.01.26</span>
+                  <span style="flex:1;font-size:13.5px"><span style="display:var(--ru,inline)">Карта</span><span style="display:var(--en,none)">Card</span></span>
+                  <span style="font-family:ui-monospace,Menlo,monospace;font-size:13px;font-weight:600">499 ₽</span>
+                </div>
+                <div style="display:flex;align-items:center;gap:10px;padding:12px 16px">
+                  <span style="font-family:ui-monospace,Menlo,monospace;font-size:12px;color:var(--sub,#8A8272);width:70px">29.10.25</span>
+                  <span style="flex:1;font-size:13.5px">Stars</span>
+                  <span style="font-family:ui-monospace,Menlo,monospace;font-size:13px;font-weight:600">379 ★</span>
+                </div>
+              </div>
+
+              <div style="background:var(--card,#FFFFFF);border:1px solid var(--line,#E6E1D2);border-radius:14px;overflow:hidden;margin-top:14px">
+                <div style="display:flex;align-items:center;gap:8px;border-bottom:1px solid var(--line,#E6E1D2);padding:13px 16px">
+                  <span style="flex:1;font-size:14.5px"><span style="display:var(--ru,inline)">Устройства</span><span style="display:var(--en,none)">Devices</span></span>
+                  <span style="font-size:13px;color:var(--sub,#8A8272)"><span style="display:var(--ru,inline)">2 из 5</span><span style="display:var(--en,none)">2 of 5</span></span>
+                  <span style="color:var(--sub,#8A8272)">›</span>
+                </div>
+                <div style="display:flex;align-items:center;gap:8px;border-bottom:1px solid var(--line,#E6E1D2);padding:13px 16px">
+                  <span style="flex:1;font-size:14.5px"><span style="display:var(--ru,inline)">Документы и оферта</span><span style="display:var(--en,none)">Documents &amp; terms</span></span>
+                  <span style="color:var(--sub,#8A8272)">›</span>
+                </div>
+                <div style="display:flex;align-items:center;gap:8px;padding:13px 16px">
+                  <span style="flex:1;font-size:14.5px"><span style="display:var(--ru,inline)">Поддержка</span><span style="display:var(--en,none)">Support</span></span>
+                  <span style="font-size:13px;color:var(--sub,#8A8272)"><span style="display:var(--ru,inline)">~5 мин</span><span style="display:var(--en,none)">~5 min</span></span>
+                  <span style="color:var(--sub,#8A8272)">›</span>
+                </div>
+              </div>
+            </div>
+
+            <div style="display:flex;border-top:1px solid var(--line,#E6E1D2);background:var(--tabbg,#FFFFFF);padding:8px 10px 24px">
+              <button onClick="{{ nav.bH }}" style="flex:1;background:none;border:0;padding:9px 4px;font-family:inherit;font-size:11px;font-weight:600;letter-spacing:1.2px;text-transform:uppercase;color:var(--tH,#1E4B39);cursor:pointer"><span style="display:var(--ru,inline)">Главная</span><span style="display:var(--en,none)">Home</span></button>
+              <button onClick="{{ nav.bC }}" style="flex:1;background:none;border:0;padding:9px 4px;font-family:inherit;font-size:11px;font-weight:600;letter-spacing:1.2px;text-transform:uppercase;color:var(--tC,#8A8272);cursor:pointer"><span style="display:var(--ru,inline)">Подключение</span><span style="display:var(--en,none)">Connection</span></button>
+              <button onClick="{{ nav.bK }}" style="flex:1;background:none;border:0;padding:9px 4px;font-family:inherit;font-size:11px;font-weight:600;letter-spacing:1.2px;text-transform:uppercase;color:var(--tK,#8A8272);cursor:pointer"><span style="display:var(--ru,inline)">Кабинет</span><span style="display:var(--en,none)">Account</span></button>
+            </div>
+          </div>
+        </div>
+      </x-import>
+    </div>
+
+    <div class="dv-opt" id="1c" data-screen-label="1c Бадди">
+      <div class="dv-olabel"><a class="dv-oid" href="#1c">1c</a><span>«Бадди» — тёплый и дружелюбный · маскот, Nunito, округлые формы, разговорный тон</span></div>
+      <x-import component-from-global-scope="IOSDevice" from="./ios-frame.jsx" dark="{{ isDark }}" hint-size="402,874">
+        <div style="{{ vc }}">
+          <div style="height:100%;display:flex;flex-direction:column;overflow:hidden;background:var(--bg,#FBF1E7);color:var(--ink,#3B2E3E);font-family:'Nunito',-apple-system,sans-serif;line-height:1.35;transition:background-color .3s">
+            <div style="padding:58px 12px 0;background:var(--bg,#FBF1E7)">
+              <div style="display:flex;align-items:center;height:46px">
+                <div style="flex:1;display:flex"><button style="background:none;border:0;padding:4px 2px;font-family:inherit;font-size:15.5px;font-weight:700;color:var(--acc,#EF7048);cursor:pointer"><span style="display:var(--ru,inline)">Закрыть</span><span style="display:var(--en,none)">Close</span></button></div>
+                <div style="font-size:16px;font-weight:800"><span style="display:var(--ru,inline)">Мой VPN</span><span style="display:var(--en,none)">My VPN</span></div>
+                <div style="flex:1;display:flex;justify-content:flex-end"><div style="display:flex;align-items:center;border:1px solid var(--line,#F0E2D4);border-radius:99px;background:var(--card,#FFFFFF)"><span style="padding:3px 10px;color:var(--sub,#9A8CA0);font-size:13px;letter-spacing:1px">•••</span><span style="width:1px;height:16px;background:var(--line,#F0E2D4)"></span><span style="padding:3px 10px;color:var(--sub,#9A8CA0);font-size:11px">⌄</span></div></div>
+              </div>
+            </div>
+
+            <div data-screen-label="1c Главная" style="flex:1;min-height:0;overflow-y:auto;padding:10px 16px 16px;display:var(--sH,block)">
+              <div style="display:flex;gap:12px;align-items:flex-start;padding:10px 2px 14px">
+                <div style="width:84px;height:84px;position:relative;flex-shrink:0">
+                  <div style="position:absolute;top:-8px;left:38px;width:8px;height:13px;border-radius:4px;background:var(--mint,#3FBF97);transform:rotate(14deg)"></div>
+                  <div style="position:absolute;inset:0;border-radius:50%;background:var(--mascot,#FFBA66);box-shadow:inset -7px -9px 0 rgba(0,0,0,0.07)"></div>
+                  <div style="position:absolute;left:24px;top:32px;width:10px;height:10px;border-radius:50%;background:var(--mface,#4A3320)"></div>
+                  <div style="position:absolute;right:24px;top:32px;width:10px;height:10px;border-radius:50%;background:var(--mface,#4A3320)"></div>
+                  <div style="position:absolute;left:34px;top:48px;width:16px;height:8px;border-bottom:3px solid var(--mface,#4A3320);border-radius:0 0 16px 16px"></div>
+                  <div style="position:absolute;left:13px;top:45px;width:10px;height:6px;border-radius:50%;background:rgba(239,112,72,0.30)"></div>
+                  <div style="position:absolute;right:13px;top:45px;width:10px;height:6px;border-radius:50%;background:rgba(239,112,72,0.30)"></div>
+                </div>
+                <div style="background:var(--bub,#FFFFFF);border:1px solid var(--line,#F0E2D4);border-radius:18px 18px 18px 6px;padding:12px 16px;font-size:14px;font-weight:700;line-height:1.4;margin-top:8px"><span style="display:var(--ru,inline)">Привет, Алексей! Всё спокойно — ты под защитой.</span><span style="display:var(--en,none)">Hi Alexey! All calm — you are protected.</span></div>
+              </div>
+
+              <div style="background:var(--card,#FFFFFF);border:1px solid var(--line,#F0E2D4);border-radius:20px;padding:18px">
+                <div style="display:flex;align-items:baseline;gap:8px">
+                  <span style="flex:1;font-size:15px;font-weight:800"><span style="display:var(--ru,inline)">Ещё {{ days }} {{ dayRu }} защиты</span><span style="display:var(--en,none)">{{ days }} days of protection left</span></span>
+                  <span style="font-size:12px;font-weight:700;color:var(--sub,#9A8CA0)"><span style="display:var(--ru,inline)">до {{ tillRu }}</span><span style="display:var(--en,none)">until {{ tillEn }}</span></span>
+                </div>
+                <div style="height:10px;border-radius:6px;background:var(--chip,#F7EFE6);margin:12px 0 16px;overflow:hidden">
+                  <div style="height:100%;width:var(--prog,25.6%);border-radius:6px;background:var(--mint,#3FBF97);transition:width .3s"></div>
+                </div>
+                <button style="width:100%;background:var(--acc,#EF7048);color:var(--accInk,#FFFFFF);border:0;border-radius:999px;padding:14px;font-family:inherit;font-size:15.5px;font-weight:800;cursor:pointer"><span style="display:var(--ru,inline)">Продлить · </span><span style="display:var(--en,none)">Renew · </span><span style="display:var(--cp0r,none)">199 ₽</span><span style="display:var(--cp0e,none)">$2.49</span><span style="display:var(--cp1r,inline)">499 ₽</span><span style="display:var(--cp1e,none)">$5.99</span><span style="display:var(--cp2r,none)">1 490 ₽</span><span style="display:var(--cp2e,none)">$16.99</span></button>
+              </div>
+
+              <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin:12px 0 4px">
+                <button onClick="{{ pl.c0 }}" style="background:var(--kg0,#FFFFFF);border:2px solid var(--k0,#F0E2D4);border-radius:16px;padding:12px 6px;font-family:inherit;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:4px;transition:border-color .2s">
+                  <span style="font-size:13px;font-weight:800;color:var(--ink,#3B2E3E)"><span style="display:var(--ru,inline)">1 мес</span><span style="display:var(--en,none)">1 mo</span></span>
+                  <span style="font-size:12.5px;font-weight:700;color:var(--sub,#9A8CA0)"><span style="display:var(--ru,inline)">199 ₽</span><span style="display:var(--en,none)">$2.49</span></span>
+                </button>
+                <button onClick="{{ pl.c1 }}" style="background:var(--kg1,#FCE9DE);border:2px solid var(--k1,#EF7048);border-radius:16px;padding:12px 6px;font-family:inherit;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:4px;transition:border-color .2s">
+                  <span style="font-size:13px;font-weight:800;color:var(--ink,#3B2E3E)"><span style="display:var(--ru,inline)">3 мес</span><span style="display:var(--en,none)">3 mo</span></span>
+                  <span style="font-size:12.5px;font-weight:700;color:var(--sub,#9A8CA0)"><span style="display:var(--ru,inline)">499 ₽</span><span style="display:var(--en,none)">$5.99</span></span>
+                  <span style="font-size:9.5px;font-weight:800;color:var(--ok,#3FBF97);background:var(--mintbg,#E2F6EE);border-radius:99px;padding:2px 7px"><span style="display:var(--ru,inline)">любимый</span><span style="display:var(--en,none)">fave</span></span>
+                </button>
+                <button onClick="{{ pl.c2 }}" style="background:var(--kg2,#FFFFFF);border:2px solid var(--k2,#F0E2D4);border-radius:16px;padding:12px 6px;font-family:inherit;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:4px;transition:border-color .2s">
+                  <span style="font-size:13px;font-weight:800;color:var(--ink,#3B2E3E)"><span style="display:var(--ru,inline)">12 мес</span><span style="display:var(--en,none)">12 mo</span></span>
+                  <span style="font-size:12.5px;font-weight:700;color:var(--sub,#9A8CA0)"><span style="display:var(--ru,inline)">1 490 ₽</span><span style="display:var(--en,none)">$16.99</span></span>
+                  <span style="font-size:9.5px;font-weight:800;color:var(--ok,#3FBF97);background:var(--mintbg,#E2F6EE);border-radius:99px;padding:2px 7px">−38%</span>
+                </button>
+              </div>
+              <div style="text-align:center;font-size:12px;font-weight:600;color:var(--sub,#9A8CA0);margin-top:10px"><span style="display:var(--ru,inline)">Оплата: СБП, карта, крипта или Stars — как удобно</span><span style="display:var(--en,none)">Pay with SBP, card, crypto or Stars — your choice</span></div>
+
+              <div style="display:flex;align-items:center;gap:12px;background:var(--soft,#FCE9DE);border-radius:18px;padding:14px 16px;margin-top:14px">
+                <div style="width:42px;height:42px;border-radius:50%;background:var(--acc,#EF7048);color:var(--accInk,#FFFFFF);display:flex;align-items:center;justify-content:center;font-size:13.5px;font-weight:800;flex-shrink:0">+7</div>
+                <div style="flex:1;font-size:13px;font-weight:700;line-height:1.35"><span style="display:var(--ru,inline)">Подари другу неделю — получи неделю в подарок</span><span style="display:var(--en,none)">Gift a friend a week — get one back</span></div>
+                <button style="background:var(--mint,#3FBF97);color:#FFFFFF;border:0;border-radius:99px;padding:9px 14px;font-family:inherit;font-size:12.5px;font-weight:800;cursor:pointer;flex-shrink:0"><span style="display:var(--ru,inline)">Позвать</span><span style="display:var(--en,none)">Invite</span></button>
+              </div>
+            </div>
+
+            <div data-screen-label="1c Подключение" style="flex:1;min-height:0;overflow-y:auto;padding:10px 16px 16px;display:var(--sC,none)">
+              <div style="display:flex;gap:12px;align-items:flex-start;padding:8px 2px 14px">
+                <div style="width:64px;height:64px;position:relative;flex-shrink:0">
+                  <div style="position:absolute;top:-6px;left:29px;width:6px;height:10px;border-radius:3px;background:var(--mint,#3FBF97);transform:rotate(14deg)"></div>
+                  <div style="position:absolute;inset:0;border-radius:50%;background:var(--mascot,#FFBA66);box-shadow:inset -5px -7px 0 rgba(0,0,0,0.07)"></div>
+                  <div style="position:absolute;left:18px;top:24px;width:8px;height:8px;border-radius:50%;background:var(--mface,#4A3320)"></div>
+                  <div style="position:absolute;right:18px;top:24px;width:8px;height:8px;border-radius:50%;background:var(--mface,#4A3320)"></div>
+                  <div style="position:absolute;left:26px;top:37px;width:12px;height:6px;border-bottom:2.5px solid var(--mface,#4A3320);border-radius:0 0 12px 12px"></div>
+                </div>
+                <div style="background:var(--bub,#FFFFFF);border:1px solid var(--line,#F0E2D4);border-radius:18px 18px 18px 6px;padding:11px 15px;font-size:14px;font-weight:700;line-height:1.4;margin-top:6px"><span style="display:var(--ru,inline)">Подключу за два шага! Сам VPN живёт в приложении.</span><span style="display:var(--en,none)">Two steps and you are in! The VPN lives in an app.</span></div>
+              </div>
+              <div style="background:var(--card,#FFFFFF);border:1px solid var(--line,#F0E2D4);border-radius:20px;padding:16px;margin-bottom:10px">
+                <div style="display:flex;align-items:center;gap:10px">
+                  <span style="width:28px;height:28px;border-radius:50%;background:var(--soft,#FCE9DE);color:var(--acc,#EF7048);display:flex;align-items:center;justify-content:center;font-size:13.5px;font-weight:800;flex-shrink:0">1</span>
+                  <span style="font-size:15px;font-weight:800"><span style="display:var(--ru,inline)">Скачай приложение</span><span style="display:var(--en,none)">Get the app</span></span>
+                </div>
+                <div style="font-size:13px;font-weight:600;color:var(--sub,#9A8CA0);margin:8px 0 12px;line-height:1.4"><span style="display:var(--ru,inline)">Ты с iPhone — мы уже подобрали версию</span><span style="display:var(--en,none)">You are on iPhone — we picked the right one</span></div>
+                <button style="width:100%;background:var(--acc,#EF7048);color:var(--accInk,#FFFFFF);border:0;border-radius:999px;padding:13px;font-family:inherit;font-size:14.5px;font-weight:800;cursor:pointer"><span style="display:var(--ru,inline)">В App Store →</span><span style="display:var(--en,none)">To the App Store →</span></button>
+                <div style="text-align:center;font-size:12px;font-weight:600;color:var(--sub,#9A8CA0);margin-top:9px">iOS · Android · macOS · Windows</div>
+              </div>
+              <div style="background:var(--card,#FFFFFF);border:1px solid var(--line,#F0E2D4);border-radius:20px;padding:16px;margin-bottom:10px">
+                <div style="display:flex;align-items:center;gap:10px">
+                  <span style="width:28px;height:28px;border-radius:50%;background:var(--soft,#FCE9DE);color:var(--acc,#EF7048);display:flex;align-items:center;justify-content:center;font-size:13.5px;font-weight:800;flex-shrink:0">2</span>
+                  <span style="font-size:15px;font-weight:800"><span style="display:var(--ru,inline)">Забери свою ссылку</span><span style="display:var(--en,none)">Grab your link</span></span>
+                </div>
+                <div style="font-size:13px;font-weight:600;color:var(--sub,#9A8CA0);margin:8px 0 12px;line-height:1.4"><span style="display:var(--ru,inline)">Она сама всё настроит — жми и готово</span><span style="display:var(--en,none)">It sets everything up — tap and done</span></div>
+                <button onClick="{{ lk.c }}" style="width:100%;background:var(--mint,#3FBF97);color:#FFFFFF;border:0;border-radius:999px;padding:13px;font-family:inherit;font-size:14.5px;font-weight:800;cursor:pointer"><span style="display:var(--lki,inline)"><span style="display:var(--ru,inline)">Дай ссылку!</span><span style="display:var(--en,none)">Gimme the link!</span></span><span style="display:var(--lkoi,none)"><span style="display:var(--ru,inline)">Ссылка готова!</span><span style="display:var(--en,none)">Link ready!</span></span></button>
+                <div style="display:var(--lk,none);margin-top:10px">
+                  <div style="background:var(--chip,#F7EFE6);border-radius:14px;padding:12px;font-family:ui-monospace,Menlo,monospace;font-size:12px;word-break:break-all">https://sub.vpn.app/u/8fk2…9a3</div>
+                  <button style="width:100%;background:var(--acc,#EF7048);color:var(--accInk,#FFFFFF);border:0;border-radius:999px;padding:13px;font-family:inherit;font-size:14.5px;font-weight:800;cursor:pointer;margin-top:8px"><span style="display:var(--ru,inline)">Открыть в приложении</span><span style="display:var(--en,none)">Open in the app</span></button>
+                  <button style="width:100%;background:none;color:var(--ink,#3B2E3E);border:2px solid var(--line,#F0E2D4);border-radius:999px;padding:11px;font-family:inherit;font-size:13.5px;font-weight:800;cursor:pointer;margin-top:8px"><span style="display:var(--ru,inline)">Скопировать</span><span style="display:var(--en,none)">Copy</span></button>
+                </div>
+              </div>
+              <div style="display:flex;align-items:flex-start;gap:8px;padding:2px 6px">
+                <span style="color:var(--ok,#3FBF97);font-weight:800">✓</span>
+                <span style="font-size:13px;font-weight:600;color:var(--sub,#9A8CA0);line-height:1.45"><span style="display:var(--ru,inline)">В приложении жми «Подключить» — и всё!</span><span style="display:var(--en,none)">Tap Connect in the app — that is it!</span></span>
+              </div>
+            </div>
+
+            <div data-screen-label="1c Кабинет" style="flex:1;min-height:0;overflow-y:auto;padding:10px 16px 16px;display:var(--sK,none)">
+              <div style="display:flex;align-items:center;gap:14px;padding:12px 4px 16px">
+                <div style="width:60px;height:60px;border-radius:50%;background:var(--soft,#FCE9DE);color:var(--acc,#EF7048);display:flex;align-items:center;justify-content:center;font-size:22px;font-weight:800">A</div>
+                <div>
+                  <div style="font-size:18px;font-weight:800"><span style="display:var(--ru,inline)">Алексей</span><span style="display:var(--en,none)">Alexey</span></div>
+                  <div style="font-size:13px;font-weight:600;color:var(--sub,#9A8CA0)">@alex_k</div>
+                </div>
+              </div>
+              <div style="background:var(--card,#FFFFFF);border:1px solid var(--line,#F0E2D4);border-radius:18px;overflow:hidden">
+                <div style="display:flex;align-items:center;gap:8px;border-bottom:1px solid var(--line,#F0E2D4);padding:14px 16px">
+                  <span style="flex:1;font-size:14.5px;font-weight:700"><span style="display:var(--ru,inline)">Запас защиты</span><span style="display:var(--en,none)">Protection left</span></span>
+                  <span style="font-size:13.5px;font-weight:800;color:var(--ok,#3FBF97)"><span style="display:var(--ru,inline)">{{ days }} {{ dayRu }}</span><span style="display:var(--en,none)">{{ days }} days</span></span>
+                </div>
+                <div style="display:flex;align-items:center;gap:8px;padding:14px 16px">
+                  <span style="flex:1;font-size:14.5px;font-weight:700"><span style="display:var(--ru,inline)">Твои устройства</span><span style="display:var(--en,none)">Your devices</span></span>
+                  <span style="font-size:12px;font-weight:700;color:var(--sub,#9A8CA0);background:var(--chip,#F7EFE6);border-radius:99px;padding:4px 10px">iPhone</span>
+                  <span style="font-size:12px;font-weight:700;color:var(--sub,#9A8CA0);background:var(--chip,#F7EFE6);border-radius:99px;padding:4px 10px">MacBook</span>
+                </div>
+              </div>
+              <button style="width:100%;display:flex;align-items:center;gap:12px;background:var(--soft,#FCE9DE);border:0;border-radius:18px;padding:14px 16px;margin-top:12px;font-family:inherit;cursor:pointer;text-align:left">
+                <span style="width:36px;height:36px;border-radius:50%;background:var(--acc,#EF7048);color:var(--accInk,#FFFFFF);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;flex-shrink:0">+7</span>
+                <span style="flex:1;font-size:14px;font-weight:800;color:var(--ink,#3B2E3E)"><span style="display:var(--ru,inline)">Позвать друга</span><span style="display:var(--en,none)">Invite a friend</span></span>
+                <span style="color:var(--sub,#9A8CA0)">›</span>
+              </button>
+              <div style="background:var(--card,#FFFFFF);border:1px solid var(--line,#F0E2D4);border-radius:18px;overflow:hidden;margin-top:12px">
+                <button style="width:100%;display:flex;align-items:center;gap:8px;background:none;border:0;border-bottom:1px solid var(--line,#F0E2D4);padding:14px 16px;font-family:inherit;cursor:pointer;text-align:left">
+                  <span style="flex:1;font-size:14.5px;font-weight:700;color:var(--ink,#3B2E3E)"><span style="display:var(--ru,inline)">Помощь</span><span style="display:var(--en,none)">Help</span></span>
+                  <span style="color:var(--sub,#9A8CA0)">›</span>
+                </button>
+                <button style="width:100%;display:flex;align-items:center;gap:8px;background:none;border:0;padding:14px 16px;font-family:inherit;cursor:pointer;text-align:left">
+                  <span style="flex:1;font-size:14.5px;font-weight:700;color:var(--ink,#3B2E3E)"><span style="display:var(--ru,inline)">Оценить нас</span><span style="display:var(--en,none)">Rate us</span></span>
+                  <span style="color:var(--sub,#9A8CA0)">›</span>
+                </button>
+              </div>
+              <div style="text-align:center;font-size:12px;font-weight:700;color:var(--sub,#9A8CA0);margin-top:16px"><span style="display:var(--ru,inline)">Спасибо, что ты с нами</span><span style="display:var(--en,none)">Thanks for being with us</span></div>
+            </div>
+
+            <div style="display:flex;border-top:1px solid var(--line,#F0E2D4);background:var(--tabbg,#FFFFFF);padding:8px 8px 24px">
+              <button onClick="{{ nav.cH }}" style="flex:1;background:var(--tbH,#FCE9DE);border:0;border-radius:12px;margin:0 3px;padding:10px 4px;font-family:inherit;font-size:12.5px;font-weight:800;color:var(--tH,#EF7048);cursor:pointer;transition:background-color .2s"><span style="display:var(--ru,inline)">Главная</span><span style="display:var(--en,none)">Home</span></button>
+              <button onClick="{{ nav.cC }}" style="flex:1;background:var(--tbC,transparent);border:0;border-radius:12px;margin:0 3px;padding:10px 4px;font-family:inherit;font-size:12.5px;font-weight:800;color:var(--tC,#9A8CA0);cursor:pointer;transition:background-color .2s"><span style="display:var(--ru,inline)">Подключение</span><span style="display:var(--en,none)">Connect</span></button>
+              <button onClick="{{ nav.cK }}" style="flex:1;background:var(--tbK,transparent);border:0;border-radius:12px;margin:0 3px;padding:10px 4px;font-family:inherit;font-size:12.5px;font-weight:800;color:var(--tK,#9A8CA0);cursor:pointer;transition:background-color .2s"><span style="display:var(--ru,inline)">Кабинет</span><span style="display:var(--en,none)">Profile</span></button>
+            </div>
+          </div>
+        </div>
+      </x-import>
+    </div>
+
+  </div>
+  <p class="dv-next">Дальше можно: «карту тарифа из <a class="dv-oid" href="#1b">1b</a> перенести в <a class="dv-oid" href="#1a">1a</a>» · «добавь экран оплаты для <a class="dv-oid" href="#1c">1c</a>» · «покажи новые направления»</p>
+</section>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{
+  &quot;theme&quot;: { &quot;editor&quot;: &quot;enum&quot;, &quot;options&quot;: [&quot;light&quot;, &quot;dark&quot;], &quot;default&quot;: &quot;light&quot;, &quot;tsType&quot;: &quot;string&quot;, &quot;section&quot;: &quot;Вид&quot; },
+  &quot;lang&quot;: { &quot;editor&quot;: &quot;enum&quot;, &quot;options&quot;: [&quot;ru&quot;, &quot;en&quot;], &quot;default&quot;: &quot;ru&quot;, &quot;tsType&quot;: &quot;string&quot;, &quot;section&quot;: &quot;Вид&quot; },
+  &quot;days&quot;: { &quot;editor&quot;: &quot;range&quot;, &quot;min&quot;: 0, &quot;max&quot;: 90, &quot;step&quot;: 1, &quot;default&quot;: 23, &quot;unit&quot;: &quot;дн.&quot;, &quot;tsType&quot;: &quot;number&quot;, &quot;section&quot;: &quot;Данные&quot; }
+}">
+class Component extends DCLogic {
+  state = { theme: null, lang: null, tabA: 'h', tabB: 'h', tabC: 'h', tabD: 'h', tabE: 'h', tabF: 'h', tabG: 'h', tabH: 'h', planA: 1, planB: 1, planC: 1, planD: 1, planE: 1, planF: 1, planG: 1, planH: 1, lkA: false, lkB: false, lkC: false, lkD: false, lkE: false, lkF: false, lkG: false, lkH: false };
+
+  renderVals() {
+    const s = this.state;
+    const th = s.theme || this.props.theme || 'light';
+    const lang = s.lang || this.props.lang || 'ru';
+    const dark = th === 'dark';
+    const en = lang === 'en';
+    const days = Math.max(0, Math.min(90, Math.round(this.props.days != null ? this.props.days : 23)));
+    const prog = (days / 90 * 100).toFixed(1) + '%';
+
+    const P = {
+      a: {
+        light: { '--bg': '#F5F6F8', '--card': '#FFFFFF', '--ink': '#161A20', '--sub': '#7A828E', '--line': '#E8EAEF', '--acc': '#2E63E7', '--accInk': '#FFFFFF', '--soft': '#EDF2FE', '--chip': '#F0F2F6', '--tabbg': '#FFFFFF', '--ok': '#189A62', '--warn': '#C4483A', '--ringoff': '#D3D8DF' },
+        dark: { '--bg': '#0E1013', '--card': '#181B21', '--ink': '#EFF1F5', '--sub': '#8D96A3', '--line': '#272C34', '--acc': '#6E96FF', '--accInk': '#0D1117', '--soft': '#1D2636', '--chip': '#20242C', '--tabbg': '#14171C', '--ok': '#3ECF8E', '--warn': '#FF7A66', '--ringoff': '#3A4149' }
+      },
+      b: {
+        light: { '--bg': '#F4F2EC', '--card': '#FFFFFF', '--ink': '#1D1A14', '--sub': '#8A8272', '--line': '#E6E1D2', '--acc': '#1E4B39', '--accInk': '#F4F1E6', '--soft': '#EDE9DC', '--tabbg': '#FFFFFF', '--ok': '#2E7D5B', '--warn': '#B0442F', '--gold': '#A5824A', '--cardface': '#132A20', '--cardink': '#E8DFC4', '--cardsub': 'rgba(232,223,196,0.55)' },
+        dark: { '--bg': '#121310', '--card': '#1B1D19', '--ink': '#ECE7DA', '--sub': '#95907E', '--line': '#2B2E27', '--acc': '#C9A45C', '--accInk': '#191510', '--soft': '#232620', '--tabbg': '#171914', '--ok': '#5CBB8F', '--warn': '#E06B52', '--gold': '#C9A45C', '--cardface': '#1C3226', '--cardink': '#E7DCB9', '--cardsub': 'rgba(231,220,185,0.5)' }
+      },
+      c: {
+        light: { '--bg': '#FBF1E7', '--card': '#FFFFFF', '--ink': '#3B2E3E', '--sub': '#9A8CA0', '--line': '#F0E2D4', '--acc': '#EF7048', '--accInk': '#FFFFFF', '--soft': '#FCE9DE', '--chip': '#F7EFE6', '--tabbg': '#FFFFFF', '--ok': '#3FBF97', '--warn': '#D64545', '--mint': '#3FBF97', '--mintbg': '#E2F6EE', '--mascot': '#FFBA66', '--mface': '#4A3320', '--bub': '#FFFFFF' },
+        dark: { '--bg': '#1B1526', '--card': '#271F38', '--ink': '#F5EFF8', '--sub': '#A99DB8', '--line': '#39304E', '--acc': '#FF8B5C', '--accInk': '#2B1508', '--soft': '#3C2A24', '--chip': '#2E2540', '--tabbg': '#211A2F', '--ok': '#4FD3A8', '--warn': '#FF6B6B', '--mint': '#4FD3A8', '--mintbg': '#1E3A31', '--mascot': '#FFBA66', '--mface': '#4A3320', '--bub': '#2F2748' }
+      },
+      d: {
+        light: { '--bg': '#EFEFF4', '--card': '#FFFFFF', '--ink': '#0A0A0A', '--sub': '#8E8E93', '--line': '#E5E5EA', '--acc': '#2AA0DC', '--accInk': '#FFFFFF', '--soft': '#E7F4FC', '--chip': '#F2F2F7', '--tabbg': '#F9F9F9', '--ok': '#34C759', '--warn': '#FF3B30' },
+        dark: { '--bg': '#000000', '--card': '#1C1C1E', '--ink': '#FFFFFF', '--sub': '#98989E', '--line': '#2C2C2E', '--acc': '#4FB4E8', '--accInk': '#06202E', '--soft': '#0F2A3D', '--chip': '#2A2A2C', '--tabbg': '#121212', '--ok': '#30D158', '--warn': '#FF453A' }
+      },
+      e: {
+        light: { '--bg': '#F2F4F1', '--card': '#FFFFFF', '--ink': '#17201B', '--sub': '#6F7D74', '--line': '#DFE5DF', '--acc': '#0C8F4E', '--accInk': '#FFFFFF', '--soft': '#E3F3E9', '--chip': '#EAEFEA', '--tabbg': '#FFFFFF', '--ok': '#0C8F4E', '--warn': '#C74E39' },
+        dark: { '--bg': '#0A0F0C', '--card': '#101712', '--ink': '#D9E6DC', '--sub': '#74907F', '--line': '#1F2D24', '--acc': '#3DF08C', '--accInk': '#06130B', '--soft': '#133021', '--chip': '#172219', '--tabbg': '#0D130F', '--ok': '#3DF08C', '--warn': '#FF6B5E' }
+      },
+      f: {
+        light: { '--bg': '#F7F3EA', '--card': '#F7F3EA', '--ink': '#191512', '--sub': '#857D70', '--line': '#D8D0C0', '--acc': '#C03B2D', '--accInk': '#FFF9EF', '--soft': '#F0E8D8', '--chip': '#EFE9DB', '--tabbg': '#F7F3EA', '--ok': '#2F7A4D', '--warn': '#C03B2D' },
+        dark: { '--bg': '#171310', '--card': '#171310', '--ink': '#EDE6D9', '--sub': '#94897A', '--line': '#332C22', '--acc': '#E05B4B', '--accInk': '#1A0F0C', '--soft': '#262017', '--chip': '#221D15', '--tabbg': '#151110', '--ok': '#6DBB8C', '--warn': '#E06B52' }
+      },
+      g: {
+        light: { '--bg': 'linear-gradient(160deg,#EEE9FF,#E6F0FF 50%,#F3E8FF)', '--card': 'rgba(255,255,255,0.6)', '--ink': '#221A3A', '--sub': '#7B729A', '--line': 'rgba(124,92,255,0.22)', '--acc': '#7C5CFF', '--acc2': '#1FC7E0', '--accInk': '#FFFFFF', '--soft': 'rgba(124,92,255,0.16)', '--chip': 'rgba(255,255,255,0.55)', '--tabbg': 'rgba(255,255,255,0.65)', '--ok': '#22B573', '--warn': '#E1495A' },
+        dark: { '--bg': 'linear-gradient(160deg,#150E33,#1A1243 45%,#2B1254)', '--card': 'rgba(255,255,255,0.07)', '--ink': '#F1EDFF', '--sub': '#9C93C4', '--line': 'rgba(255,255,255,0.16)', '--acc': '#9D7BFF', '--acc2': '#33E0F2', '--accInk': '#10082A', '--soft': 'rgba(157,123,255,0.22)', '--chip': 'rgba(255,255,255,0.10)', '--tabbg': 'rgba(20,13,45,0.75)', '--ok': '#3BE39B', '--warn': '#FF6B84' }
+      },
+      h: {
+        light: { '--bg': '#F6F4EC', '--card': '#FFFFFF', '--ink': '#101010', '--sub': '#62625A', '--line': '#101010', '--acc': '#C8F04B', '--accInk': '#101010', '--soft': '#ECF7C8', '--chip': '#EFEDE0', '--tabbg': '#FFFFFF', '--ok': '#1F9D55', '--warn': '#E0442E' },
+        dark: { '--bg': '#141410', '--card': '#1D1D16', '--ink': '#F2F1E6', '--sub': '#9A9A8C', '--line': '#EDEBDC', '--acc': '#D3F55C', '--accInk': '#131308', '--soft': '#2C301A', '--chip': '#24241B', '--tabbg': '#191912', '--ok': '#7FD86B', '--warn': '#FF6B5E' }
+      }
+    };
+
+    const pa = P.a[th], pb = P.b[th], pc = P.c[th], pd = P.d[th], pe = P.e[th], pf = P.f[th], pg = P.g[th], ph = P.h[th];
+    const mk = (p, tab, plan, lnk, selBg) => {
+      const v = Object.assign({}, p, {
+        height: '100%', '--prog': prog,
+        '--sH': tab === 'h' ? 'block' : 'none', '--sC': tab === 'c' ? 'block' : 'none', '--sK': tab === 'k' ? 'block' : 'none',
+        '--tH': tab === 'h' ? p['--acc'] : p['--sub'], '--tC': tab === 'c' ? p['--acc'] : p['--sub'], '--tK': tab === 'k' ? p['--acc'] : p['--sub'],
+        '--lk': lnk ? 'block' : 'none', '--lki': lnk ? 'none' : 'inline', '--lkoi': lnk ? 'inline' : 'none'
+      });
+      for (let i = 0; i < 3; i++) {
+        v['--p' + i] = plan === i ? p['--acc'] : p['--line'];
+        v['--g' + i] = plan === i ? (selBg || p['--soft']) : p['--card'];
+        v['--q' + i] = plan === i ? p['--acc'] : 'transparent';
+      }
+      return v;
+    };
+    const pill = (p, tab, active) => ({ '--tbH': tab === 'h' ? active : 'transparent', '--tbC': tab === 'c' ? active : 'transparent', '--tbK': tab === 'k' ? active : 'transparent' });
+
+    const va = mk(pa, s.tabA, s.planA, s.lkA);
+    const vb = mk(pb, s.tabB, s.planB, s.lkB);
+    const vc = Object.assign(mk(pc, s.tabC, s.planC, s.lkC), pill(pc, s.tabC, pc['--soft']));
+    for (let i = 0; i < 3; i++) { vc['--k' + i] = s.planC === i ? pc['--acc'] : pc['--line']; vc['--kg' + i] = s.planC === i ? pc['--soft'] : pc['--card']; vc['--cp' + i + 'r'] = (!en && s.planC === i) ? 'inline' : 'none'; vc['--cp' + i + 'e'] = (en && s.planC === i) ? 'inline' : 'none'; }
+    const vd = mk(pd, s.tabD, s.planD, s.lkD);
+    const ve = mk(pe, s.tabE, s.planE, s.lkE);
+    const vf = mk(pf, s.tabF, s.planF, s.lkF);
+    const vg = Object.assign(mk(pg, s.tabG, s.planG, s.lkG), pill(pg, s.tabG, pg['--chip']));
+    const vh = Object.assign(mk(ph, s.tabH, s.planH, s.lkH, ph['--acc']), pill(ph, s.tabH, ph['--acc']), { '--tH': s.tabH === 'h' ? ph['--accInk'] : ph['--sub'], '--tC': s.tabH === 'c' ? ph['--accInk'] : ph['--sub'], '--tK': s.tabH === 'k' ? ph['--accInk'] : ph['--sub'] });
+
+    const till = new Date(Date.now() + days * 86400000);
+    const MR = ['января', 'февраля', 'марта', 'апреля', 'мая', 'июня', 'июля', 'августа', 'сентября', 'октября', 'ноября', 'декабря'];
+    const ME = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    const p2 = n => String(n).padStart(2, '0');
+    const yy = String(till.getFullYear()).slice(2);
+    const tillRu = till.getDate() + ' ' + MR[till.getMonth()];
+    const tillEn = ME[till.getMonth()] + ' ' + till.getDate();
+    const tillRuS = p2(till.getDate()) + '.' + p2(till.getMonth() + 1) + '.' + yy;
+    const tillEnS = p2(till.getMonth() + 1) + '/' + p2(till.getDate()) + '/' + yy;
+    const d10 = days % 10, d100 = days % 100;
+    const dayRu = (d10 === 1 && d100 !== 11) ? 'день' : (d10 >= 2 && d10 <= 4 && (d100 < 10 || d100 >= 20)) ? 'дня' : 'дней';
+
+    const set = patch => () => this.setState(patch);
+    const nav = {}, pl = {}, lk = {};
+    ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'].forEach(k => {
+      const K = k.toUpperCase();
+      nav[k + 'H'] = set({ ['tab' + K]: 'h' });
+      nav[k + 'C'] = set({ ['tab' + K]: 'c' });
+      nav[k + 'K'] = set({ ['tab' + K]: 'k' });
+      for (let i = 0; i < 3; i++) pl[k + i] = set({ ['plan' + K]: i });
+      lk[k] = set({ ['lk' + K]: true });
+    });
+    const ui = { light: set({ theme: 'light' }), dark: set({ theme: 'dark' }), ru: set({ lang: 'ru' }), en: set({ lang: 'en' }) };
+
+    const rowVars = { '--ru': en ? 'none' : 'inline', '--en': en ? 'inline' : 'none' };
+    const chromeVars = { '--tl': dark ? 'transparent' : '#1A1A1A', '--tlc': dark ? '#6B6B6B' : '#FFFFFF', '--td': dark ? '#1A1A1A' : 'transparent', '--tdc': dark ? '#FFFFFF' : '#6B6B6B', '--lr': en ? 'transparent' : '#1A1A1A', '--lrc': en ? '#6B6B6B' : '#FFFFFF', '--le': en ? '#1A1A1A' : 'transparent', '--lec': en ? '#FFFFFF' : '#6B6B6B' };
+
+    return { isDark: dark, days, dayRu, tillRu, tillEn, tillRuS, tillEnS, rowVars, chromeVars, va, vb, vc, vd, ve, vf, vg, vh, nav, pl, lk, ui };
+  }
+}
+</script>
+</body>
+</html>
