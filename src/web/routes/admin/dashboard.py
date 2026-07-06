@@ -164,7 +164,7 @@ async def system_status(container: AppContainer = Depends(get_container)) -> dic
         out["backup_time"] = await cfg.value(uow, "BACKUP_TIME")
     try:
         version = await container.remnawave.ensure_supported()
-        out["panel"] = {"status": "ok", "version": str(version)}
+        out["panel"] = {"status": "ok", "version": version.raw}
     except Exception as exc:
         out["panel"] = {"status": "error", "detail": str(exc)[:200]}
     return out

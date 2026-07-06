@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import datetime as dt
 from uuid import UUID
 
 from src.core.enums import TransactionStatus
@@ -40,6 +41,198 @@ async def panel_write_retry(subscription_id: int) -> None:
     log.info("panel_write_retry", subscription_id=subscription_id)
 
 
+@broker.task(schedule=[{"cron": "*/15 * * * *"}])
+async def sync_panel_nodes() -> int:
+    """Mirror Remnawave nodes into server_nodes (screen 12 + dashboard online)."""
+    container = get_container()
+    async with container.uow() as uow:
+        try:
+            synced = await container.panel_sync.sync_nodes(uow)
+        except Exception as exc:
+            log.warning("panel nodes sync failed", error=str(exc))
+            return -1
+        await uow.commit()
+    log.info("panel nodes synced", count=synced)
+    return synced
+
+
+def _msk_now() -> dt.datetime:
+    return dt.datetime.now(dt.UTC) + dt.timedelta(hours=3)
+
+
+def _time_matches(target_hhmm: str, now: dt.datetime, window_minutes: int = 5) -> bool:
+    """True when `now` (MSK) is within [target, target+window)."""
+    try:
+        hh, mm = (int(x) for x in target_hhmm.split(":"))
+    except ValueError:
+        return False
+    target = now.replace(hour=hh, minute=mm, second=0, microsecond=0)
+    return target <= now < target + dt.timedelta(minutes=window_minutes)
+
+
+@broker.task(schedule=[{"cron": "*/5 * * * *"}])
+async def send_smart_reminders() -> int:
+    """Renewal reminders: users whose subscription expires in N days (config days CSV).
+
+    Runs every 5 minutes; fires only when MSK time enters the configured window.
+    Per-user daily dedup via Redis SETNX.
+    """
+    from aiogram import Bot
+    from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup, WebAppInfo
+    from sqlalchemy import select
+
+    from src.core.enums import SubscriptionStatus
+    from src.infrastructure.database.models.subscription import Subscription
+    from src.infrastructure.database.models.user import User
+
+    container = get_container()
+    now_msk = _msk_now()
+    async with container.uow() as uow:
+        reminder = await uow.smart_reminder.get_or_create()
+        miniapp_url = str(await container.bot_config.value(uow, "SUBSCRIPTION_MINI_APP_URL") or "")
+        await uow.commit()
+        if not reminder.enabled or not _time_matches(reminder.send_time, now_msk):
+            return 0
+        day_offsets = [int(x) for x in reminder.days_before.split(",") if x.strip().isdigit()]
+        if not day_offsets:
+            return 0
+
+        targets: list[tuple[int, int]] = []  # (telegram_id, days_left)
+        for offset in day_offsets:
+            day_start = (now_msk + dt.timedelta(days=offset)).replace(
+                hour=0, minute=0, second=0, microsecond=0
+            ) - dt.timedelta(hours=3)  # back to UTC
+            day_end = day_start + dt.timedelta(days=1)
+            rows = (
+                await uow.session.execute(
+                    select(User.telegram_id)
+                    .join(Subscription, Subscription.id == User.current_subscription_id)
+                    .where(
+                        User.telegram_id.is_not(None),
+                        Subscription.status.in_(
+                            [SubscriptionStatus.ACTIVE, SubscriptionStatus.TRIAL]
+                        ),
+                        Subscription.expire_at >= day_start,
+                        Subscription.expire_at < day_end,
+                    )
+                )
+            ).all()
+            targets.extend((int(tg), offset) for (tg,) in rows)
+
+    if not targets:
+        return 0
+    markup = None
+    if reminder.button_enabled and miniapp_url.startswith("https://"):
+        markup = InlineKeyboardMarkup(
+            inline_keyboard=[
+                [InlineKeyboardButton(text="Продлить", web_app=WebAppInfo(url=miniapp_url))]
+            ]
+        )
+    sent = 0
+    today = now_msk.strftime("%Y%m%d")
+    bot = Bot(token=container.settings.bot.token)
+    try:
+        for tg_id, days in targets:
+            if not await container.redis.set(f"reminder:{today}:{tg_id}", "1", nx=True, ex=86400):
+                continue  # already reminded today
+            try:
+                await bot.send_message(
+                    tg_id, reminder.text.replace("{days}", str(days)), reply_markup=markup
+                )
+                sent += 1
+            except Exception:
+                pass
+    finally:
+        await bot.session.close()
+    log.info("smart reminders sent", count=sent)
+    return sent
+
+
+@broker.task(schedule=[{"cron": "*/5 * * * *"}])
+async def send_holiday_promos() -> int:
+    """Holiday-calendar promos (screen 08): on the day, at the configured time."""
+    from aiogram import Bot
+    from sqlalchemy import select
+
+    from src.core.enums import UserStatus
+    from src.infrastructure.database.models.user import User
+
+    container = get_container()
+    now_msk = _msk_now()
+    async with container.uow() as uow:
+        holidays = [
+            h
+            for h in await uow.holidays.ordered()
+            if h.enabled
+            and h.month == now_msk.month
+            and h.day == now_msk.day
+            and _time_matches(h.send_time, now_msk)
+        ]
+        if not holidays:
+            return 0
+        rows = (
+            await uow.session.execute(
+                select(User.telegram_id).where(
+                    User.telegram_id.is_not(None), User.status == UserStatus.ACTIVE
+                )
+            )
+        ).all()
+        chat_ids = [int(tg) for (tg,) in rows]
+
+    sent_total = 0
+    bot = Bot(token=container.settings.bot.token)
+    try:
+        for h in holidays:
+            key = f"holiday:{now_msk.year}:{h.id}"
+            if not await container.redis.set(key, "1", nx=True, ex=86400 * 2):
+                continue  # already sent this year
+            if h.reward_type.value == "discount":
+                text = f"🎉 {h.name}! Скидка -{h.value}% на продление — только сегодня!"
+            elif h.reward_type.value == "days":
+                text = f"🎉 {h.name}! Дарим +{h.value} дней при продлении сегодня!"
+            else:
+                text = f"🎉 {h.name}! Бонус {h.value / 100:.0f} ₽ на баланс за продление сегодня!"
+            sent = 0
+            for chat_id in chat_ids:
+                try:
+                    await bot.send_message(chat_id, text)
+                    sent += 1
+                except Exception:
+                    pass
+                import asyncio
+
+                await asyncio.sleep(0.04)
+            sent_total += sent
+            async with container.uow() as uow:
+                row = await uow.holidays.get(h.id)
+                if row is not None:
+                    results = dict(row.results)
+                    results[str(now_msk.year)] = {"sent": sent}
+                    row.results = results
+                    await uow.commit()
+    finally:
+        await bot.session.close()
+    log.info("holiday promos sent", count=sent_total)
+    return sent_total
+
+
+@broker.task(schedule=[{"cron": "*/5 * * * *"}])
+async def scheduled_backup() -> None:
+    """Fires run_backup at the configured BACKUP_TIME (daily, Redis dedup)."""
+    container = get_container()
+    now_msk = _msk_now()
+    async with container.uow() as uow:
+        enabled = bool(await container.bot_config.value(uow, "BACKUP_ENABLED"))
+        at = str(await container.bot_config.value(uow, "BACKUP_TIME"))
+    if not enabled or not _time_matches(at, now_msk):
+        return
+    if not await container.redis.set(
+        f"backup:{now_msk.strftime('%Y%m%d')}", "1", nx=True, ex=86400
+    ):
+        return
+    await run_backup.kiq()
+
+
 @broker.task
 async def run_backup() -> str | None:
     """Dump the Postgres DB to an encrypted zip in ./backups (pg_dump + pyzipper).
@@ -48,7 +241,6 @@ async def run_backup() -> str | None:
     archive to the report group happens in the reports job, not here.
     """
     import asyncio
-    import datetime as dt
     from pathlib import Path
 
     from src.infrastructure.services.backup import create_encrypted_zip, prune_old_backups
@@ -95,7 +287,6 @@ async def send_broadcast(broadcast_id: int) -> None:
     per-user failures (blocked bot, deactivated account) increment ``failed``.
     """
     import asyncio
-    import datetime as dt
 
     from aiogram import Bot
     from aiogram.exceptions import TelegramForbiddenError, TelegramRetryAfter

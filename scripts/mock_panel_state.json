@@ -1,0 +1,17 @@
+{
+ "c44000e3-cca3-423a-be3b-ec66fb2b8035": {
+  "uuid": "c44000e3-cca3-423a-be3b-ec66fb2b8035",
+  "shortUuid": "b0217d1ad3a3",
+  "username": "sub_b09gry5sly",
+  "status": "ACTIVE",
+  "expireAt": "2026-08-05T15:53:35.713671+00:00",
+  "trafficLimitBytes": 107374182400,
+  "userTraffic": 0,
+  "hwidDeviceLimit": 3,
+  "telegramId": 777000111,
+  "activeInternalSquads": [],
+  "externalSquadUuid": null,
+  "subscriptionUrl": "https://localhost/sub/b0217d1ad3a3",
+  "tag": null
+ }
+}
