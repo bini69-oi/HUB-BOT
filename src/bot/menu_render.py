@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from aiogram.types import CallbackQuery, Message
 
-from src.bot.keyboards import menu_keyboard, simple_keyboard
+from src.bot.keyboards import menu_keyboard, simple_keyboard, webapp_button
 from src.infrastructure.database.models.user import User
 from src.infrastructure.di import AppContainer
 
@@ -12,7 +12,9 @@ from src.infrastructure.di import AppContainer
 _DEFAULT_BUTTONS: list[tuple[str, str]] = [
     ("🛒 Купить VPN", "act:buy:0"),
     ("👤 Моя подписка", "act:subscription:0"),
+    ("🔌 Подключить", "act:connect:0"),
     ("💰 Баланс", "act:balance:0"),
+    ("📊 История", "act:history:0"),
     ("🎟 Промокод", "act:promocode"),
     ("🎁 Пригласить друга", "act:referral:0"),
     ("🆘 Поддержка", "act:support:0"),
@@ -36,6 +38,9 @@ async def send_main_menu(
         if trial_enabled and db_user.is_trial_available:
             buttons.insert(1, ("🎁 Попробовать бесплатно", "act:trial:0"))
         markup = simple_keyboard(buttons)
+        # Mini-app integration: a prominent WebApp button when the mini-app URL is configured.
+        if miniapp_url.startswith("https://"):
+            markup.inline_keyboard.insert(0, [webapp_button("📱 Открыть приложение", miniapp_url)])
 
     if isinstance(target, CallbackQuery):
         if target.message is not None:

@@ -14,6 +14,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel, Field
 
 from src.application.dto.pricing import PurchaseRequest
+from src.application.services.connection import build_deep_links
 from src.application.services.ids import generate_referral_code
 from src.application.services.promo import PromoError
 from src.core.enums import Currency, Locale, PurchaseType, TransactionStatus, UserStatus
@@ -370,12 +371,7 @@ async def connection(
     return {
         "subscription_url": url,
         "expires_at": sub.expire_at.isoformat() if sub.expire_at else None,
-        "deep_links": {
-            "happ": sub.crypto_link or f"happ://add/{url}",
-            "v2raytun": f"v2raytun://import/{url}",
-            "hiddify": f"hiddify://import/{url}",
-            "streisand": f"streisand://import/{url}",
-        },
+        "deep_links": build_deep_links(url, sub.crypto_link),
     }
 
 

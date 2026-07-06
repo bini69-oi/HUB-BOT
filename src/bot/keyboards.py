@@ -87,3 +87,10 @@ def url_keyboard(rows: list[tuple[str, str]]) -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(
         inline_keyboard=[[InlineKeyboardButton(text=t, url=u)] for t, u in rows]
     )
+
+
+def webapp_button(text: str, url: str) -> InlineKeyboardButton:
+    """A button that opens the Telegram Mini-App (requires an https URL)."""
+    from aiogram.types import WebAppInfo
+
+    return InlineKeyboardButton(text=text, web_app=WebAppInfo(url=url))

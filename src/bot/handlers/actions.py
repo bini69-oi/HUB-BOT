@@ -5,12 +5,13 @@ from __future__ import annotations
 import contextlib
 
 from aiogram import F, Router
-from aiogram.types import CallbackQuery
+from aiogram.types import CallbackQuery, InlineKeyboardButton, InlineKeyboardMarkup
 
 from src.application.dto.pricing import PurchaseRequest
-from src.bot.keyboards import menu_keyboard, simple_keyboard, url_keyboard
+from src.application.services.connection import CLIENT_LABELS, build_deep_links
+from src.bot.keyboards import menu_keyboard, simple_keyboard, url_keyboard, webapp_button
 from src.bot.menu_render import send_main_menu
-from src.core.enums import Currency, PurchaseType
+from src.core.enums import Currency, PurchaseType, TransactionStatus, TransactionType
 from src.core.exceptions import RemnawaveError
 from src.core.logging import get_logger
 from src.infrastructure.database.models.plan import Plan
@@ -75,6 +76,7 @@ async def act_subscription(cb: CallbackQuery, container: AppContainer, db_user: 
             else None
         )
         hide_link = bool(await container.bot_config.value(uow, "HIDE_SUBSCRIPTION_LINK"))
+        miniapp_url = str(await container.bot_config.value(uow, "SUBSCRIPTION_MINI_APP_URL") or "")
     if sub is None or not sub.status.is_usable:
         text = "У тебя пока нет активной подписки."
         markup = simple_keyboard([("🛒 Купить VPN", "act:buy:0"), ("‹ Меню", "nav:root")])
@@ -92,11 +94,88 @@ async def act_subscription(cb: CallbackQuery, container: AppContainer, db_user: 
         text = f"<b>Твоя подписка</b>\n\nТариф: {plan_name}{days_left}\nТрафик: {traffic}"
         if not hide_link and sub.subscription_url:
             text += f"\n\nСсылка подписки:\n<code>{sub.subscription_url}</code>"
-        rows: list[tuple[str, str]] = [("🔄 Продлить", f"plan:{sub.plan_id or 0}")]
-        rows.append(("‹ Меню", "nav:root"))
-        markup = simple_keyboard(rows)
+        kb: list[list[InlineKeyboardButton]] = [
+            [InlineKeyboardButton(text="🔌 Подключить", callback_data="act:connect:0")],
+            [InlineKeyboardButton(text="🔄 Продлить", callback_data=f"plan:{sub.plan_id or 0}")],
+        ]
+        if miniapp_url.startswith("https://"):
+            kb.append([webapp_button("📱 Открыть приложение", miniapp_url)])
+        kb.append([InlineKeyboardButton(text="‹ Меню", callback_data="nav:root")])
+        markup = InlineKeyboardMarkup(inline_keyboard=kb)
     if cb.message is not None:
         await cb.message.edit_text(text, reply_markup=markup, parse_mode="HTML")  # type: ignore[union-attr]
+    await cb.answer()
+
+
+@router.callback_query(F.data.startswith("act:connect"))
+async def act_connect(cb: CallbackQuery, container: AppContainer, db_user: User) -> None:
+    """Mini-app-parity Connect screen: subscription URL + per-client import links + WebApp."""
+    async with container.uow() as uow:
+        sub = (
+            await uow.subscriptions.get(db_user.current_subscription_id)
+            if db_user.current_subscription_id
+            else None
+        )
+        miniapp_url = str(await container.bot_config.value(uow, "SUBSCRIPTION_MINI_APP_URL") or "")
+    if sub is None or not sub.status.is_usable or not sub.subscription_url:
+        await cb.answer("Сначала оформи подписку", show_alert=True)
+        return
+    links = build_deep_links(sub.subscription_url, sub.crypto_link)
+    apps = "\n".join(f"• {CLIENT_LABELS[k]}: <code>{v}</code>" for k, v in links.items())
+    text = (
+        "<b>🔌 Подключение</b>\n\n"
+        "1) Установи приложение: Happ, v2RayTun, Hiddify или Streisand.\n"
+        "2) Открой мини-приложение (импорт в один тап + QR) или вставь ссылку подписки вручную:\n\n"
+        f"<code>{sub.subscription_url}</code>\n\n"
+        f"Ссылки-импорт:\n{apps}"
+    )
+    kb: list[list[InlineKeyboardButton]] = []
+    if miniapp_url.startswith("https://"):
+        kb.append([webapp_button("📱 Открыть приложение", miniapp_url)])
+    kb.append([InlineKeyboardButton(text="👤 Моя подписка", callback_data="act:subscription:0")])
+    kb.append([InlineKeyboardButton(text="‹ Меню", callback_data="nav:root")])
+    if cb.message is not None:
+        await cb.message.edit_text(  # type: ignore[union-attr]
+            text, reply_markup=InlineKeyboardMarkup(inline_keyboard=kb), parse_mode="HTML"
+        )
+    await cb.answer()
+
+
+_TXN_LABEL: dict[TransactionType, str] = {
+    TransactionType.DEPOSIT: "Пополнение",
+    TransactionType.SUBSCRIPTION_PAYMENT: "Подписка",
+    TransactionType.REFERRAL_REWARD: "Реф. бонус",
+    TransactionType.REFUND: "Возврат",
+    TransactionType.WITHDRAWAL: "Вывод",
+    TransactionType.GIFT: "Подарок",
+}
+_TXN_STATUS_EMOJI: dict[TransactionStatus, str] = {
+    TransactionStatus.COMPLETED: "✅",
+    TransactionStatus.PENDING: "⏳",
+    TransactionStatus.CANCELED: "✖️",
+    TransactionStatus.FAILED: "❌",
+    TransactionStatus.REFUNDED: "↩️",
+}
+
+
+@router.callback_query(F.data.startswith("act:history"))
+async def act_history(cb: CallbackQuery, container: AppContainer, db_user: User) -> None:
+    async with container.uow() as uow:
+        txns = list(await uow.transactions.list(user_id=db_user.id))
+    txns.sort(key=lambda t: t.created_at, reverse=True)
+    if not txns:
+        text = "История операций пуста."
+    else:
+        lines = [
+            f"{_TXN_STATUS_EMOJI.get(t.status, '')} {t.created_at:%d.%m} · "
+            f"{_TXN_LABEL.get(t.type, t.type.value)} · {fmt_money(t.amount_minor)}"
+            for t in txns[:10]
+        ]
+        text = "<b>История операций</b>\n\n" + "\n".join(lines)
+    if cb.message is not None:
+        await cb.message.edit_text(  # type: ignore[union-attr]
+            text, reply_markup=simple_keyboard([("‹ Меню", "nav:root")]), parse_mode="HTML"
+        )
     await cb.answer()
 
 
