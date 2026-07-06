@@ -46,7 +46,11 @@ async def run() -> None:
     bot = Bot(token=settings.bot.token, default=DefaultBotProperties(parse_mode=None))
     storage = RedisStorage(container.redis)
     dp = Dispatcher(storage=storage)
-    dp.update.outer_middleware(ContextMiddleware(container))
+    # Attach to the user-bearing observers (an Update wrapper has no `from_user`, so a
+    # single dp.update middleware never resolves the DB user and handlers lose `db_user`).
+    context = ContextMiddleware(container)
+    dp.message.outer_middleware(context)
+    dp.callback_query.outer_middleware(context)
     dp.include_router(build_router())
 
     await _apply_bot_config(bot, container)
