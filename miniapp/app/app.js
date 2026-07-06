@@ -480,8 +480,9 @@
       let variant = params.get("variant") || me.app.template || "a";
       variant = NAMES[variant] || variant;
       document.body.dataset.variant = /^[a-h]$/.test(variant) ? variant : "a";
-      if (me.app.accent_color && !params.get("variant")) {
-        document.body.style.setProperty("--acc", me.app.accent_color);
+      const accent = params.get("accent") || (!params.get("variant") ? me.app.accent_color : null);
+      if (accent && /^#[0-9a-fA-F]{3,8}$/.test(accent)) {
+        document.body.style.setProperty("--acc", accent);
       }
       T = (params.get("lang") || me.user.language) === "en" ? EN : RU;
       document.documentElement.lang = T === EN ? "en" : "ru";
