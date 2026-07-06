@@ -17,11 +17,13 @@ from fastapi.staticfiles import StaticFiles
 from src.core.config import get_settings
 from src.core.logging import configure_logging
 from src.infrastructure.di import AppContainer
-from src.web.routes import admin, health, panel, payments
+from src.web.routes import admin, cabinet, health, panel, payments
 from src.web.routes.admin.auth import bootstrap_admin
 
 # Built admin SPA (admin/dist) — mounted when present (dev runs vite instead).
 _ADMIN_DIST = Path(__file__).resolve().parents[2] / "admin" / "dist"
+# End-user mini-app (static, no build step).
+_MINIAPP_DIR = Path(__file__).resolve().parents[2] / "miniapp" / "app"
 
 
 @asynccontextmanager
@@ -52,8 +54,11 @@ def create_app() -> FastAPI:
     app.include_router(payments.router)
     app.include_router(panel.router)
     app.include_router(admin.router)
+    app.include_router(cabinet.router)
     if _ADMIN_DIST.is_dir():
         app.mount("/admin", StaticFiles(directory=_ADMIN_DIST, html=True), name="admin-spa")
+    if _MINIAPP_DIR.is_dir():
+        app.mount("/app", StaticFiles(directory=_MINIAPP_DIR, html=True), name="miniapp")
     return app
 
 

@@ -78,6 +78,42 @@ def jwt_encode(payload: dict[str, Any], secret: str, ttl_seconds: int) -> str:
     return f"{signing}.{_b64(sig)}"
 
 
+def validate_init_data(
+    init_data: str, bot_token: str, *, max_age_seconds: int = 24 * 3600
+) -> dict[str, Any] | None:
+    """Verify Telegram Mini Apps initData (HMAC per Bot API docs); returns parsed fields.
+
+    Secret key = HMAC_SHA256(key="WebAppData", msg=bot_token); hash = HMAC_SHA256 of the
+    sorted key=value lines. Returns None on bad signature or stale auth_date.
+    """
+    from urllib.parse import parse_qsl
+
+    try:
+        pairs = dict(parse_qsl(init_data, keep_blank_values=True))
+    except ValueError:
+        return None
+    received_hash = pairs.pop("hash", None)
+    if not received_hash:
+        return None
+    check_string = "\n".join(f"{k}={v}" for k, v in sorted(pairs.items()))
+    secret_key = hmac.new(b"WebAppData", bot_token.encode(), hashlib.sha256).digest()
+    expected = hmac.new(secret_key, check_string.encode(), hashlib.sha256).hexdigest()
+    if not hmac.compare_digest(expected, received_hash):
+        return None
+    try:
+        auth_date = int(pairs.get("auth_date", "0"))
+    except ValueError:
+        return None
+    if auth_date and time.time() - auth_date > max_age_seconds:
+        return None
+    if "user" in pairs:
+        try:
+            pairs["user_parsed"] = json.loads(pairs["user"])
+        except json.JSONDecodeError:
+            return None
+    return pairs
+
+
 def jwt_decode(token: str, secret: str) -> dict[str, Any] | None:
     """Verify signature + expiry; returns the payload or None."""
     try:
