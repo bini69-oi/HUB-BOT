@@ -487,6 +487,9 @@ async def activate_trial(
         except RemnawaveError as exc:
             raise HTTPException(502, "provisioning temporarily unavailable") from exc
         await uow.commit()
+        from src.application.events import TrialGranted
+
+        await container.event_bus.publish(TrialGranted(user_id=u.id, subscription_id=sub.id))
         return {"ok": True, "days": days, "subscription": _sub_payload(sub)}
 
 

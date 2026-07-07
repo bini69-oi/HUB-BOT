@@ -439,6 +439,9 @@ async def act_trial(cb: CallbackQuery, container: AppContainer, db_user: User) -
             await cb.answer("Сервис временно недоступен, попробуй позже", show_alert=True)
             return
         await uow.commit()
+        from src.application.events import TrialGranted
+
+        await container.event_bus.publish(TrialGranted(user_id=user.id, subscription_id=sub.id))
         url = sub.subscription_url
 
     text = f"🎁 <b>Пробный период активирован: {days} дн.</b>"
@@ -527,6 +530,35 @@ async def devdel(cb: CallbackQuery, container: AppContainer, db_user: User) -> N
         return
     await cb.answer("Устройство отвязано ✅")
     await act_devices(cb, container, db_user)
+
+
+@router.callback_query(F.data.startswith("act:nodes"))
+async def act_nodes(cb: CallbackQuery, container: AppContainer, db_user: User) -> None:
+    """User-facing server status: 🟢/🟠/🔴 per node with online counts."""
+    from src.core.enums import ServerNodeStatus
+
+    async with container.uow() as uow:
+        if not bool(await container.bot_config.value(uow, "NODE_STATUS_ENABLED")):
+            await cb.answer("Раздел недоступен", show_alert=True)
+            return
+        nodes = sorted(await uow.server_nodes.list(), key=lambda n: n.name)
+    if not nodes:
+        text = "🌍 <b>Статус серверов</b>\n\nДанные ещё не собраны."
+    else:
+        glyph = {
+            ServerNodeStatus.ONLINE: "🟢",
+            ServerNodeStatus.OFFLINE: "🔴",
+            ServerNodeStatus.MAINTENANCE: "🟠",
+        }
+        lines = ["🌍 <b>Статус серверов</b>", ""]
+        for n in nodes[:30]:
+            flag = f"{n.country_code} " if n.country_code else ""
+            lines.append(
+                f"{glyph.get(n.status, '⚪')} {flag}{hesc(n.name)} · онлайн {n.users_online}"
+            )
+        text = "\n".join(lines)
+    await show_screen(cb, text, simple_keyboard([("‹ Меню", "nav:root")]))
+    await cb.answer()
 
 
 @router.callback_query(F.data.startswith("act:proxy"))

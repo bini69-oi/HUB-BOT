@@ -33,6 +33,7 @@ from src.infrastructure.remnawave.client import RemnawaveHttpClient
 from src.infrastructure.remnawave.connection import build_profile
 from src.infrastructure.remnawave.webhook import WebhookVerifier
 from src.infrastructure.services.notification import LogNotifier, TelegramNotifier
+from src.infrastructure.services.postback import wire_postback_events
 from src.infrastructure.services.reports import wire_report_events
 
 
@@ -79,6 +80,7 @@ class AppContainer:
 
         # Screen 14: instant report topics (payments/tickets/registrations) listen on the bus.
         wire_report_events(self)
+        wire_postback_events(self)  # S2S tracking pixels on registration/trial/purchase
 
     @classmethod
     def from_env(cls) -> AppContainer:

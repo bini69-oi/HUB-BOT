@@ -37,6 +37,7 @@ async def send_main_menu(
         proxy_on = bool(await cfg.value(uow, "MTPROTO_PROXY_ENABLED")) and bool(
             await cfg.value(uow, "MTPROTO_PROXY_URL")
         )
+        node_status_on = bool(await cfg.value(uow, "NODE_STATUS_ENABLED"))
 
     if nodes:
         markup = menu_keyboard(nodes, None, miniapp_url=miniapp_url or None)
@@ -47,6 +48,8 @@ async def send_main_menu(
             buttons.insert(1, ("🎁 Попробовать бесплатно", "act:trial:0"))
         if proxy_on:
             buttons.append(("🔌 MTProto-прокси", "act:proxy:0"))
+        if node_status_on:
+            buttons.append(("🌍 Статус серверов", "act:nodes:0"))
         if db_user.role.is_staff:
             buttons.append(("🛠 Админка", "admin:menu"))
         markup = simple_keyboard(buttons)
