@@ -194,6 +194,26 @@ def hwid_delete(body: dict):
     return {"response": {"ok": True}}
 
 
+@app.post("/api/ip-control/fetch-users-ips/{node_uuid}")
+def ipcontrol_start(node_uuid: str):
+    return {"response": {"jobId": f"job-{node_uuid}"}}
+
+
+@app.get("/api/ip-control/fetch-users-ips/result/{job_id}")
+def ipcontrol_result(job_id: str):
+    return {
+        "response": {
+            "isCompleted": True,
+            "isFailed": False,
+            "result": {
+                "success": True,
+                "nodeUuid": job_id.removeprefix("job-"),
+                "users": [],
+            },
+        }
+    }
+
+
 @app.get("/api/internal-squads")
 async def internal_squads() -> dict[str, Any]:
     for squad in SQUADS:

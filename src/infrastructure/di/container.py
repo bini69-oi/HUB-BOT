@@ -11,6 +11,7 @@ from redis.asyncio import Redis
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker
 
 from src.application.services.bot_config import BotConfigService
+from src.application.services.device_guard import DeviceGuardService
 from src.application.services.panel_sync import PanelSyncService
 from src.application.services.payment import PaymentService
 from src.application.services.pricing import PricingService
@@ -70,6 +71,7 @@ class AppContainer:
         self.payments = PaymentService(self.purchase, self.event_bus, self.referrals)
         self.promo = PromoService(self.subscriptions)
         self.panel_sync = PanelSyncService(self.remnawave_client)
+        self.device_guard = DeviceGuardService(self.remnawave_client)
 
         # Screen 14: instant report topics (payments/tickets/registrations) listen on the bus.
         wire_report_events(self)

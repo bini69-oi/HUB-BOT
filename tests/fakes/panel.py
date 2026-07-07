@@ -23,6 +23,7 @@ class FakeRemnawaveClient:
         self.users: dict[uuid.UUID, PanelUser] = {}
         self.deleted: list[uuid.UUID] = []
         self.devices: dict[uuid.UUID, list[PanelDevice]] = {}
+        self.users_ips: dict[str, list[tuple[str, list[str]]]] = {}
 
     async def get_version(self) -> PanelVersion:
         maj, minr, pat = self._version
@@ -80,6 +81,12 @@ class FakeRemnawaveClient:
         return rotated
 
     async def drop_connections(self, panel_uuid: uuid.UUID) -> None: ...
+
+    async def start_users_ips_job(self, node_uuid: str) -> str:
+        return f"job-{node_uuid}"
+
+    async def get_users_ips_result(self, job_id: str) -> list[tuple[str, list[str]]] | None:
+        return self.users_ips.get(job_id, [])
 
     async def get_devices(self, panel_uuid: uuid.UUID) -> list[PanelDevice]:
         return list(self.devices.get(panel_uuid, []))

@@ -252,6 +252,27 @@ class RemnawaveHttpClient:
             json={"userUuid": str(panel_uuid), "hwid": hwid},
         )
 
+    async def start_users_ips_job(self, node_uuid: str) -> str:
+        """Kick the panel's online-IP collection for a node (ip-control API)."""
+        data = await self._request("POST", f"/api/ip-control/fetch-users-ips/{node_uuid}")
+        return str((data or {}).get("jobId") or "")
+
+    async def get_users_ips_result(self, job_id: str) -> list[tuple[str, list[str]]] | None:
+        """None while the job is running; [(userId, [ips])] when completed."""
+        data = await self._request("GET", f"/api/ip-control/fetch-users-ips/result/{job_id}")
+        data = data or {}
+        if not data.get("isCompleted"):
+            return None
+        if data.get("isFailed"):
+            return []
+        users = (data.get("result") or {}).get("users") or []
+        out: list[tuple[str, list[str]]] = []
+        for u in users:
+            ips = [str(i.get("ip")) for i in (u.get("ips") or []) if i.get("ip")]
+            if u.get("userId"):
+                out.append((str(u["userId"]), ips))
+        return out
+
     async def get_internal_squads(self) -> list[PanelSquad]:
         data = await self._request("GET", _PATHS["internal_squads"])
         items = data.get("internalSquads", data) if isinstance(data, dict) else data

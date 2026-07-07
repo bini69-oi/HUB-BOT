@@ -178,6 +178,69 @@ async def panel_write_retry(subscription_id: int) -> None:
     log.info("panel_write_retry", subscription_id=subscription_id)
 
 
+@broker.task(schedule=[{"cron": "*/20 * * * *"}])
+async def device_guard_scan() -> int:
+    """Sharing detection: unique online IPs per subscription vs the device limit.
+
+    Uses the panel's ip-control API per ONLINE node; violations go to the «alerts»
+    report topic. A Redis cooldown keeps it to one alert per subscription per day.
+    """
+    from src.application.services.device_guard import GuardConfig
+    from src.core.enums import ServerNodeStatus
+    from src.infrastructure.services.reports import send_topic_report
+
+    container = get_container()
+    async with container.uow() as uow:
+        cfg_svc = container.bot_config
+        if not bool(await cfg_svc.value(uow, "DEVICE_GUARD_ENABLED")):
+            return 0
+        cfg = GuardConfig(
+            max_ips=int(await cfg_svc.value(uow, "DEVICE_GUARD_MAX_IPS") or 0),
+            tolerance=int(await cfg_svc.value(uow, "DEVICE_GUARD_TOLERANCE") or 0),
+            action=str(await cfg_svc.value(uow, "DEVICE_GUARD_ACTION") or "alert"),
+        )
+        nodes = [
+            str(n.node_uuid)
+            for n in await uow.server_nodes.list()
+            if n.status is ServerNodeStatus.ONLINE
+        ]
+    if not nodes:
+        return 0
+
+    usage = await container.device_guard.collect_ips(nodes)
+    if not usage:
+        return 0
+
+    async with container.uow() as uow:
+        violations = await container.device_guard.scan(uow, usage, cfg)
+        await uow.commit()
+
+    reported = 0
+    for v in violations:
+        # one alert per subscription per day — repeated scans must not spam the topic
+        dedup_key = f"devguard:alerted:{v.subscription_id}"
+        if not await container.redis.set(dedup_key, "1", ex=86400, nx=True):
+            continue
+        reported += 1
+        who = f"tg {v.telegram_id}" if v.telegram_id else f"user #{v.user_id}"
+        await send_topic_report(
+            container,
+            "alerts",
+            f"👥 Похоже на шеринг подписки #{v.subscription_id} ({who})\n"
+            f"Тариф: {v.plan_name} · лимит {v.limit} устройств\n"
+            f"Онлайн-IP ({len(v.ips)}): {', '.join(v.ips)}\n"
+            f"Действие: {v.action}",
+        )
+        if v.action == "disable" and v.telegram_id is not None:
+            await container.notifier.notify_user(
+                v.telegram_id,
+                "⚠️ Подписка приостановлена: замечено одновременное использование "
+                "на слишком многих устройствах. Напиши в поддержку, если это ошибка.",
+            )
+    log.info("device guard scan", violations=len(violations), reported=reported)
+    return len(violations)
+
+
 @broker.task(schedule=[{"cron": "*/15 * * * *"}])
 async def sync_panel_nodes() -> int:
     """Mirror Remnawave nodes into server_nodes (screen 12 + dashboard online)."""
