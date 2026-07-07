@@ -1,7 +1,7 @@
 """Domain events + EventBus protocol.
 
 Events carry an ``i18n_key`` + ``kwargs`` (not rendered text) so notifications render in
-each recipient's locale (remnashop pattern). Side-effects (referral, notifications,
+each recipient's locale (deferred-render pattern). Side-effects (referral, notifications,
 analytics) subscribe to the bus and are best-effort — isolated from the atomic core.
 """
 

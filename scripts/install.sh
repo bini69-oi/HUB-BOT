@@ -63,10 +63,11 @@ DATABASE__PASSWORD=$DBPW
 DATABASE__NAME=vpn
 REDIS__HOST=redis
 REDIS__PORT=6379
-REMNAWAVE__BASE_URL=${PANEL_URL:-http://web:8080/__no_panel__}
+REMNAWAVE__BASE_URL=${PANEL_URL:-http://mockpanel:3010}
 REMNAWAVE__AUTH_TYPE=api_key
 REMNAWAVE__TOKEN=${PANEL_TOKEN:-mock-panel-token}
 REMNAWAVE__WEBHOOK_SECRET=$WHS
+$([ -z "${PANEL_URL:-}" ] && echo "COMPOSE_PROFILES=mock")
 WEB__HOST=0.0.0.0
 WEB__PORT=8080
 LOG__LEVEL=INFO
@@ -82,16 +83,22 @@ say "Собираю и запускаю стек (postgres, redis, web, bot, wor
 docker compose -f docker/compose.prod.yml up -d --build
 
 say "Жду миграции и старт веба…"
-for _ in $(seq 1 60); do
-  if docker compose -f docker/compose.prod.yml exec -T web python -c "print('ok')" >/dev/null 2>&1; then
-    break
+HEALTH_OK=""
+for _ in $(seq 1 90); do
+  if docker compose -f docker/compose.prod.yml exec -T web \
+       python -c "import urllib.request as u; u.urlopen('http://localhost:8080/health', timeout=3)" \
+       >/dev/null 2>&1; then
+    HEALTH_OK=1; break
   fi
   sleep 2
 done
+[ -n "$HEALTH_OK" ] || fail "web не поднялся за 3 минуты — смотри: docker compose -f docker/compose.prod.yml logs web"
 
+# DOMAIN may live only in .env when re-running the installer.
+ENV_DOMAIN=$(grep '^DOMAIN=' .env | cut -d= -f2)
 IP=$(curl -fs4 ifconfig.me 2>/dev/null || hostname -I | awk '{print $1}')
 URL="http://$IP"
-[ -n "${DOMAIN:-}" ] && [ "${DOMAIN:-:80}" != ":80" ] && URL="https://$DOMAIN"
+[ -n "$ENV_DOMAIN" ] && [ "$ENV_DOMAIN" != ":80" ] && URL="https://$ENV_DOMAIN"
 
 ADMPW_OUT=$(grep '^ADMIN__PASSWORD=' .env | cut -d= -f2)
 say "Готово! 🎉"

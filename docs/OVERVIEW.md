@@ -56,7 +56,7 @@ BOT/
 │   ├── infrastructure/           адаптеры
 │   │   ├── database/             models/ (29 моделей) · dao/ · uow.py · migrations/
 │   │   ├── remnawave/            клиент панели (auth/retry/mapping) + webhook-verifier
-│   │   ├── payments/             base ABC + factory + gateways/ (manual, telegram_stars)
+│   │   ├── payments/             base ABC + factory + gateways/ (manual, stars, yookassa, cryptobot)
 │   │   ├── taskiq/               broker.py + tasks.py (фоновые задачи)
 │   │   ├── redis/  di/  services/  локи · AppContainer · notification/backup/health
 │   ├── bot/                      ← ТЕЛЕГРАМ-БОТ
@@ -92,7 +92,7 @@ BOT/
 
 ### 🤖 Бот (`src/bot/`)
 Готово: `/start` + диплинк-атрибуция, меню (конструктор из админки + дефолт), **триал**,
-**покупка** (NEW/RENEW), оплата **балансом** и **Telegram Stars**, **пополнение баланса** (Stars),
+**покупка** (NEW/RENEW), оплата **балансом**, **Telegram Stars** и **онлайн-шлюзами** (редирект-счёт), **пополнение баланса** (Stars),
 **промокод**, **рефералка с реальным начислением**, **тикеты**, «моя подписка», уведомления.
 Оплата картой/крипта — *fast-follow* (нужны ключи мерчанта). Смена тарифа (CHANGE), выбор языка —
 пока нет.
@@ -106,10 +106,10 @@ BOT/
 JWT-логин (`ADMIN__USERNAME`/`ADMIN__PASSWORD`). 15 экранов на реальном API: Dashboard, Users,
 Тарифы, Promos, Конструктор меню, Miniapp (темы), Рассылки, Smart-напоминания, Кампании, Платежи,
 Тикеты, Серверы, Настройки, Maintenance. Почти всё рабочее; заглушки: тест платёжек (нет карты/крипты),
-host-действия maintenance, импорт из bedolaga.
+host-действия maintenance, импорт из других ботов.
 
 ### ⚙️ Cabinet API (`src/web/routes/cabinet.py`)
-`/api/cabinet/*` для мини-аппы: me, plans, purchase (баланс + Stars), promocode, trial, referral,
+`/api/cabinet/*` для мини-аппы: me, plans, purchase (баланс + Stars + онлайн-шлюзы), promocode, trial, referral,
 connection (deep-links happ/v2raytun/hiddify/streisand). Готово.
 
 ### ⏰ Фоновые задачи (`src/infrastructure/taskiq/tasks.py`)
@@ -124,7 +124,8 @@ connection (deep-links happ/v2raytun/hiddify/streisand). Готово.
 
 ### 💳 Платежи (`src/infrastructure/payments/`)
 Единый ABC + фабрика + один вебхук-роут. Работают: **manual** (админ-подтверждение), **telegram_stars**
-(in-bot). Добавить провайдера = 1 файл + enum + seed-row (см. `.claude/skills/add-payment-gateway`).
+(in-bot), **yookassa** (карта/СБП, редирект + вебхук-рефетч), **cryptobot** (крипта по курсу к ₽).
+Добавить провайдера = 1 файл + enum + seed-row (см. `.claude/skills/add-payment-gateway`).
 
 ---
 
@@ -182,12 +183,12 @@ ssh root@94.183.238.41 'journalctl -u vpnshop-bot -f'    # логи бота
 ## 8. Известные проблемы / TODO
 1. **Worker падает из-за нехватки RAM** на 1 GB сервере (swap забит) — рассылки/бэкапы/синк нестабильны.
    Фикс: 2 GB VPS (лучше) или тюнинг брокера + swap. *(на in-bot покупки не влияет)*
-2. Платёжки: только `manual` + `telegram_stars`. Карта/крипта (YooKassa/Cryptomus/…) — добавить при
+2. Платёжки: `manual`, `telegram_stars`, `yookassa`, `cryptobot`. Остальные (Cryptomus/…) — добавить при
    наличии ключей мерчанта.
 3. Смена тарифа (`PurchaseType.CHANGE`) — не реализована (падает явно).
 4. Язык/i18n в боте — RU-хардкод; `Translator` загружен, но не используется.
 5. `miniapp/templates/` — устаревший неиспользуемый вариант, удалить.
-6. Admin: host-действия maintenance (update/restart) — заглушки; импорт из bedolaga — только probe.
+6. Admin: host-действия maintenance (update/restart) — заглушки; импорт из других ботов — только probe.
 7. CI собирает только Python (не SPA) — добавить `tsc && vite build`.
 
 ---

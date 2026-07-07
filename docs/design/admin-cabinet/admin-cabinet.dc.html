@@ -1279,9 +1279,9 @@ input::placeholder,textarea::placeholder{color:var(--dim)}
                   <span style="font-family:'JetBrains Mono',monospace;font-size:9.5px;letter-spacing:.1em;color:var(--dim)"><sc-if value="{{ ru }}" hint-placeholder-val="{{ true }}">МИГРАЦИЯ БД С BEDOLAGA</sc-if><sc-if value="{{ en }}" hint-placeholder-val="{{ false }}">DB MIGRATION FROM BEDOLAGA</sc-if></span>
                   <span style="font-family:'JetBrains Mono',monospace;font-size:9px;color:var(--muted)">{{ migStL }}</span>
                 </div>
-                <div style="font-size:12px;color:var(--dim);line-height:1.5;margin-bottom:14px"><sc-if value="{{ ru }}" hint-placeholder-val="{{ true }}">Переносит пользователей, подписки, платежи, промокоды и настройки из бота Bedolaga без остановки продаж.</sc-if><sc-if value="{{ en }}" hint-placeholder-val="{{ false }}">Moves users, subs, payments, promos and settings from a Bedolaga bot without stopping sales.</sc-if></div>
+                <div style="font-size:12px;color:var(--dim);line-height:1.5;margin-bottom:14px"><sc-if value="{{ ru }}" hint-placeholder-val="{{ true }}">Переносит пользователей, подписки, платежи, промокоды и настройки из другого бота без остановки продаж.</sc-if><sc-if value="{{ en }}" hint-placeholder-val="{{ false }}">Moves users, subs, payments, promos and settings from another bot without stopping sales.</sc-if></div>
                 <div style="font-family:'JetBrains Mono',monospace;font-size:8.5px;letter-spacing:.1em;color:var(--dim);margin-bottom:6px">POSTGRES DSN</div>
-                <input onChange="{{ onMigDsn }}" placeholder="postgresql://user:pass@host:5432/bedolaga" style="width:100%;background:var(--bg);border:1px solid var(--border2);border-radius:3px;padding:10px 12px;font-family:'JetBrains Mono',monospace;font-size:11px;outline:none;margin-bottom:12px" style-focus="border-color:var(--muted)">
+                <input onChange="{{ onMigDsn }}" placeholder="postgresql://user:pass@host:5432/oldbot" style="width:100%;background:var(--bg);border:1px solid var(--border2);border-radius:3px;padding:10px 12px;font-family:'JetBrains Mono',monospace;font-size:11px;outline:none;margin-bottom:12px" style-focus="border-color:var(--muted)">
                 <div style="display:flex;flex-direction:column;margin-bottom:14px">
                   <div style="display:flex;justify-content:space-between;padding:7px 0;border-bottom:1px solid var(--border);font-size:12.5px"><span style="color:var(--muted)"><sc-if value="{{ ru }}" hint-placeholder-val="{{ true }}">Пользователи</sc-if><sc-if value="{{ en }}" hint-placeholder-val="{{ false }}">Users</sc-if></span><span style="font-family:'JetBrains Mono',monospace;font-size:11px">8 412 ✓</span></div>
                   <div style="display:flex;justify-content:space-between;padding:7px 0;border-bottom:1px solid var(--border);font-size:12.5px"><span style="color:var(--muted)"><sc-if value="{{ ru }}" hint-placeholder-val="{{ true }}">Подписки</sc-if><sc-if value="{{ en }}" hint-placeholder-val="{{ false }}">Subscriptions</sc-if></span><span style="font-family:'JetBrains Mono',monospace;font-size:11px">2 147 ✓</span></div>
@@ -1601,7 +1601,7 @@ input::placeholder,textarea::placeholder{color:var(--dim)}
 class Component extends DCLogic {
   constructor(props) {
     super(props);
-    this.LS = 'bedolaga-admin-v1';
+    this.LS = 'vpnhub-admin-v1';
     let saved = {};
     try { saved = JSON.parse(localStorage.getItem(this.LS) || '{}'); } catch (e) {}
     this.draft = {};
@@ -2472,7 +2472,7 @@ class Component extends DCLogic {
       { t: '04:00', txt: L('Автобэкап выполнен · 84 МБ → топик «Бэкапы»', 'Auto-backup done · 84 MB → "Backups"') },
       { t: '−1д 21:00', txt: L('Отчёт за день · выручка 10 240 ₽ · прибыль 9 380 ₽', 'Daily report · revenue 10 240 ₽ · profit 9 380 ₽') },
       { t: '28.06', txt: L('Обновление v3.59.0 → v3.60.0 · успешно · 38 сек', 'Update v3.59.0 → v3.60.0 · ok · 38 s') },
-      { t: '14.05', txt: L('Миграция с Bedolaga · 7 918 пользователей · без ошибок', 'Migration from Bedolaga · 7 918 users · no errors') }
+      { t: '14.05', txt: L('Миграция с другого бота · 7 918 пользователей · без ошибок', 'Migration from another bot · 7 918 users · no errors') }
     ];
 
     // ---- modals / confirm

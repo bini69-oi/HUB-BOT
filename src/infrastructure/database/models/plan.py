@@ -1,4 +1,4 @@
-"""Plan catalogue — normalized plan / duration / per-currency price (from remnashop)."""
+"""Plan catalogue — normalized plan / duration / per-currency price."""
 
 from __future__ import annotations
 

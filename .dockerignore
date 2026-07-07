@@ -16,3 +16,5 @@ data
 docs
 tests
 *.md
+admin/node_modules
+admin/dist

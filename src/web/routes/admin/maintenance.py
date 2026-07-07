@@ -1,4 +1,4 @@
-"""Admin: maintenance actions, report topics, bedolaga migration stubs (screen 14).
+"""Admin: maintenance actions, report topics, bot-migration stubs (screen 14).
 
 Heavy/irreversible host operations (update, restarts, reboot) are recorded to the audit
 journal and executed only where the runtime actually can (e.g. process restart via the
@@ -149,7 +149,7 @@ async def maintenance_action(
     return {"ok": True, "status": "scheduled", "action": action}
 
 
-# --- bedolaga migration (stubs — real importer lands with the migration phase) --
+# --- migration from another bot (stubs — real importer lands with the migration phase) --
 
 
 class MigrationTestIn(BaseModel):
@@ -162,7 +162,7 @@ async def migration_test(
     identity: AdminIdentity = Depends(require_admin),
     container: AppContainer = Depends(get_container),
 ) -> dict[str, Any]:
-    """Probe a bedolaga Postgres DSN and count importable rows."""
+    """Probe a source-bot Postgres DSN and count importable rows."""
     import asyncpg  # type: ignore[import-untyped]
 
     if not body.dsn.startswith(("postgres://", "postgresql://")):

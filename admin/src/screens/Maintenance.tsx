@@ -1,4 +1,4 @@
-/* Screen 14 — Обслуживание: action cards, bedolaga migration, report topics. */
+/* Screen 14 — Обслуживание: action cards, bot migration, report topics. */
 
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
@@ -165,7 +165,7 @@ export default function Maintenance() {
           <div className="grid" style={{ gap: 10 }}>
             <input
               className="input mono"
-              placeholder="postgresql://user:pass@host:5432/bedolaga"
+              placeholder="postgresql://user:pass@host:5432/oldbot"
               value={dsn}
               onChange={(e) => setDsn(e.target.value)}
             />

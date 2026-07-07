@@ -77,6 +77,14 @@ services:
         "src.infrastructure.taskiq.tasks",
       ]
 
+  # Built-in mock Remnawave panel for trying the stack without a real panel.
+  # Enabled by install.sh via COMPOSE_PROFILES=mock in .env when no panel URL is given.
+  mockpanel:
+    <<: *app
+    profiles: ["mock"]
+    command: ["uvicorn", "scripts.mock_panel:app", "--host", "0.0.0.0", "--port", "3010"]
+    expose: ["3010"]
+
   # Automatic HTTPS in front of web (uses DOMAIN + ACME_EMAIL from .env).
   caddy:
     image: caddy:2-alpine
