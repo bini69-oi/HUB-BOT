@@ -126,8 +126,9 @@ async def _notify_paid(container: object, payment_id: UUID) -> None:
         if txn is None:
             return
         user = await uow.users.get(txn.user_id)
-        if user is None or user.telegram_id is None:
+        if user is None:
             return
+        sub_url = None
         if txn.type is TransactionType.DEPOSIT:
             text = "✅ Баланс пополнен."
         elif txn.type is TransactionType.SUBSCRIPTION_PAYMENT:
@@ -135,11 +136,21 @@ async def _notify_paid(container: object, payment_id: UUID) -> None:
             if user.current_subscription_id is not None:
                 sub = await uow.subscriptions.get(user.current_subscription_id)
                 if sub is not None and sub.subscription_url:
-                    text += f"\n{sub.subscription_url}"
+                    sub_url = sub.subscription_url
+                    text += f"\n{sub_url}"
         else:
             text = "✅ Оплата получена."
         telegram_id = user.telegram_id
-    await c.notifier.notify_user(telegram_id, text)
+        email = user.email
+
+    if telegram_id is not None:
+        await c.notifier.notify_user(telegram_id, text)
+    elif email:  # web / guest buyer has no Telegram — deliver by email
+        body = "Спасибо за оплату!"
+        if sub_url:
+            body += f"\n\nВаша ссылка-подписка:\n{sub_url}\n\nВставьте её в Happ/v2RayTun/Hiddify."  # noqa: RUF001
+        mailer = await c.build_mailer()
+        await mailer.send(email, "VPN — подписка активна", body)
 
 
 @broker.task(schedule=[{"cron": "*/5 * * * *"}])

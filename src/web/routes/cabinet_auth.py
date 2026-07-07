@@ -246,3 +246,108 @@ async def web_user_from_bearer(request: Request, container: AppContainer) -> Use
         return None
     async with container.uow() as uow:
         return await uow.users.get(int(payload["sub"]))
+
+
+# --- guest purchase (buy without any prior registration) --------------------
+
+
+def _auto_login_token(container: AppContainer, user_id: int) -> str:
+    return jwt_encode(
+        {"sub": user_id, "type": "auto_login", "web": True},
+        _jwt_secret(container),
+        72 * 3600,
+    )
+
+
+class GuestPurchaseIn(BaseModel):
+    email: str = Field(..., max_length=255)
+    plan_id: int
+    days: int = Field(..., ge=1, le=3660)
+    method: str = Field(..., min_length=2, max_length=32)
+
+    @field_validator("email")
+    @classmethod
+    def _email(cls, v: str) -> str:
+        v = v.strip().lower()
+        if not _re.match(r"^[^@\s]+@[^@\s]+\.[^@\s]+$", v):
+            raise ValueError("invalid email")
+        return v
+
+
+@router.post("/guest/purchase")
+async def guest_purchase(
+    body: GuestPurchaseIn, container: AppContainer = Depends(get_container)
+) -> dict[str, Any]:
+    """Buy a subscription with only an e-mail — no registration step.
+
+    Auto-provisions a verified e-mail account (safer than a phantom user), starts a
+    hosted gateway payment, and returns the redirect + an auto-login token so the
+    success page can drop the buyer straight into the cabinet. The subscription link
+    is also e-mailed on fulfilment (see ``_notify_paid``).
+    """
+    await _require_web_enabled(container)
+    from src.application.dto.pricing import PurchaseRequest
+    from src.core.enums import PurchaseType
+    from src.web.routes.cabinet import _pay_with_gateway
+
+    if body.method in ("balance", "stars"):
+        raise HTTPException(400, "guest purchases require an online payment method")
+
+    async with container.uow() as uow:
+        user = await uow.users.get_by_email(body.email)
+        created = False
+        if user is None:
+            user = User(
+                auth_type=AuthType.EMAIL,
+                email=body.email,
+                password_hash=hash_password(secrets.token_urlsafe(12)),
+                email_verified=True,
+                referral_code=generate_referral_code(),
+                currency=Currency.RUB,
+            )
+            await uow.users.add(user)
+            created = True
+        await uow.commit()
+        user_id = user.id
+        ptype, sub_id = await container.purchase.resolve_purchase_type(uow, user_id, body.plan_id)
+
+    req = PurchaseRequest(
+        user_id=user_id,
+        plan_id=body.plan_id,
+        duration_days=body.days,
+        currency=Currency.RUB,
+        purchase_type=ptype if not created else PurchaseType.NEW,
+        subscription_id=sub_id if not created else None,
+    )
+    async with container.uow() as uow:
+        fresh = await uow.users.get(user_id)
+    if fresh is None:
+        raise HTTPException(500, "guest user vanished")
+    result = await _pay_with_gateway(container, fresh, req, body.method)
+    return {
+        "redirect_url": result.get("redirect_url"),
+        "auto_login_token": _auto_login_token(container, user_id),
+        "email": body.email,
+    }
+
+
+class AutoLoginIn(BaseModel):
+    token: str = Field(..., min_length=8)
+
+
+@router.post("/login/auto")
+async def login_auto(
+    body: AutoLoginIn, request: Request, container: AppContainer = Depends(get_container)
+) -> dict[str, Any]:
+    """Exchange a guest auto-login token for a full session (post-purchase convenience)."""
+    payload = jwt_decode(body.token, _jwt_secret(container))
+    if payload is None or payload.get("type") != "auto_login":
+        raise HTTPException(401, "invalid token")
+    async with container.uow() as uow:
+        user = await uow.users.get(int(payload["sub"]))
+        if user is None:
+            raise HTTPException(401, "user gone")
+        # never let an auto-login token (weak proof) unlock a staff account
+        if user.role.is_staff:
+            raise HTTPException(403, "not allowed for staff accounts")
+    return await _auth_response(container, user, device=request.headers.get("user-agent"))

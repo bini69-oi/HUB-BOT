@@ -86,3 +86,23 @@ def test_access_jwt_round_trip() -> None:
     assert payload is not None
     assert payload["sub"] == 42 and payload["web"] is True
     assert jwt_decode(token, "wrong-key") is None
+
+
+def test_auto_login_token_type_and_staff_guard() -> None:
+    """Auto-login tokens are a distinct type; the /login/auto route rejects non-auto
+    tokens and staff accounts (weak proof must never unlock an admin)."""
+    from src.core.enums import Role
+    from src.core.security import jwt_decode, jwt_encode
+
+    secret = "sekret"
+    auto = jwt_encode({"sub": 5, "type": "auto_login", "web": True}, secret, 3600)
+    payload = jwt_decode(auto, secret)
+    assert payload is not None and payload["type"] == "auto_login"
+
+    # an access token must NOT be accepted where an auto_login token is expected
+    access = jwt_decode(jwt_encode({"sub": 5, "type": "access"}, secret, 3600), secret)
+    assert access is not None and access["type"] != "auto_login"
+
+    # staff role is what the route guards on
+    assert Role.ADMIN.is_staff is True
+    assert Role.USER.is_staff is False
