@@ -94,6 +94,20 @@ Buyable catalogue. Prices are the **base** price; the client applies
 }
 ```
 
+### `GET /api/cabinet/constructor`
+
+Constructor-mode price list (used when `me.app.sales_mode == "constructor"`). The final price
+is `period.price_minor + pack.price_minor`; Stars = `ceil(total / stars_rate)`.
+
+```jsonc
+{
+  "currency": "RUB",
+  "stars_rate": 200,               // kopeks per 1 star (STARS_RATE_RUB)
+  "periods": [ { "id": 1, "days": 30, "months": 1, "price_minor": 9900 } ],
+  "traffic_packs": [ { "id": 1, "gb": 100, "price_minor": 5000 } ] // gb 0 -> unlimited
+}
+```
+
 ### `GET /api/cabinet/referral`
 
 ```jsonc
@@ -121,6 +135,9 @@ webhook fulfilment via taskiq). In mock mode `shared/api.js` returns canned resp
 ```
 
 ### `POST /api/cabinet/purchase` — `{ "public_code": "premium", "days": 30 }`
+
+Constructor mode sends `{ "period_id": 1, "pack_id": 2, "method": "stars" }` instead of
+`plan_id`+`days` — the server assembles the price from the selected rows.
 
 Creates a `Transaction(PENDING)` with frozen `plan_snapshot`+`pricing` and returns where to pay.
 `payment_url` is `null` for balance/free-path (cap 100%) purchases (already fulfilled or fulfilled

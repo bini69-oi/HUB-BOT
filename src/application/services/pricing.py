@@ -18,18 +18,27 @@ from src.infrastructure.database.models.plan import Plan, PlanDuration, PlanPric
 from src.infrastructure.database.models.promo_group import PromoGroup, UserPromoGroup
 
 if TYPE_CHECKING:
+    from src.infrastructure.database.models.constructor import ConstructorPeriod, TrafficPack
     from src.infrastructure.database.uow import UnitOfWork
 
 
 class PricingService:
     async def quote(self, uow: UnitOfWork, req: PurchaseRequest) -> PriceQuote:
-        plan = await uow.plans.get(req.plan_id)
-        if plan is None or not plan.is_active:
-            raise PurchaseError(f"plan {req.plan_id} not found or inactive")
+        if req.constructor_period_id is not None:
+            # Constructor mode: price = period + traffic pack. The hidden service plan is
+            # intentionally inactive, so the plan-catalogue checks below don't apply.
+            period, pack = await self.resolve_constructor(uow, req)
+            components = {"period": period.price_minor, "pack": pack.price_minor}
+            base_total = Money(period.price_minor + pack.price_minor, req.currency)
+        else:
+            plan = await uow.plans.get(req.plan_id)
+            if plan is None or not plan.is_active:
+                raise PurchaseError(f"plan {req.plan_id} not found or inactive")
 
-        base_minor = await self._base_price_minor(uow, plan, req)
-        squads_minor = await self._squads_addon_minor(uow, req)
-        base_total = Money(base_minor + squads_minor, req.currency)
+            base_minor = await self._base_price_minor(uow, plan, req)
+            squads_minor = await self._squads_addon_minor(uow, req)
+            components = {"plan": base_minor, "squads": squads_minor}
+            base_total = Money(base_minor + squads_minor, req.currency)
 
         promo_pct = await self._promo_group_discount(uow, req)
         user = await uow.users.get(req.user_id)
@@ -43,8 +52,30 @@ class PricingService:
             base=base_total,
             discount_pct=discount_pct,
             final=final,
-            components={"plan": base_minor, "squads": squads_minor},
+            components=components,
         )
+
+    async def resolve_constructor(
+        self, uow: UnitOfWork, req: PurchaseRequest
+    ) -> tuple[ConstructorPeriod, TrafficPack]:
+        """Load and validate the constructor selection referenced by the request."""
+        period = (
+            await uow.constructor_periods.get(req.constructor_period_id)
+            if req.constructor_period_id is not None
+            else None
+        )
+        if period is None or not period.is_active:
+            raise PurchaseError(f"constructor period {req.constructor_period_id} unavailable")
+        pack = (
+            await uow.traffic_packs.get(req.traffic_pack_id)
+            if req.traffic_pack_id is not None
+            else None
+        )
+        if pack is None or not pack.is_active:
+            raise PurchaseError(f"traffic pack {req.traffic_pack_id} unavailable")
+        if req.duration_days != period.days:
+            raise PurchaseError("constructor request duration does not match the period")
+        return period, pack
 
     async def _base_price_minor(self, uow: UnitOfWork, plan: Plan, req: PurchaseRequest) -> int:
         stmt = (

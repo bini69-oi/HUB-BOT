@@ -49,30 +49,39 @@ class SubscriptionService:
         short_id = generate_short_id()
         now = dt.datetime.now(dt.UTC)
         expire_at = now + dt.timedelta(days=req.duration_days)
-        traffic_bytes = plan.traffic_limit_bytes or 0
+        # Constructor purchases override the (service) plan's limits with the picked pack.
+        traffic_bytes = (
+            req.traffic_limit_bytes
+            if req.traffic_limit_bytes is not None
+            else plan.traffic_limit_bytes or 0
+        )
+        device_limit = req.device_limit if req.device_limit is not None else plan.device_limit
 
         spec = self._remnawave.build_spec(
             short_id=short_id,
             telegram_id=user.telegram_id,
             expire_at=expire_at,
             traffic_limit_bytes=traffic_bytes,
-            device_limit=plan.device_limit,
+            device_limit=device_limit,
             internal_squads=req.internal_squads or tuple(plan.internal_squads),
             external_squad=req.external_squad or plan.external_squad,
         )
         # Panel-first: create the panel user OUTSIDE any assumption of a local commit.
         panel_user = await self._remnawave.provision(spec)
 
+        snapshot = _plan_snapshot(plan)
+        snapshot["traffic_limit_bytes"] = traffic_bytes or None
+        snapshot["device_limit"] = device_limit
         subscription = Subscription(
             user_id=user.id,
             remnawave_uuid=panel_user.uuid,
             short_id=short_id,
             plan_id=plan.id,
-            plan_snapshot=_plan_snapshot(plan),
+            plan_snapshot=snapshot,
             status=SubscriptionStatus.TRIAL if is_trial else SubscriptionStatus.ACTIVE,
             is_trial=is_trial,
             traffic_limit_bytes=traffic_bytes,
-            device_limit=plan.device_limit,
+            device_limit=device_limit,
             internal_squads=list(spec.internal_squads),
             external_squad=spec.external_squad,
             start_at=now,

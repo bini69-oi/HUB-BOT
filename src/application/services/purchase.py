@@ -14,13 +14,20 @@ from src.application.dto.pricing import PriceQuote, PurchaseRequest
 from src.application.events import SubscriptionPurchased
 from src.application.services.pricing import PricingService
 from src.application.services.subscription import SubscriptionService, _plan_snapshot
-from src.core.enums import PurchaseType, TransactionStatus, TransactionType
+from src.core.constants import BYTES_PER_GB
+from src.core.enums import Currency, PurchaseType, TransactionStatus, TransactionType
 from src.core.exceptions import InsufficientBalance, InvalidStateTransition, PurchaseError
+from src.infrastructure.database.models.plan import Plan
 from src.infrastructure.database.models.subscription import Subscription
 from src.infrastructure.database.models.transaction import Transaction
 
 if TYPE_CHECKING:
     from src.infrastructure.database.uow import UnitOfWork
+
+# The hidden service plan constructor purchases hang off (snapshot + subscriptions.plan_id FK).
+# Inactive so it never shows up in the buyable catalogue; created lazily like the trial plan.
+CONSTRUCTOR_PLAN_CODE = "constructor"
+CONSTRUCTOR_PLAN_NAME = "Конструктор"
 
 
 class PurchaseService:
@@ -41,6 +48,15 @@ class PurchaseService:
             raise PurchaseError(f"plan {req.plan_id} not found")
         quote = await self._pricing.quote(uow, req)
 
+        snapshot = _plan_snapshot(plan)
+        if req.traffic_limit_bytes is not None:
+            snapshot["traffic_limit_bytes"] = req.traffic_limit_bytes
+        if req.device_limit is not None:
+            snapshot["device_limit"] = req.device_limit
+        if req.constructor_period_id is not None:
+            gb = (req.traffic_limit_bytes or 0) // BYTES_PER_GB
+            snapshot["name"] = f"{plan.name} · {gb} ГБ" if gb else f"{plan.name} · ∞"
+
         txn = Transaction(
             user_id=req.user_id,
             type=TransactionType.SUBSCRIPTION_PAYMENT,
@@ -48,7 +64,7 @@ class PurchaseService:
             amount_minor=quote.final.amount_minor,
             currency=req.currency,
             purchase_type=req.purchase_type,
-            plan_snapshot=_plan_snapshot(plan),
+            plan_snapshot=snapshot,
             pricing=self._pricing_snapshot(req, quote),
         )
         await uow.transactions.add(txn)
@@ -60,6 +76,56 @@ class PurchaseService:
             if moved:
                 await self.fulfill(uow, txn)
         return txn, quote
+
+    async def ensure_constructor_plan(self, uow: UnitOfWork) -> Plan:
+        """Get-or-create the hidden service plan constructor purchases are booked under."""
+        plan = await uow.plans.find_one(
+            public_code=CONSTRUCTOR_PLAN_CODE
+        ) or await uow.plans.find_one(name=CONSTRUCTOR_PLAN_NAME)
+        if plan is None:
+            plan = Plan(
+                public_code=CONSTRUCTOR_PLAN_CODE,
+                name=CONSTRUCTOR_PLAN_NAME,
+                is_active=False,  # not in the catalogue — bought through the constructor flow
+            )
+            await uow.plans.add(plan)
+        return plan
+
+    async def build_constructor_request(
+        self,
+        uow: UnitOfWork,
+        *,
+        user_id: int,
+        period_id: int,
+        pack_id: int,
+        currency: Currency = Currency.RUB,
+        device_limit: int | None = None,
+    ) -> PurchaseRequest:
+        """Turn a period+pack selection into a PurchaseRequest (shared by bot + mini-app).
+
+        Validates the rows, freezes the traffic limit from the pack (0 GB -> unlimited) and
+        resolves NEW/RENEW against the hidden constructor plan.
+        """
+        plan = await self.ensure_constructor_plan(uow)
+        period = await uow.constructor_periods.get(period_id)
+        pack = await uow.traffic_packs.get(pack_id)
+        if period is None or not period.is_active:
+            raise PurchaseError("выбранный период недоступен")
+        if pack is None or not pack.is_active:
+            raise PurchaseError("выбранный пакет трафика недоступен")
+        ptype, sub_id = await self.resolve_purchase_type(uow, user_id, plan.id)
+        return PurchaseRequest(
+            user_id=user_id,
+            plan_id=plan.id,
+            duration_days=period.days,
+            currency=currency,
+            purchase_type=ptype,
+            subscription_id=sub_id,
+            constructor_period_id=period.id,
+            traffic_pack_id=pack.id,
+            traffic_limit_bytes=pack.gb * BYTES_PER_GB,  # 0 -> unlimited
+            device_limit=device_limit,
+        )
 
     async def resolve_purchase_type(
         self, uow: UnitOfWork, user_id: int, plan_id: int
@@ -123,6 +189,10 @@ class PurchaseService:
             external_squad=pricing.get("external_squad"),
             purchase_type=txn.purchase_type or PurchaseType.NEW,
             subscription_id=pricing.get("subscription_id"),
+            constructor_period_id=pricing.get("constructor_period_id"),
+            traffic_pack_id=pricing.get("traffic_pack_id"),
+            traffic_limit_bytes=pricing.get("traffic_limit_bytes"),
+            device_limit=pricing.get("device_limit"),
         )
         subscription = await self._provision(uow, user=user, plan=plan, req=req)
         self._subscriptions.apply_purchase_discount_reset(user, req.purchase_type)
@@ -150,6 +220,12 @@ class PurchaseService:
             sub = await uow.subscriptions.get(req.subscription_id)
             if sub is None or sub.user_id != user.id:
                 raise PurchaseError(f"subscription {req.subscription_id} not found for renew")
+            # Constructor renew may carry a different traffic pack — apply it before the
+            # panel push (renew() builds the spec from the subscription's fields).
+            if req.traffic_limit_bytes is not None:
+                sub.traffic_limit_bytes = req.traffic_limit_bytes
+            if req.device_limit is not None:
+                sub.device_limit = req.device_limit
             return await self._subscriptions.renew(
                 uow, sub, days=req.duration_days, telegram_id=user.telegram_id
             )
@@ -168,4 +244,8 @@ class PurchaseService:
             "discount_pct": quote.discount_pct,
             "final_minor": quote.final.amount_minor,
             "components": quote.components,
+            "constructor_period_id": req.constructor_period_id,
+            "traffic_pack_id": req.traffic_pack_id,
+            "traffic_limit_bytes": req.traffic_limit_bytes,
+            "device_limit": req.device_limit,
         }

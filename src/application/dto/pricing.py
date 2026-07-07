@@ -21,6 +21,13 @@ class PurchaseRequest:
     purchase_type: PurchaseType = PurchaseType.NEW
     promocode: str | None = None
     subscription_id: int | None = None  # for RENEW / CHANGE
+    # Constructor mode (SALES_MODE=constructor): the price comes from these rows instead
+    # of plan_durations/plan_prices; plan_id points at the hidden service plan.
+    constructor_period_id: int | None = None
+    traffic_pack_id: int | None = None
+    # Provisioning overrides (constructor packs); None -> take the value from the plan.
+    traffic_limit_bytes: int | None = None
+    device_limit: int | None = None
 
 
 @dataclass(frozen=True, slots=True)

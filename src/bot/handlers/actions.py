@@ -442,9 +442,9 @@ async def act_unknown(cb: CallbackQuery, container: AppContainer, db_user: User)
     """Unknown/custom action codes fall back to the buy flow entry or menu."""
     action = (cb.data or "").split(":")[1] if ":" in (cb.data or "") else ""
     if action in ("buy", "shop", "plans"):
-        from src.bot.handlers.purchase import show_plans
+        from src.bot.handlers.purchase import open_buy
 
-        await show_plans(cb, container, db_user)
+        await open_buy(cb, container, db_user)
         return
     log.info("unknown action", action=action)
     await send_main_menu(cb, container, db_user)

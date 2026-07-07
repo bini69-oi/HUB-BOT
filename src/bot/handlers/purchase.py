@@ -9,6 +9,7 @@ PaymentService.process (the same idempotent path webhooks use).
 from __future__ import annotations
 
 import math
+from typing import TYPE_CHECKING
 
 from aiogram import F, Router
 from aiogram.types import CallbackQuery, LabeledPrice, Message, PreCheckoutQuery
@@ -29,6 +30,9 @@ from src.infrastructure.database.models.transaction import Transaction
 from src.infrastructure.database.models.user import User
 from src.infrastructure.di import AppContainer
 
+if TYPE_CHECKING:
+    from src.infrastructure.database.uow import UnitOfWork
+
 log = get_logger(__name__)
 
 router = Router(name="purchase")
@@ -39,6 +43,16 @@ GIB = 1024**3
 def fmt_money(minor: int) -> str:
     v = minor / 100
     return f"{v:,.0f} ₽".replace(",", " ") if v == int(v) else f"{v:,.2f} ₽".replace(",", " ")
+
+
+async def open_buy(cb: CallbackQuery, container: AppContainer, db_user: User) -> None:
+    """Buy-flow entry: SALES_MODE routes to the plan catalogue or the constructor."""
+    async with container.uow() as uow:
+        mode = str(await container.bot_config.value(uow, "SALES_MODE"))
+    if mode == "constructor":
+        await show_constructor(cb, container, db_user)
+    else:
+        await show_plans(cb, container, db_user)
 
 
 async def show_plans(cb: CallbackQuery, container: AppContainer, db_user: User) -> None:
@@ -64,9 +78,9 @@ async def show_plans(cb: CallbackQuery, container: AppContainer, db_user: User) 
 
 @router.callback_query(F.data == "check:sub")
 async def check_sub(cb: CallbackQuery, container: AppContainer, db_user: User) -> None:
-    """'Я подписался' — re-check channel membership, then open the plans on success."""
+    """'Я подписался' — re-check channel membership, then open the buy flow on success."""
     if await ensure_channel(cb, container):
-        await show_plans(cb, container, db_user)
+        await open_buy(cb, container, db_user)
 
 
 @router.callback_query(F.data.startswith("plan:"))
@@ -75,7 +89,9 @@ async def show_durations(cb: CallbackQuery, container: AppContainer, db_user: Us
     async with container.uow() as uow:
         plan = await uow.plans.get_with_durations(plan_id)
     if plan is None or not plan.durations:
-        await show_plans(cb, container, db_user)
+        # Also lands here from «Продлить» when the subscription is a constructor one
+        # (the hidden plan has no durations) — open_buy routes back to the constructor.
+        await open_buy(cb, container, db_user)
         return
     rows = []
     for d in plan.durations:
@@ -93,6 +109,28 @@ async def show_durations(cb: CallbackQuery, container: AppContainer, db_user: Us
     await cb.answer()
 
 
+async def _payment_methods(
+    uow: UnitOfWork, container: AppContainer, db_user: User, price_minor: int
+) -> list[tuple[str, str]]:
+    """(label, method_code) pairs for a payment screen, respecting the config toggles."""
+    stars_rate = int(await container.bot_config.value(uow, "STARS_RATE_RUB"))
+    balance_enabled = bool(await container.bot_config.value(uow, "BALANCE_ENABLED"))
+    out: list[tuple[str, str]] = []
+    if balance_enabled:
+        ok = "✅" if db_user.balance_minor >= price_minor else "❌"
+        out.append((f"{ok} С баланса ({fmt_money(db_user.balance_minor)})", "bal"))
+    stars = max(1, math.ceil(price_minor / max(1, stars_rate)))
+    out.append((f"⭐ Telegram Stars · {stars} ★", "stars"))
+    for g in await uow.payment_gateways.list():
+        if (
+            g.is_active
+            and g.type in container.gateway_factory.supported()
+            and g.type.value not in ("manual", "telegram_stars")
+        ):
+            out.append((f"💳 {g.display_name or g.type.value}", g.type.value))
+    return out
+
+
 @router.callback_query(F.data.startswith("dur:"))
 async def choose_payment(cb: CallbackQuery, container: AppContainer, db_user: User) -> None:
     _, plan_id, days = (cb.data or "dur:0:0").split(":")
@@ -103,26 +141,9 @@ async def choose_payment(cb: CallbackQuery, container: AppContainer, db_user: Us
         except DomainError as exc:
             await cb.answer(str(exc), show_alert=True)
             return
-        stars_rate = int(await container.bot_config.value(uow, "STARS_RATE_RUB"))
-        balance_enabled = bool(await container.bot_config.value(uow, "BALANCE_ENABLED"))
-        online_gateways = [
-            (g.type.value, g.display_name or g.type.value)
-            for g in await uow.payment_gateways.list()
-            if g.is_active
-            and g.type in container.gateway_factory.supported()
-            and g.type.value not in ("manual", "telegram_stars")
-        ]
+        methods = await _payment_methods(uow, container, db_user, quote.final.amount_minor)
     price = quote.final.amount_minor
-    stars = max(1, math.ceil(price / max(1, stars_rate)))
-    rows = []
-    if balance_enabled:
-        ok = "✅" if db_user.balance_minor >= price else "❌"
-        rows.append(
-            (f"{ok} С баланса ({fmt_money(db_user.balance_minor)})", f"pay:{plan_id}:{days}:bal")
-        )
-    rows.append((f"⭐ Telegram Stars · {stars} ★", f"pay:{plan_id}:{days}:stars"))
-    for gtype, label in online_gateways:
-        rows.append((f"💳 {label}", f"pay:{plan_id}:{days}:{gtype}"))
+    rows = [(label, f"pay:{plan_id}:{days}:{code}") for label, code in methods]
     rows.append(("‹ Назад", f"plan:{plan_id}"))
     discount = f" (−{quote.discount_pct}%)" if quote.discount_pct else ""
     await show_screen(
@@ -167,7 +188,13 @@ async def pay(cb: CallbackQuery, container: AppContainer, db_user: User) -> None
         purchase_type=ptype,
         subscription_id=sub_id,
     )
+    await _start_payment(cb, container, req, method)
 
+
+async def _start_payment(
+    cb: CallbackQuery, container: AppContainer, req: PurchaseRequest, method: str
+) -> None:
+    """Dispatch a built PurchaseRequest to the chosen payment method (plans + constructor)."""
     if method == "bal":
         await _pay_with_balance(cb, container, req)
         return
@@ -198,13 +225,114 @@ async def pay(cb: CallbackQuery, container: AppContainer, db_user: User) -> None
     stars = max(1, math.ceil(amount_minor / max(1, stars_rate)))
     if cb.message is not None:
         await cb.message.answer_invoice(  # type: ignore[union-attr,unused-ignore]
-            title=f"{title} · {days} дн.",
+            title=f"{title} · {req.duration_days} дн.",
             description="Оплата VPN-подписки",
             payload=payment_id,
             currency="XTR",
             prices=[LabeledPrice(label="VPN", amount=stars)],
         )
     await cb.answer()
+
+
+# --- constructor mode (SALES_MODE=constructor) ---------------------------------
+
+
+def _period_label(days: int) -> str:
+    return f"{days} дн" if days < 30 else f"{round(days / 30)} мес"
+
+
+def _pack_label(gb: int, price_minor: int) -> str:
+    traffic = f"{gb} ГБ" if gb else "∞ трафик"
+    return f"{traffic} · +{fmt_money(price_minor)}" if price_minor else traffic
+
+
+async def _constructor_request(
+    container: AppContainer, uow: UnitOfWork, user: User, period_id: int, pack_id: int
+) -> PurchaseRequest:
+    device_limit = int(await container.bot_config.value(uow, "DEFAULT_DEVICE_LIMIT"))
+    return await container.purchase.build_constructor_request(
+        uow, user_id=user.id, period_id=period_id, pack_id=pack_id, device_limit=device_limit
+    )
+
+
+async def show_constructor(cb: CallbackQuery, container: AppContainer, db_user: User) -> None:
+    if not await ensure_channel(cb, container):  # channel-lock (#1)
+        return
+    async with container.uow() as uow:
+        periods = [p for p in await uow.constructor_periods.list() if p.is_active]
+    if not periods:
+        await cb.answer("Конструктор ещё не настроен", show_alert=True)
+        return
+    rows = [
+        (f"{_period_label(p.days)} · {fmt_money(p.price_minor)}", f"cper:{p.id}")
+        for p in sorted(periods, key=lambda p: p.days)
+    ]
+    rows.append(("‹ Меню", "nav:root"))
+    await show_screen(
+        cb, "Собери свою подписку.\n\nШаг 1 — срок:", simple_keyboard(rows), parse_mode=None
+    )
+    await cb.answer()
+
+
+@router.callback_query(F.data.startswith("cper:"))
+async def constructor_packs(cb: CallbackQuery, container: AppContainer, db_user: User) -> None:
+    period_id = int((cb.data or "cper:0").split(":")[1])
+    async with container.uow() as uow:
+        period = await uow.constructor_periods.get(period_id)
+        packs = [t for t in await uow.traffic_packs.list() if t.is_active]
+    if period is None or not period.is_active or not packs:
+        await show_constructor(cb, container, db_user)
+        return
+    rows = [
+        (_pack_label(t.gb, t.price_minor), f"cpack:{period.id}:{t.id}")
+        for t in sorted(packs, key=lambda t: (t.gb == 0, t.gb))
+    ]
+    rows.append(("‹ Назад", "act:buy:0"))
+    await show_screen(
+        cb,
+        f"Срок: {_period_label(period.days)} · {fmt_money(period.price_minor)}\n\nШаг 2 — трафик:",
+        simple_keyboard(rows),
+        parse_mode=None,
+    )
+    await cb.answer()
+
+
+@router.callback_query(F.data.startswith("cpack:"))
+async def constructor_payment(cb: CallbackQuery, container: AppContainer, db_user: User) -> None:
+    _, period_id, pack_id = (cb.data or "cpack:0:0").split(":")
+    async with container.uow() as uow:
+        try:
+            req = await _constructor_request(container, uow, db_user, int(period_id), int(pack_id))
+            quote = await container.pricing.quote(uow, req)
+        except DomainError as exc:
+            await cb.answer(str(exc), show_alert=True)
+            return
+        methods = await _payment_methods(uow, container, db_user, quote.final.amount_minor)
+        traffic_gb = (req.traffic_limit_bytes or 0) // GIB
+    rows = [(label, f"cpay:{period_id}:{pack_id}:{code}") for label, code in methods]
+    rows.append(("‹ Назад", f"cper:{period_id}"))
+    discount = f" (−{quote.discount_pct}%)" if quote.discount_pct else ""
+    summary = f"{_period_label(req.duration_days)} · " + (f"{traffic_gb} ГБ" if traffic_gb else "∞")
+    await show_screen(
+        cb,
+        f"Твоя подписка: <b>{summary}</b>\n"
+        f"К оплате: <b>{fmt_money(quote.final.amount_minor)}</b>{discount}\n\nСпособ оплаты:",
+        simple_keyboard(rows),
+    )
+    await cb.answer()
+
+
+@router.callback_query(F.data.startswith("cpay:"))
+async def constructor_pay(cb: CallbackQuery, container: AppContainer, db_user: User) -> None:
+    _, period_id, pack_id, method = (cb.data or "cpay:0:0:bal").split(":")
+    async with container.uow() as uow:
+        try:
+            req = await _constructor_request(container, uow, db_user, int(period_id), int(pack_id))
+        except DomainError as exc:
+            await cb.answer(str(exc), show_alert=True)
+            return
+        await uow.commit()  # ensure_constructor_plan may have created the hidden plan
+    await _start_payment(cb, container, req, method)
 
 
 async def _pay_with_gateway(

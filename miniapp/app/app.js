@@ -30,6 +30,7 @@
     payBalance: "С баланса", payStars: "Stars", trialBtn: "Попробовать бесплатно",
     bought: "Готово! Подписка активна", error: "Ошибка, попробуй ещё раз",
     version: "v2 · VLESS", loading: "Загрузка…",
+    period: "Срок", traffic: "Трафик", unlimited: "∞ безлимит",
   };
   const EN = {
     ...RU,
@@ -50,6 +51,7 @@
     payBalance: "Balance", payStars: "Stars", trialBtn: "Try for free",
     bought: "Done! Subscription is active", error: "Error, try again",
     loading: "Loading…",
+    period: "Period", traffic: "Traffic", unlimited: "∞ unlimited",
   };
   let T = RU;
 
@@ -143,7 +145,7 @@
   }
 
   // ---------- state ----------
-  const state = { tab: "home", me: null, plans: null, referral: null, payments: null, connection: null, tariffSel: 0, planSel: 0, paySel: "stars" };
+  const state = { tab: "home", me: null, plans: null, constructor: null, referral: null, payments: null, connection: null, tariffSel: 0, planSel: 0, cPerSel: 0, cPackSel: 0, paySel: "stars" };
   let UI = {}; // admin overrides: {scale, sections, buttons:{key:{text,color}}}
 
   function btnText(key, fallback) {
@@ -156,6 +158,23 @@
   }
 
   // ---------- screens ----------
+  function payChips(starsCount) {
+    const me = state.me;
+    return el("div", { class: "chips" }, [
+      me && me.app.balance_enabled === false
+        ? null
+        : el("button", { class: `chip${state.paySel === "balance" ? " on" : ""}`, onclick: () => { state.paySel = "balance"; render(); }, text: `${T.payBalance} · ${me ? money(me.user.balance_minor) : ""}` }),
+      el("button", { class: `chip${state.paySel === "stars" ? " on" : ""}`, onclick: () => { state.paySel = "stars"; render(); }, text: `⭐ ${T.payStars} · ${starsCount}` }),
+      ...((me && me.app.payment_methods) || []).map((pm) =>
+        el("button", {
+          class: `chip${state.paySel === pm.id ? " on" : ""}`,
+          onclick: () => { state.paySel = pm.id; render(); },
+          text: `💳 ${pm.label}`,
+        }),
+      ),
+    ]);
+  }
+
   function orderSections(map) {
     const order = Array.isArray(UI.sections) && UI.sections.length ? UI.sections : ["status", "plans", "referral", "proxy"];
     const out = [];
@@ -203,7 +222,62 @@
     );
 
     // plans + pay
-    const allPlans = (state.plans && state.plans.items) || [];
+    const salesMode = params.get("sales") || (me && me.app.sales_mode) || "plans";
+    if (salesMode === "constructor") {
+      const c = state.constructor;
+      const periods = (c && c.periods) || [];
+      const packs = (c && c.traffic_packs) || [];
+      const per = periods[state.cPerSel] || periods[0];
+      const pack = packs[state.cPackSel] || packs[0];
+      if (per && pack) {
+        const frag = sections.plans;
+        const total = per.price_minor + pack.price_minor;
+        const stars = Math.max(1, Math.ceil(total / Math.max(1, c.stars_rate || 1)));
+        frag.push(
+          el("div", { class: "card fade" }, [
+            el("div", { class: "h-cap", text: T.period }),
+            el(
+              "div",
+              { class: "plans-row" },
+              periods.map((p, i) =>
+                el(
+                  "div",
+                  {
+                    class: `plan-opt${(periods[state.cPerSel] ? state.cPerSel : 0) === i ? " on" : ""}`,
+                    onclick: () => { state.cPerSel = i; haptic(); render(); },
+                  },
+                  [
+                    el("div", { class: "m", text: p.days < 30 ? `${p.days} дн` : `${p.months} мес` }),
+                    el("div", { class: "p", text: money(p.price_minor) }),
+                  ],
+                ),
+              ),
+            ),
+            el("div", { class: "h-cap", style: "margin-top:14px", text: T.traffic }),
+            el(
+              "div",
+              { class: "chips" },
+              packs.map((t, i) =>
+                el("button", {
+                  class: `chip${(packs[state.cPackSel] ? state.cPackSel : 0) === i ? " on" : ""}`,
+                  onclick: () => { state.cPackSel = i; haptic(); render(); },
+                  text: (t.gb ? `${t.gb} ГБ` : T.unlimited) + (t.price_minor ? ` · +${money(t.price_minor)}` : ""),
+                }),
+              ),
+            ),
+            el("div", { class: "h-cap", style: "margin-top:14px", text: T.payMethod }),
+            payChips(stars),
+            el("button", {
+              class: "btn primary",
+              style: "margin-top:14px;" + btnStyle("renew"),
+              onclick: () => submitPurchase({ period_id: per.id, pack_id: pack.id }),
+              text: `${btnText("renew", usable ? T.renew : T.buy)} · ${money(total)}`,
+            }),
+          ]),
+        );
+      }
+    }
+    const allPlans = salesMode === "constructor" ? [] : (state.plans && state.plans.items) || [];
     const plan = allPlans[state.tariffSel] || allPlans[0];
     if (plan) {
       const frag = sections.plans;
@@ -253,19 +327,7 @@
             }),
           ),
           el("div", { class: "h-cap", style: "margin-top:14px", text: T.payMethod }),
-          el("div", { class: "chips" }, [
-            me && me.app.balance_enabled === false
-              ? null
-              : el("button", { class: `chip${state.paySel === "balance" ? " on" : ""}`, onclick: () => { state.paySel = "balance"; render(); }, text: `${T.payBalance} · ${me ? money(me.user.balance_minor) : ""}` }),
-            el("button", { class: `chip${state.paySel === "stars" ? " on" : ""}`, onclick: () => { state.paySel = "stars"; render(); }, text: `⭐ ${T.payStars} · ${sel ? sel.price_stars : ""}` }),
-            ...((me && me.app.payment_methods) || []).map((pm) =>
-              el("button", {
-                class: `chip${state.paySel === pm.id ? " on" : ""}`,
-                onclick: () => { state.paySel = pm.id; render(); },
-                text: `💳 ${pm.label}`,
-              }),
-            ),
-          ]),
+          payChips(sel ? sel.price_stars : ""),
           el("button", { class: "btn primary", style: "margin-top:14px;" + btnStyle("renew"), onclick: () => purchase(plan, sel), text: `${btnText("renew", usable ? T.renew : T.buy)} · ${sel ? money(sel.price_minor) : ""}` }),
         ]),
       );
@@ -490,17 +552,17 @@
   // ---------- actions ----------
   async function purchase(plan, dur) {
     if (!dur) return;
+    await submitPurchase({ plan_id: plan.id, days: dur.days });
+  }
+
+  async function submitPurchase(payload) {
     haptic();
     try {
       const method =
         state.paySel === "balance" && state.me && state.me.app.balance_enabled === false
           ? "stars"
           : state.paySel;
-      const r = await api("POST", "/api/cabinet/purchase", {
-        plan_id: plan.id,
-        days: dur.days,
-        method,
-      });
+      const r = await api("POST", "/api/cabinet/purchase", { ...payload, method });
       if (r.redirect_url) {
         wa && wa.openLink ? wa.openLink(r.redirect_url) : window.open(r.redirect_url, "_blank");
         toast(T === RU ? "Оплати по открывшейся ссылке" : "Complete the payment in the opened page");
@@ -559,13 +621,14 @@
 
   async function load() {
     try {
-      const [me, plans, referral, payments] = await Promise.all([
+      const [me, plans, constructor, referral, payments] = await Promise.all([
         api("GET", "/api/cabinet/me"),
         api("GET", "/api/cabinet/plans"),
+        api("GET", "/api/cabinet/constructor").catch(() => null), // pre-constructor backends
         api("GET", "/api/cabinet/referral"),
         api("GET", "/api/cabinet/payments"),
       ]);
-      Object.assign(state, { me, plans, referral, payments });
+      Object.assign(state, { me, plans, constructor, referral, payments });
       // theme from admin config (?variant= wins for preview)
       const NAMES = { minimal: "a", private: "b", buddy: "c", native: "d",
                       terminal: "e", magazine: "f", neon: "g", pop: "h" };

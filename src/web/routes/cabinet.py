@@ -116,6 +116,7 @@ async def me(
         bot_username = str(await cfg.value(uow, "BOT_USERNAME") or "")
         proxy_enabled = bool(await cfg.value(uow, "MTPROTO_PROXY_ENABLED"))
         proxy_url = str(await cfg.value(uow, "MTPROTO_PROXY_URL") or "")
+        sales_mode = str(await cfg.value(uow, "SALES_MODE"))
         gateways = [
             {"id": g.type.value, "label": g.display_name or g.type.value}
             for g in await uow.payment_gateways.list()
@@ -147,6 +148,7 @@ async def me(
             "ui": miniapp.ui or {},
             "payment_methods": gateways,
             "balance_enabled": bool(await container.bot_config.value(uow, "BALANCE_ENABLED")),
+            "sales_mode": sales_mode,
         },
     }
 
@@ -194,6 +196,34 @@ def _is_current(user: User, plan: Plan) -> bool:
     return False  # refined by /me subscription.plan_id on the client
 
 
+@router.get("/constructor")
+async def constructor(
+    user: User = Depends(cabinet_user), container: AppContainer = Depends(get_container)
+) -> dict[str, Any]:
+    """Constructor-mode price list: active periods + traffic packs (SALES_MODE=constructor)."""
+    async with container.uow() as uow:
+        periods = [p for p in await uow.constructor_periods.list() if p.is_active]
+        packs = [t for t in await uow.traffic_packs.list() if t.is_active]
+        stars_rate = int(await container.bot_config.value(uow, "STARS_RATE_RUB"))
+    return {
+        "currency": "RUB",
+        "stars_rate": max(1, stars_rate),
+        "periods": [
+            {
+                "id": p.id,
+                "days": p.days,
+                "months": round(p.days / 30) or 1,
+                "price_minor": p.price_minor,
+            }
+            for p in sorted(periods, key=lambda p: p.days)
+        ],
+        "traffic_packs": [
+            {"id": t.id, "gb": t.gb, "price_minor": t.price_minor}
+            for t in sorted(packs, key=lambda t: (t.gb == 0, t.gb))
+        ],
+    }
+
+
 @router.get("/referral")
 async def referral(
     user: User = Depends(cabinet_user), container: AppContainer = Depends(get_container)
@@ -238,8 +268,11 @@ async def payments_history(
 
 
 class PurchaseIn(BaseModel):
-    plan_id: int
-    days: int = Field(..., ge=1, le=3650)
+    # Plans mode: plan_id + days. Constructor mode: period_id + pack_id instead.
+    plan_id: int | None = None
+    days: int | None = Field(None, ge=1, le=3650)
+    period_id: int | None = None
+    pack_id: int | None = None
     method: str = Field("balance", max_length=32)  # balance | stars | <gateway type>
 
 
@@ -249,16 +282,35 @@ async def purchase(
     user: User = Depends(cabinet_user),
     container: AppContainer = Depends(get_container),
 ) -> dict[str, Any]:
-    async with container.uow() as uow:
-        ptype, sub_id = await container.purchase.resolve_purchase_type(uow, user.id, body.plan_id)
-    req = PurchaseRequest(
-        user_id=user.id,
-        plan_id=body.plan_id,
-        duration_days=body.days,
-        currency=Currency.RUB,
-        purchase_type=ptype,
-        subscription_id=sub_id,
-    )
+    if body.period_id is not None and body.pack_id is not None:
+        async with container.uow() as uow:
+            device_limit = int(await container.bot_config.value(uow, "DEFAULT_DEVICE_LIMIT"))
+            try:
+                req = await container.purchase.build_constructor_request(
+                    uow,
+                    user_id=user.id,
+                    period_id=body.period_id,
+                    pack_id=body.pack_id,
+                    device_limit=device_limit,
+                )
+            except DomainError as exc:
+                raise HTTPException(400, str(exc)) from exc
+            await uow.commit()  # the hidden constructor plan may have just been created
+    elif body.plan_id is not None and body.days is not None:
+        async with container.uow() as uow:
+            ptype, sub_id = await container.purchase.resolve_purchase_type(
+                uow, user.id, body.plan_id
+            )
+        req = PurchaseRequest(
+            user_id=user.id,
+            plan_id=body.plan_id,
+            duration_days=body.days,
+            currency=Currency.RUB,
+            purchase_type=ptype,
+            subscription_id=sub_id,
+        )
+    else:
+        raise HTTPException(400, "plan_id+days or period_id+pack_id required")
 
     if body.method == "balance":
         async with container.uow() as uow:
@@ -303,7 +355,7 @@ async def purchase(
     bot = Bot(token=container.settings.bot.token)
     try:
         link = await bot.create_invoice_link(
-            title=f"{title} · {body.days} дн.",
+            title=f"{title} · {req.duration_days} дн.",
             description="Оплата VPN-подписки",
             payload=payment_id,
             currency="XTR",

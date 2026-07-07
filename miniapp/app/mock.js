@@ -25,7 +25,23 @@ window.__MOCK__ = {
       subscription_url: "https://sub.vpn.app/u/8fk2m3n9x7q1w5e8r4t6y2u9a3",
       crypto_link: null,
     },
-    app: { template: "a", title: "VPN", greeting: null, accent_color: null, bot_username: "bot_vpn4_bot" },
+    app: { template: "a", title: "VPN", greeting: null, accent_color: null, bot_username: "bot_vpn4_bot", sales_mode: "plans" },
+  },
+  // Own key on purpose: without it __MOCK__["constructor"] resolves to Object.prototype.constructor.
+  // Preview the constructor UI with ?mock=1&sales=constructor.
+  constructor: {
+    currency: "RUB",
+    stars_rate: 200,
+    periods: [
+      { id: 1, days: 30, months: 1, price_minor: 9900 },
+      { id: 2, days: 90, months: 3, price_minor: 24900 },
+      { id: 3, days: 180, months: 6, price_minor: 44900 },
+    ],
+    traffic_packs: [
+      { id: 1, gb: 50, price_minor: 0 },
+      { id: 2, gb: 200, price_minor: 5000 },
+      { id: 3, gb: 0, price_minor: 15000 },
+    ],
   },
   plans: {
     currency: "RUB",
