@@ -13,6 +13,7 @@ from src.application.dto.pricing import PurchaseRequest
 from src.application.services.connection import CLIENT_LABELS, build_deep_links
 from src.bot.gate import ensure_channel
 from src.bot.keyboards import menu_keyboard, simple_keyboard, url_keyboard, webapp_button
+from src.bot.media import photo_input
 from src.bot.menu_render import send_main_menu
 from src.bot.screen import safe_answer, show_screen
 from src.core.enums import Currency, PurchaseType, TransactionStatus, TransactionType
@@ -70,17 +71,17 @@ async def nav_screen(cb: CallbackQuery, container: AppContainer, db_user: User) 
     msg = cb.message if isinstance(cb.message, Message) else None
     if msg is not None and node.image_path:
         # Screens with an image: send a fresh photo message (can't edit text->photo).
-        from pathlib import Path
-
-        from aiogram.types import FSInputFile
-
-        if Path(node.image_path).is_file():
+        # The image may be a local uploads/ file, a Telegram file_id or a URL.
+        try:
             await msg.answer_photo(
+                photo_input(node.image_path),
                 # Telegram caps photo captions at 1024 chars (text screens allow 4096).
-                FSInputFile(node.image_path),
                 caption=text[:1024],
                 reply_markup=markup,
             )
+        except Exception:
+            pass  # bad/unreachable image ref -> fall through to a text screen
+        else:
             with contextlib.suppress(Exception):
                 await msg.delete()
             await cb.answer()

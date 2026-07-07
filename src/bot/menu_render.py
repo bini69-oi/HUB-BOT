@@ -8,6 +8,7 @@ from aiogram.types import CallbackQuery, Message
 
 from src.bot.default_menu import DEFAULT_MENU
 from src.bot.keyboards import menu_keyboard, simple_keyboard, webapp_button
+from src.bot.media import photo_input
 from src.infrastructure.database.models.user import User
 from src.infrastructure.di import AppContainer
 
@@ -67,5 +68,5 @@ async def send_main_menu(
                 await target.answer_sticker(welcome_sticker)
         elif welcome_image:
             with contextlib.suppress(Exception):
-                await target.answer_photo(welcome_image)
+                await target.answer_photo(photo_input(welcome_image))
         await target.answer(start_text, reply_markup=markup)

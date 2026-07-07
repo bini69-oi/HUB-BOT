@@ -143,8 +143,8 @@ REGISTRY: tuple[ParamSpec, ...] = (
         "",
         "Лого / приветственное фото",
         "Welcome image (logo)",
-        "file_id или URL картинки вверху /start. Задать из бота: /setlogo (ответом на фото).",
-        "Photo file_id or URL at the top of /start. Set via the bot: /setlogo (reply to a photo).",
+        "Лого вверху /start. Источник: загрузка в кабинете, URL, file_id или /setlogo в боте.",
+        "Logo atop /start. Source: cabinet upload, URL, file_id, or /setlogo in the bot.",
     ),
     _p(
         "WELCOME_STICKER",
