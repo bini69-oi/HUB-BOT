@@ -19,6 +19,7 @@ from src.application.services.promo import PromoService
 from src.application.services.purchase import PurchaseService
 from src.application.services.referral import ReferralService
 from src.application.services.remnawave import RemnawaveService
+from src.application.services.resync import RemnawaveResyncService
 from src.application.services.subscription import SubscriptionService
 from src.core.config import Settings, get_settings
 from src.core.i18n import Translator, load_translations
@@ -74,6 +75,7 @@ class AppContainer:
         self.promo = PromoService(self.subscriptions)
         self.panel_sync = PanelSyncService(self.remnawave_client)
         self.device_guard = DeviceGuardService(self.remnawave_client)
+        self.resync = RemnawaveResyncService(self.remnawave_client, self.subscriptions)
 
         # Screen 14: instant report topics (payments/tickets/registrations) listen on the bus.
         wire_report_events(self)

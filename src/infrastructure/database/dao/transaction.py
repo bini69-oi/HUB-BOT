@@ -9,7 +9,7 @@ from typing import Any, cast
 
 from sqlalchemy import CursorResult, select, update
 
-from src.core.enums import PaymentGatewayType, TransactionStatus
+from src.core.enums import PaymentGatewayType, TransactionStatus, TransactionType
 from src.infrastructure.database.base import utcnow
 from src.infrastructure.database.dao.base import BaseDAO
 from src.infrastructure.database.models.transaction import Transaction
@@ -32,6 +32,25 @@ class TransactionDAO(BaseDAO[Transaction]):
             select(Transaction)
             .where(Transaction.user_id == user_id)
             .order_by(Transaction.id.desc())
+            .limit(limit)
+        )
+        return list((await self.session.scalars(stmt)).all())
+
+    async def list_unreceipted(
+        self, *, newer_than: dt.datetime, limit: int = 50
+    ) -> list[Transaction]:
+        """Completed external subscription payments still without a fiscal receipt."""
+        stmt = (
+            select(Transaction)
+            .where(
+                Transaction.status == TransactionStatus.COMPLETED,
+                Transaction.type == TransactionType.SUBSCRIPTION_PAYMENT,
+                Transaction.gateway_type.is_not(None),
+                Transaction.amount_minor > 0,
+                Transaction.receipt_uuid.is_(None),
+                Transaction.created_at > newer_than,
+            )
+            .order_by(Transaction.created_at)
             .limit(limit)
         )
         return list((await self.session.scalars(stmt)).all())

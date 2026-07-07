@@ -221,6 +221,77 @@ async def panel_write_retry(subscription_id: int) -> None:
     log.info("panel_write_retry", subscription_id=subscription_id)
 
 
+@broker.task(schedule=[{"cron": "17 4 * * *"}])
+async def resync_panel() -> int:
+    """Nightly bot<->panel reconciliation (heals drift from manual panel edits)."""
+    from src.infrastructure.services.reports import send_topic_report
+
+    container = get_container()
+    async with container.uow() as uow:
+        if not bool(await container.bot_config.value(uow, "REMNAWAVE_RESYNC_ENABLED")):
+            return 0
+        report = await container.resync.resync(uow)
+        await uow.commit()
+    if report.healed or report.orphaned_local:
+        await send_topic_report(
+            container,
+            "alerts",
+            f"🔄 Ночная сверка: проверено {report.checked}, "
+            f"восстановлено {report.healed}, пропало из панели {report.orphaned_local}."
+            + ("\n" + "\n".join(report.notes[:15]) if report.notes else ""),
+        )
+    return report.healed
+
+
+@broker.task(schedule=[{"cron": "*/10 * * * *"}])
+async def issue_nalogo_receipts() -> int:
+    """Register unreceipted paid subscriptions as income in «Мой налог» (retry queue)."""
+    import datetime as dt
+
+    from src.infrastructure.services.nalogo import NalogoClient, NalogoError
+
+    container = get_container()
+    async with container.uow() as uow:
+        cfg = container.bot_config
+        if not bool(await cfg.value(uow, "NALOGO_ENABLED")):
+            return 0
+        inn = str(await cfg.value(uow, "NALOGO_INN") or "")
+        token = str(await cfg.value(uow, "NALOGO_TOKEN") or "")
+        service = str(await cfg.value(uow, "NALOGO_SERVICE_NAME") or "Доступ к VPN-сервису")
+        if not inn or not token:
+            return 0
+        pending = await uow.transactions.list_unreceipted(
+            newer_than=dt.datetime.now(dt.UTC) - dt.timedelta(days=3)
+        )
+    if not pending:
+        return 0
+
+    client = NalogoClient(inn, token, service)
+    issued = 0
+    for txn in pending:
+        name = str((txn.plan_snapshot or {}).get("name") or service)
+        try:
+            receipt_id = await client.register_income(txn.amount_minor, name=name)
+        except NalogoError as exc:
+            log.warning("nalogo receipt deferred", payment_id=str(txn.payment_id), error=str(exc))
+            continue
+        async with container.uow() as uow:
+            row = await uow.transactions.get_by_payment_id(txn.payment_id)
+            if row is not None:
+                # receipt_uuid holds the public print URL (the id is embedded in it).
+                row.receipt_uuid = receipt_id[:64]
+                row.receipt_created_at = dt.datetime.now(dt.UTC)
+                await uow.commit()
+                telegram_id = None
+                user = await uow.users.get(row.user_id)
+                telegram_id = user.telegram_id if user else None
+        issued += 1
+        if len(receipt_id) > 8 and telegram_id is not None:
+            await container.notifier.notify_user(telegram_id, f"🧾 Чек по оплате: {receipt_id}")
+    log.info("nalogo receipts issued", count=issued)
+    return issued
+
+
 @broker.task(schedule=[{"cron": "*/2 * * * *"}])
 async def panel_watchdog() -> str:
     """Auto-maintenance: 3 failed panel pings in a row -> maintenance ON; recovery -> OFF.
