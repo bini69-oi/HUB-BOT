@@ -9,6 +9,7 @@ from __future__ import annotations
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi.responses import PlainTextResponse
 
 from src.application.common.payments import WebhookRequest
 from src.core.enums import PaymentGatewayType, TransactionStatus
@@ -83,5 +84,9 @@ async def payment_webhook(
         result.status.value,
         saved_method_enc=saved_method_enc,
         saved_method_title=saved_method_title,
+        amount_minor=result.amount.amount_minor if result.amount else None,
     )
+    if result.http_body is not None:
+        # Robokassa-style providers require an exact plain-text acknowledgement.
+        return PlainTextResponse(result.http_body)  # type: ignore[return-value]
     return {"accepted": True}

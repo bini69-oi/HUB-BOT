@@ -191,8 +191,8 @@ PROVIDER_META: dict[PaymentGatewayType, dict[str, Any]] = {
     PaymentGatewayType.CRYPTOMUS: {
         "title": "Cryptomus",
         "methods": "крипта, 15+ монет",
-        "fields": ["merchant_id", "api_key"],
-        "ready": False,
+        "fields": ["merchant_uuid", "api_key"],
+        "ready": True,
         "emoji": "🪙",
     },
     PaymentGatewayType.TRIBUTE: {
@@ -204,24 +204,39 @@ PROVIDER_META: dict[PaymentGatewayType, dict[str, Any]] = {
     },
     PaymentGatewayType.PLATEGA: {
         "title": "Platega",
-        "methods": "карта, СБП",
-        "fields": ["merchant_id", "secret"],
-        "ready": False,
+        "methods": "СБП, карта, крипта",
+        # payment_method: 2=SBP QR, 3=card, 11=card acquiring, 13=crypto
+        "fields": ["merchant_id", "secret", "payment_method"],
+        "ready": True,
         "emoji": "🏦",
     },
     PaymentGatewayType.HELEKET: {
         "title": "Heleket",
         "methods": "крипта",
-        "fields": ["merchant_id", "api_key"],
-        "ready": False,
+        "fields": ["merchant_uuid", "api_key"],
+        "ready": True,
         "emoji": "🪙",
     },
     PaymentGatewayType.WATA: {
         "title": "WATA",
-        "methods": "карта, СБП",
-        "fields": ["api_key"],
-        "ready": False,
+        "methods": "карта, СБП, TPay, SberPay",
+        "fields": ["api_token"],
+        "ready": True,
         "emoji": "🏦",
+    },
+    PaymentGatewayType.ROBOKASSA: {
+        "title": "Robokassa",
+        "methods": "карта, СБП, кошельки",
+        "fields": ["merchant_login", "password1", "password2", "is_test"],
+        "ready": True,
+        "emoji": "🤖",
+    },
+    PaymentGatewayType.YOOMONEY: {
+        "title": "ЮMoney (кошелёк)",
+        "methods": "карта, кошелёк ЮMoney",
+        "fields": ["wallet", "notification_secret"],
+        "ready": True,
+        "emoji": "👛",
     },
     PaymentGatewayType.FREEKASSA: {
         "title": "Freekassa",
@@ -311,9 +326,11 @@ PROVIDER_EXTRAS: dict[PaymentGatewayType, dict[str, Any]] = {
     PaymentGatewayType.CRYPTOBOT: {"forms": ["crypto"], "brand": "#2AABEE"},
     PaymentGatewayType.CRYPTOMUS: {"forms": ["crypto"], "brand": "#3A86FF"},
     PaymentGatewayType.TRIBUTE: {"forms": ["card"], "brand": "#F5C518"},
-    PaymentGatewayType.PLATEGA: {"forms": ["card", "sbp"], "brand": "#00A86B"},
+    PaymentGatewayType.PLATEGA: {"forms": ["card", "sbp", "crypto"], "brand": "#00A86B"},
+    PaymentGatewayType.ROBOKASSA: {"forms": ["card", "sbp", "wallet"], "brand": "#E4003A"},
+    PaymentGatewayType.YOOMONEY: {"forms": ["card", "wallet"], "brand": "#8B3FFD"},
     PaymentGatewayType.HELEKET: {"forms": ["crypto"], "brand": "#7B61FF"},
-    PaymentGatewayType.WATA: {"forms": ["card", "sbp"], "brand": "#0FA3B1"},
+    PaymentGatewayType.WATA: {"forms": ["card", "sbp", "tpay", "sberpay"], "brand": "#0FA3B1"},
     PaymentGatewayType.FREEKASSA: {"forms": ["card", "sbp", "wallet"], "brand": "#FF6B00"},
     PaymentGatewayType.PAYPALYCH: {"forms": ["card", "sbp"], "brand": "#4C6FFF"},
     PaymentGatewayType.CLOUDPAYMENTS: {"forms": ["card"], "brand": "#2F9BFF"},
@@ -481,6 +498,74 @@ async def test_provider(
             name = me.json()["result"].get("name")
             return {"ok": True, "balance": usdt, "detail": f"приложение {name} · USDT {usdt or 0}"}
         return {"ok": False, "balance": None, "detail": f"CryptoBot ответил {me.status_code}"}
+
+    if gtype is PaymentGatewayType.PLATEGA:
+        mid = str(settings.get("merchant_id") or "")
+        sec = str(settings.get("secret") or "")
+        if not mid or not sec:
+            return {"ok": False, "balance": None, "detail": "заполни merchant_id и secret"}
+        async with httpx.AsyncClient(timeout=15) as http:
+            res = await http.get(
+                "https://app.platega.io/transaction/00000000-0000-0000-0000-000000000000",
+                headers={"X-MerchantId": mid, "X-Secret": sec},
+            )
+        if res.status_code in (401, 403):
+            return {"ok": False, "balance": None, "detail": "Platega не принял ключи (401/403)"}
+        return {"ok": True, "balance": None, "detail": "ключи приняты Platega"}
+
+    if gtype in (PaymentGatewayType.CRYPTOMUS, PaymentGatewayType.HELEKET):
+        import base64 as _b64
+        import hashlib as _hl
+        import json as _json
+
+        merchant = str(settings.get("merchant_uuid") or "")
+        key = str(settings.get("api_key") or "")
+        if not merchant or not key:
+            return {"ok": False, "balance": None, "detail": "заполни merchant_uuid и api_key"}
+        base = (
+            "https://api.cryptomus.com/v1"
+            if gtype is PaymentGatewayType.CRYPTOMUS
+            else "https://api.heleket.com/v1"
+        )
+        body = _json.dumps({}, separators=(",", ":")).encode()
+        sign = _hl.md5(_b64.b64encode(body) + key.encode()).hexdigest()
+        async with httpx.AsyncClient(timeout=15) as http:
+            res = await http.post(
+                f"{base}/balance",
+                content=body,
+                headers={"merchant": merchant, "sign": sign, "Content-Type": "application/json"},
+            )
+        if res.status_code == 200 and (res.json() or {}).get("result") is not None:
+            return {"ok": True, "balance": None, "detail": "ключи приняты, баланс доступен"}
+        return {"ok": False, "balance": None, "detail": f"ответ {res.status_code} — проверь ключи"}
+
+    if gtype is PaymentGatewayType.WATA:
+        token = str(settings.get("api_token") or "")
+        if not token:
+            return {"ok": False, "balance": None, "detail": "заполни api_token"}
+        async with httpx.AsyncClient(timeout=15) as http:
+            res = await http.get(
+                "https://api.wata.pro/api/h2h/public-key",
+                headers={"Authorization": f"Bearer {token}"},
+            )
+        if res.status_code == 200:
+            return {"ok": True, "balance": None, "detail": "токен принят WATA"}
+        return {"ok": False, "balance": None, "detail": f"WATA ответила {res.status_code}"}
+
+    if gtype in (PaymentGatewayType.ROBOKASSA, PaymentGatewayType.YOOMONEY):
+        required = (
+            ("merchant_login", "password1", "password2")
+            if gtype is PaymentGatewayType.ROBOKASSA
+            else ("wallet", "notification_secret")
+        )
+        missing = [k for k in required if not settings.get(k)]
+        if missing:
+            return {"ok": False, "balance": None, "detail": f"заполни {', '.join(missing)}"}
+        return {
+            "ok": True,
+            "balance": None,
+            "detail": "ключи заполнены; проверочного API нет — сверится первым платежом",
+        }
 
     # Real balance probes land with each gateway implementation (single-file drop-ins).
     return {"ok": False, "balance": None, "detail": "gateway implementation not installed"}

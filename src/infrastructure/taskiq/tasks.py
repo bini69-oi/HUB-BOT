@@ -22,6 +22,7 @@ async def process_payment(
     status: str,
     saved_method_enc: str | None = None,
     saved_method_title: str | None = None,
+    amount_minor: int | None = None,
 ) -> bool:
     """Complete a transaction from a verified webhook (idempotent CAS + fulfilment).
 
@@ -35,7 +36,7 @@ async def process_payment(
     pid = UUID(payment_id)
     async with container.uow() as uow:
         moved = await container.payments.process(
-            uow, payment_id=pid, status=TransactionStatus(status)
+            uow, payment_id=pid, status=TransactionStatus(status), amount_minor=amount_minor
         )
         await uow.commit()
     log.info("process_payment", payment_id=payment_id, status=status, advanced=moved)

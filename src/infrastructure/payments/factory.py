@@ -12,9 +12,15 @@ from src.core.enums import PaymentGatewayType
 from src.core.exceptions import GatewayNotConfigured
 from src.infrastructure.payments.base import BasePaymentGateway
 from src.infrastructure.payments.gateways.cryptobot import CryptobotGateway
+from src.infrastructure.payments.gateways.cryptomus import CryptomusGateway
+from src.infrastructure.payments.gateways.heleket import HeleketGateway
 from src.infrastructure.payments.gateways.manual import ManualGateway
+from src.infrastructure.payments.gateways.platega import PlategaGateway
+from src.infrastructure.payments.gateways.robokassa import RobokassaGateway
 from src.infrastructure.payments.gateways.telegram_stars import TelegramStarsGateway
+from src.infrastructure.payments.gateways.wata import WataGateway
 from src.infrastructure.payments.gateways.yookassa import YookassaGateway
+from src.infrastructure.payments.gateways.yoomoney import YoomoneyGateway
 
 # Register a new provider here (plus a core.enums value and a DB seed row).
 _REGISTRY: dict[PaymentGatewayType, type[BasePaymentGateway]] = {
@@ -22,6 +28,12 @@ _REGISTRY: dict[PaymentGatewayType, type[BasePaymentGateway]] = {
     PaymentGatewayType.TELEGRAM_STARS: TelegramStarsGateway,
     PaymentGatewayType.YOOKASSA: YookassaGateway,
     PaymentGatewayType.CRYPTOBOT: CryptobotGateway,
+    PaymentGatewayType.PLATEGA: PlategaGateway,
+    PaymentGatewayType.ROBOKASSA: RobokassaGateway,
+    PaymentGatewayType.CRYPTOMUS: CryptomusGateway,
+    PaymentGatewayType.HELEKET: HeleketGateway,
+    PaymentGatewayType.YOOMONEY: YoomoneyGateway,
+    PaymentGatewayType.WATA: WataGateway,
 }
 
 

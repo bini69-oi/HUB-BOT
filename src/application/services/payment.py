@@ -15,6 +15,7 @@ from src.application.services.purchase import PurchaseService
 from src.application.services.referral import ReferralService
 from src.core.enums import TransactionStatus, TransactionType
 from src.core.exceptions import NotFound
+from src.core.logging import get_logger
 from src.infrastructure.database.models.transaction import Transaction
 
 if TYPE_CHECKING:
@@ -22,6 +23,8 @@ if TYPE_CHECKING:
 
 # Transaction types that represent external money ENTERING the system — these trigger a
 # referral commission (a balance-funded purchase does not; that money was rewarded on top-up).
+log = get_logger(__name__)
+
 _REWARDABLE = (TransactionType.DEPOSIT, TransactionType.SUBSCRIPTION_PAYMENT)
 
 
@@ -33,8 +36,17 @@ class PaymentService:
         self._events = event_bus
         self._referrals = referrals
 
+    # Received amount may be net of provider fees (YooMoney deducts up to ~3%); anything
+    # below this share of the invoice is treated as a tampered/underpaid transfer.
+    UNDERPAYMENT_TOLERANCE = 0.90
+
     async def process(
-        self, uow: UnitOfWork, *, payment_id: UUID, status: TransactionStatus
+        self,
+        uow: UnitOfWork,
+        *,
+        payment_id: UUID,
+        status: TransactionStatus,
+        amount_minor: int | None = None,
     ) -> bool:
         """Apply a webhook outcome to a transaction. Returns True iff it advanced the state.
 
@@ -44,6 +56,21 @@ class PaymentService:
         txn = await uow.transactions.lock_for_update(payment_id)  # serialize concurrent hooks
         if txn is None:
             raise NotFound(f"transaction {payment_id} not found")
+
+        if (
+            status is TransactionStatus.COMPLETED
+            and amount_minor is not None
+            and txn.amount_minor > 0
+            and amount_minor < txn.amount_minor * self.UNDERPAYMENT_TOLERANCE
+        ):
+            # Quickpay-style forms let the user edit the sum — never fulfil an underpayment.
+            log.warning(
+                "underpaid webhook rejected",
+                payment_id=str(payment_id),
+                expected=txn.amount_minor,
+                received=amount_minor,
+            )
+            status = TransactionStatus.FAILED
 
         if status is TransactionStatus.COMPLETED:
             moved = await uow.transactions.transition_status(

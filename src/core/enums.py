@@ -158,6 +158,8 @@ class PaymentGatewayType(StrEnum):
     MANUAL = "manual"  # admin-confirmed payment, always available
     TELEGRAM_STARS = "telegram_stars"
     YOOKASSA = "yookassa"
+    YOOMONEY = "yoomoney"
+    ROBOKASSA = "robokassa"
     CRYPTOMUS = "cryptomus"
     CRYPTOBOT = "cryptobot"
     TRIBUTE = "tribute"

@@ -69,6 +69,8 @@ class WebhookResult:
     external_id: str | None = None
     amount: Money | None = None  # for optional amount cross-check
     saved_method: SavedPaymentMethod | None = None  # card the provider saved for autopay
+    # Some providers demand an exact plain-text HTTP response (Robokassa: "OK{InvId}").
+    http_body: str | None = None
 
 
 @dataclass(frozen=True, slots=True)
