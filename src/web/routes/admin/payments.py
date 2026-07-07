@@ -175,7 +175,9 @@ PROVIDER_META: dict[PaymentGatewayType, dict[str, Any]] = {
     PaymentGatewayType.YOOKASSA: {
         "title": "YooKassa",
         "methods": "карта, СБП, SberPay",
-        "fields": ["shop_id", "secret_key", "return_url"],
+        # recurrent_enabled: "true" включает save_payment_method -> автосписания
+        # по сохранённой карте (нужен включённый рекуррент на стороне ЮKassa)
+        "fields": ["shop_id", "secret_key", "return_url", "recurrent_enabled"],
         "ready": True,
         "emoji": "🏦",
     },
