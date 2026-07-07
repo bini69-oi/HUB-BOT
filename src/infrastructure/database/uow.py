@@ -32,6 +32,7 @@ from src.infrastructure.database.dao.admin import (
     TicketDAO,
     TicketMessageDAO,
     TrafficPackDAO,
+    WinbackStepDAO,
     WithdrawalDAO,
 )
 from src.infrastructure.database.dao.catalog import (
@@ -80,6 +81,7 @@ class UnitOfWork:
         self.broadcasts = BroadcastDAO(session)
         self.smart_reminder = SmartReminderDAO(session)
         self.holidays = HolidayDAO(session)
+        self.winback_steps = WinbackStepDAO(session)
         self.campaigns = CampaignDAO(session)
         self.tickets = TicketDAO(session)
         self.ticket_messages = TicketMessageDAO(session)

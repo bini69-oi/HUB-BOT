@@ -240,6 +240,97 @@ async def send_smart_reminders() -> int:
 
 
 @broker.task(schedule=[{"cron": "*/5 * * * *"}])
+async def send_winback_offers() -> int:
+    """Win-back funnel (screen 08): N days after a subscription expired, message the user
+    and grant a one-shot purchase discount (consumed by PricingService on the next buy).
+
+    Runs every 5 minutes; an enabled step fires when MSK time enters its window and
+    targets users whose current subscription expired exactly ``offset_days`` MSK-days
+    ago — so each user walks the funnel rung by rung. Per-user daily dedup via Redis
+    SETNX, mirroring send_smart_reminders.
+    """
+    from aiogram import Bot
+    from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup, WebAppInfo
+    from sqlalchemy import select
+
+    from src.core.enums import SubscriptionStatus, UserStatus
+    from src.infrastructure.database.models.subscription import Subscription
+    from src.infrastructure.database.models.user import User
+    from src.infrastructure.database.models.winback_step import WinbackStep
+
+    container = get_container()
+    now_msk = _msk_now()
+    async with container.uow() as uow:
+        steps = [
+            s
+            for s in await uow.winback_steps.ordered()
+            if s.enabled and _time_matches(s.send_time, now_msk)
+        ]
+        if not steps:
+            return 0
+        miniapp_url = str(await container.bot_config.value(uow, "SUBSCRIPTION_MINI_APP_URL") or "")
+
+        targets: list[tuple[int, int, WinbackStep]] = []  # (user_id, telegram_id, step)
+        for step in steps:
+            day_start = (now_msk - dt.timedelta(days=step.offset_days)).replace(
+                hour=0, minute=0, second=0, microsecond=0
+            ) - dt.timedelta(hours=3)  # back to UTC
+            day_end = day_start + dt.timedelta(days=1)
+            rows = (
+                await uow.session.execute(
+                    select(User.id, User.telegram_id)
+                    .join(Subscription, Subscription.id == User.current_subscription_id)
+                    .where(
+                        User.telegram_id.is_not(None),
+                        User.status == UserStatus.ACTIVE,
+                        Subscription.status == SubscriptionStatus.EXPIRED,
+                        Subscription.expire_at >= day_start,
+                        Subscription.expire_at < day_end,
+                    )
+                )
+            ).all()
+            targets.extend((int(uid), int(tg), step) for uid, tg in rows)
+
+    if not targets:
+        return 0
+    markup = None
+    if miniapp_url.startswith("https://"):
+        markup = InlineKeyboardMarkup(
+            inline_keyboard=[
+                [InlineKeyboardButton(text="Вернуться", web_app=WebAppInfo(url=miniapp_url))]
+            ]
+        )
+    sent = 0
+    today = now_msk.strftime("%Y%m%d")
+    bot = Bot(token=container.settings.bot.token)
+    try:
+        for user_id, tg_id, step in targets:
+            if not await container.redis.set(f"winback:{today}:{tg_id}", "1", nx=True, ex=86400):
+                continue  # one win-back message per user per day
+            if step.discount_pct > 0:
+                async with container.uow() as uow:
+                    user = await uow.users.get(user_id)
+                    if user is None:
+                        continue
+                    # max, not assign: don't clobber a bigger one-shot promo discount
+                    user.purchase_discount_pct = max(user.purchase_discount_pct, step.discount_pct)
+                    await uow.commit()
+            try:
+                await bot.send_message(
+                    tg_id,
+                    step.text.replace("{discount}", str(step.discount_pct)),
+                    reply_markup=markup,
+                )
+                sent += 1
+            except Exception:
+                pass
+    finally:
+        await bot.session.close()
+    log.info("winback offers sent", count=sent)
+    return sent
+
+
+@broker.task(schedule=[{"cron": "*/5 * * * *"}])
 async def send_holiday_promos() -> int:
     """Holiday-calendar promos (screen 08): on the day, at the configured time."""
     from aiogram import Bot

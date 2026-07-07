@@ -20,6 +20,7 @@ from src.infrastructure.database.models.report_topic import ReportTopic
 from src.infrastructure.database.models.server_node import ServerNode
 from src.infrastructure.database.models.smart_reminder import SmartReminder
 from src.infrastructure.database.models.ticket import Ticket, TicketMessage
+from src.infrastructure.database.models.winback_step import WinbackStep
 from src.infrastructure.database.models.withdrawal import WithdrawalRequest
 
 
@@ -100,6 +101,14 @@ class HolidayDAO(BaseDAO[Holiday]):
 
     async def ordered(self) -> Sequence[Holiday]:
         result = await self.session.scalars(select(Holiday).order_by(Holiday.month, Holiday.day))
+        return result.all()
+
+
+class WinbackStepDAO(BaseDAO[WinbackStep]):
+    model = WinbackStep
+
+    async def ordered(self) -> Sequence[WinbackStep]:
+        result = await self.session.scalars(select(WinbackStep).order_by(WinbackStep.offset_days))
         return result.all()
 
 

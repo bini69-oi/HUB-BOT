@@ -1,4 +1,4 @@
-"""Admin: smart renewal reminder + RF holiday promo calendar (screen 08)."""
+"""Admin: smart renewal reminder, win-back funnel + RF holiday promo calendar (screen 08)."""
 
 from __future__ import annotations
 
@@ -8,8 +8,10 @@ from typing import Any
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field, field_validator
 
+from src.core.constants import MAX_DISCOUNT_PERCENT
 from src.core.enums import HolidayRewardType
 from src.infrastructure.database.models.holiday import Holiday
+from src.infrastructure.database.models.winback_step import WinbackStep
 from src.infrastructure.di import AppContainer
 from src.web.deps import get_container
 from src.web.routes.admin._common import OkOut, audit
@@ -86,6 +88,111 @@ async def patch_reminder(
         for k, v in data.items():
             setattr(r, k, v)
         await audit(uow, identity, "smart_reminder.patch", None, **data)
+        await uow.commit()
+    return OkOut()
+
+
+def _winback_row(s: WinbackStep) -> dict[str, Any]:
+    return {
+        "id": s.id,
+        "offset_days": s.offset_days,
+        "text": s.text,
+        "discount_pct": s.discount_pct,
+        "send_time": s.send_time,
+        "enabled": s.enabled,
+    }
+
+
+@router.get("/winback")
+async def list_winback(container: AppContainer = Depends(get_container)) -> dict[str, Any]:
+    async with container.uow() as uow:
+        rows = await uow.winback_steps.ordered()
+        return {"items": [_winback_row(s) for s in rows]}
+
+
+class WinbackCreate(BaseModel):
+    offset_days: int = Field(ge=1, le=365)
+    text: str = Field(min_length=1, max_length=4096)
+    discount_pct: int = Field(0, ge=0, le=MAX_DISCOUNT_PERCENT)
+    send_time: str = "12:00"
+    enabled: bool = True
+
+    @field_validator("send_time")
+    @classmethod
+    def _time(cls, v: str) -> str:
+        if not _TIME_RE.match(v):
+            raise ValueError("send_time must be HH:MM")
+        return v
+
+
+@router.post("/winback")
+async def create_winback(
+    body: WinbackCreate,
+    identity: AdminIdentity = Depends(require_admin),
+    container: AppContainer = Depends(get_container),
+) -> dict[str, Any]:
+    async with container.uow() as uow:
+        if await uow.winback_steps.find_one(offset_days=body.offset_days) is not None:
+            raise HTTPException(409, f"step for day {body.offset_days} already exists")
+        step = await uow.winback_steps.add(WinbackStep(**body.model_dump()))
+        await audit(uow, identity, "winback.create", f"winback:{step.id}", **body.model_dump())
+        await uow.commit()
+        return _winback_row(step)
+
+
+class WinbackPatch(BaseModel):
+    offset_days: int | None = Field(None, ge=1, le=365)
+    text: str | None = Field(None, min_length=1, max_length=4096)
+    discount_pct: int | None = Field(None, ge=0, le=MAX_DISCOUNT_PERCENT)
+    send_time: str | None = Field(None, max_length=5)
+    enabled: bool | None = None
+
+    @field_validator("send_time")
+    @classmethod
+    def _time(cls, v: str | None) -> str | None:
+        if v is not None and not _TIME_RE.match(v):
+            raise ValueError("send_time must be HH:MM")
+        return v
+
+
+@router.patch("/winback/{step_id}")
+async def patch_winback(
+    step_id: int,
+    body: WinbackPatch,
+    identity: AdminIdentity = Depends(require_admin),
+    container: AppContainer = Depends(get_container),
+) -> OkOut:
+    data = body.model_dump(exclude_unset=True)
+    if not data:
+        raise HTTPException(400, "no changes")
+    async with container.uow() as uow:
+        step = await uow.winback_steps.get(step_id)
+        if step is None:
+            raise HTTPException(404, "winback step not found")
+        offset = data.get("offset_days")
+        if offset is not None and offset != step.offset_days:
+            dup = await uow.winback_steps.find_one(offset_days=offset)
+            if dup is not None:
+                raise HTTPException(409, f"step for day {offset} already exists")
+        for k, v in data.items():
+            setattr(step, k, v)
+        await audit(uow, identity, "winback.patch", f"winback:{step.id}", **data)
+        await uow.commit()
+    return OkOut()
+
+
+@router.delete("/winback/{step_id}")
+async def delete_winback(
+    step_id: int,
+    identity: AdminIdentity = Depends(require_admin),
+    container: AppContainer = Depends(get_container),
+) -> OkOut:
+    async with container.uow() as uow:
+        step = await uow.winback_steps.get(step_id)
+        if step is None:
+            raise HTTPException(404, "winback step not found")
+        await uow.winback_steps.delete(step)
+        await audit(uow, identity, "winback.delete", f"winback:{step_id}")
         await uow.commit()
     return OkOut()
 
