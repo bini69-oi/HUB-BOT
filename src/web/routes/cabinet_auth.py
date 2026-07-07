@@ -351,3 +351,84 @@ async def login_auto(
         if user.role.is_staff:
             raise HTTPException(403, "not allowed for staff accounts")
     return await _auth_response(container, user, device=request.headers.get("user-agent"))
+
+
+# --- OAuth (Google / Yandex) ------------------------------------------------
+
+
+def _redirect_uri(cabinet_url: str) -> str:
+    return f"{cabinet_url.rstrip('/')}/auth/oauth/callback"
+
+
+async def _oauth_provider(container: AppContainer, name: str):  # type: ignore[no-untyped-def]
+    from src.infrastructure.services.oauth import build_provider
+
+    async with container.uow() as uow:
+        cfg = container.bot_config
+        cid = str(await cfg.value(uow, f"OAUTH_{name.upper()}_CLIENT_ID") or "")
+        sec = str(await cfg.value(uow, f"OAUTH_{name.upper()}_CLIENT_SECRET") or "")
+        cabinet_url = str(await cfg.value(uow, "CABINET_URL") or "")
+    return build_provider(name, cid, sec), cabinet_url
+
+
+@router.get("/oauth/{provider}/authorize")
+async def oauth_authorize(
+    provider: str, container: AppContainer = Depends(get_container)
+) -> dict[str, Any]:
+    await _require_web_enabled(container)
+    from src.infrastructure.services.oauth import save_state
+
+    prov, cabinet_url = await _oauth_provider(container, provider)
+    if prov is None or not cabinet_url:
+        raise HTTPException(400, "provider not configured")
+    state = await save_state(container.redis, provider)
+    return {"authorize_url": prov.authorize_url(_redirect_uri(cabinet_url), state), "state": state}
+
+
+class OAuthCallbackIn(BaseModel):
+    provider: str = Field(..., min_length=2, max_length=32)
+    code: str = Field(..., min_length=4, max_length=2048)
+    state: str = Field(..., min_length=8, max_length=128)
+
+
+@router.post("/oauth/callback")
+async def oauth_callback(
+    body: OAuthCallbackIn, request: Request, container: AppContainer = Depends(get_container)
+) -> dict[str, Any]:
+    await _require_web_enabled(container)
+    from src.infrastructure.services.oauth import consume_state
+
+    saved = await consume_state(container.redis, body.state)  # single-use (anti-replay)
+    if saved != body.provider:
+        raise HTTPException(401, "invalid or expired state")
+    prov, cabinet_url = await _oauth_provider(container, body.provider)
+    if prov is None or not cabinet_url:
+        raise HTTPException(400, "provider not configured")
+    try:
+        info = await prov.fetch_user(body.code, _redirect_uri(cabinet_url))
+    except Exception as exc:
+        raise HTTPException(400, f"oauth exchange failed: {exc}") from exc
+    if not info.email_verified:
+        raise HTTPException(403, "email not verified by the provider")
+
+    async with container.uow() as uow:
+        user = await uow.users.get_by_email(info.email)
+        if user is None:
+            user = User(
+                auth_type=AuthType.OAUTH,
+                email=info.email,
+                email_verified=True,
+                first_name=(info.name or "")[:128] or None,
+                referral_code=generate_referral_code(),
+                currency=Currency.RUB,
+            )
+            await uow.users.add(user)
+            await uow.commit()
+        elif not user.email_verified:
+            # a never-confirmed local account must not be taken over via OAuth
+            raise HTTPException(409, "email exists but is unverified — log in and link instead")
+        user_id = user.id
+        fresh = await uow.users.get(user_id)
+    if fresh is None:
+        raise HTTPException(500, "oauth login failed")
+    return await _auth_response(container, fresh, device=request.headers.get("user-agent"))

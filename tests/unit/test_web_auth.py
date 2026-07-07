@@ -106,3 +106,36 @@ def test_auto_login_token_type_and_staff_guard() -> None:
     # staff role is what the route guards on
     assert Role.ADMIN.is_staff is True
     assert Role.USER.is_staff is False
+
+
+async def test_oauth_state_single_use() -> None:
+    """OAuth state is stored then consumed atomically — a replay finds nothing."""
+    from src.infrastructure.services.oauth import consume_state, save_state
+
+    class FakeRedis:
+        def __init__(self) -> None:
+            self.store: dict[str, str] = {}
+
+        async def set(self, k: str, v: str, ex: int = 0) -> None:
+            self.store[k] = v
+
+        async def getdel(self, k: str) -> str | None:
+            return self.store.pop(k, None)
+
+    redis = FakeRedis()
+    state = await save_state(redis, "google")
+    assert await consume_state(redis, state) == "google"
+    assert await consume_state(redis, state) is None  # single-use
+
+
+def test_oauth_provider_registry_and_urls() -> None:
+    from src.infrastructure.services.oauth import build_provider
+
+    assert build_provider("google", "", "") is None  # unconfigured -> None
+    assert build_provider("unknown", "id", "sec") is None  # unknown provider
+    g = build_provider("google", "cid", "sec")
+    assert g is not None
+    url = g.authorize_url("https://cab.example/auth/oauth/callback", "st8")
+    assert "accounts.google.com" in url and "state=st8" in url and "client_id=cid" in url
+    y = build_provider("yandex", "cid", "sec")
+    assert y is not None and "oauth.yandex.ru" in y.authorize_url("https://c/cb", "s")
