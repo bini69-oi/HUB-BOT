@@ -105,7 +105,11 @@ async def act_subscription(cb: CallbackQuery, container: AppContainer, db_user: 
         miniapp_url = str(await container.bot_config.value(uow, "SUBSCRIPTION_MINI_APP_URL") or "")
         autopay_global = bool(await container.bot_config.value(uow, "AUTO_RENEWAL_ENABLED"))
     if sub is None or not sub.status.is_usable:
-        text = "У тебя пока нет активной подписки."
+        text = (
+            "📶 <b>Подписка</b>\n\n"
+            "У тебя пока нет активной подписки.\n"
+            "Оформи за пару тапов — и сразу подключайся."
+        )
         markup = simple_keyboard([("🛒 Купить VPN", "act:buy:0"), ("‹ Меню", "nav:root")])
     else:
         days_left = ""
@@ -113,12 +117,16 @@ async def act_subscription(cb: CallbackQuery, container: AppContainer, db_user: 
             import datetime as dt
 
             left = max(0, (sub.expire_at - dt.datetime.now(dt.UTC)).days)
-            days_left = f"\nОсталось дней: <b>{left}</b> (до {sub.expire_at:%d.%m.%Y})"
+            days_left = f"\n⏳ Осталось: <b>{left} дн.</b> (до {sub.expire_at:%d.%m.%Y})"
         traffic = f"{sub.traffic_used_bytes / GIB:.1f} / " + (
             f"{sub.traffic_limit_bytes / GIB:.0f} ГБ" if sub.traffic_limit_bytes else "∞"
         )
         plan_name = hesc(str((sub.plan_snapshot or {}).get("name", "—")))
-        text = f"<b>Твоя подписка</b>\n\nТариф: {plan_name}{days_left}\nТрафик: {traffic}"
+        text = (
+            f"📶 <b>Твоя подписка</b>\n\n"
+            f"🏷 Тариф: <b>{plan_name}</b>{days_left}\n"
+            f"📊 Трафик: <b>{traffic}</b>"
+        )
         if not hide_link and sub.subscription_url:
             text += f"\n\nСсылка подписки:\n<code>{sub.subscription_url}</code>"
         kb: list[list[InlineKeyboardButton]] = [
@@ -227,22 +235,24 @@ async def act_cabinet(cb: CallbackQuery, container: AppContainer, db_user: User)
 
     name = hesc(db_user.first_name or db_user.username or "друг")
     lines = [
-        "<b>👤 Личный кабинет</b>",
+        "👤 <b>Личный кабинет</b>",
+        f"Привет, {name} 👋",
         "",
-        f"Привет, {name}!",
-        f"💰 Баланс: <b>{fmt_money(db_user.balance_minor)}</b>",
+        f"💳 Баланс: <b>{fmt_money(db_user.balance_minor)}</b>",
     ]
     if sub is not None and sub.status.is_usable:
         days = ""
         if sub.expire_at is not None:
             left = max(0, (sub.expire_at - dt.datetime.now(dt.UTC)).days)
-            days = f" · осталось {left} дн."
+            days = f" · ещё {left} дн."
         lines.append(f"📶 Подписка: <b>активна</b>{days}")
     else:
-        lines.append("📶 Подписка: <b>нет активной</b>")
+        lines.append("📶 Подписка: <b>не оформлена</b>")
     if db_user.personal_discount_pct:
-        lines.append(f"🏷 Личная скидка: {db_user.personal_discount_pct}%")
-    lines.append(f"🎁 Приглашено друзей: {invited}")
+        lines.append(f"🏷 Личная скидка: <b>{db_user.personal_discount_pct}%</b>")
+    lines.append(f"🎁 Приглашено друзей: <b>{invited}</b>")
+    lines.append("")
+    lines.append("Выбери раздел ниже 👇")
 
     kb: list[list[InlineKeyboardButton]] = [
         [
@@ -336,9 +346,10 @@ async def act_balance(cb: CallbackQuery, container: AppContainer, db_user: User)
     async with container.uow() as uow:
         min_dep = int(await container.bot_config.value(uow, "MIN_DEPOSIT_AMOUNT"))
     text = (
-        f"<b>Баланс: {fmt_money(db_user.balance_minor)}</b>\n\n"
-        f"Пополнение через Telegram Stars — от {fmt_money(min_dep)}. "
-        f"С баланса можно оплачивать подписки."
+        "💳 <b>Баланс</b>\n\n"
+        f"Сейчас на счету: <b>{fmt_money(db_user.balance_minor)}</b>\n\n"
+        f"Пополни через Telegram Stars (от {fmt_money(min_dep)}) — "
+        "с баланса подписки оплачиваются в один тап."
     )
     markup = simple_keyboard(
         [
