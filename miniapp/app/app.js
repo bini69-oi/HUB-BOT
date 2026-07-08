@@ -404,7 +404,11 @@
             el("b", { text: T.step2 }),
             conn
               ? el("div", { style: "margin-top:10px;display:grid;gap:9px" }, [
-                  el("div", { class: "link-box mono", text: conn.subscription_url }),
+                  // Raw link + copy hidden when the owner enabled HIDE_SUBSCRIPTION_LINK;
+                  // the one-tap import button stays so connecting still works (HIDE-1).
+                  conn.hide_link
+                    ? null
+                    : el("div", { class: "link-box mono", text: conn.subscription_url }),
                   el("button", {
                     class: "btn primary",
                     style: btnStyle("open_app"),
@@ -414,15 +418,17 @@
                     },
                     text: "⚡ " + btnText("open_app", T.openApp),
                   }),
-                  el("button", {
-                    class: "btn ghost",
-                    onclick: async () => {
-                      (await copyText(conn.subscription_url)) && toast(T.copied);
-                      haptic("ok");
-                    },
-                    text: T.copy,
-                  }),
-                ])
+                  conn.hide_link
+                    ? null
+                    : el("button", {
+                        class: "btn ghost",
+                        onclick: async () => {
+                          (await copyText(conn.subscription_url)) && toast(T.copied);
+                          haptic("ok");
+                        },
+                        text: T.copy,
+                      }),
+                ].filter(Boolean))
               : el("button", { class: "btn primary", style: "margin-top:10px;" + btnStyle("get_link"), onclick: loadConnection, text: btnText("get_link", T.getLink) }),
           ]),
         ]),

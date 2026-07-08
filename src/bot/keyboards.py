@@ -74,7 +74,8 @@ def menu_keyboard(
             current = n.row_index
         rows[-1].append(_button(n, miniapp_url, default_color))
     if with_back and parent_id is not None:
-        rows.append([InlineKeyboardButton(text="‹ Назад", callback_data="nav:root")])
+        # Go up exactly one level (nav_screen resolves the parent); top-level -> main menu.
+        rows.append([InlineKeyboardButton(text="‹ Назад", callback_data=f"nav:{parent_id}:up")])
     return InlineKeyboardMarkup(inline_keyboard=rows)
 
 

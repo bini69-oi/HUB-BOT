@@ -6,7 +6,7 @@ import datetime as dt
 from typing import TYPE_CHECKING
 from uuid import UUID
 
-from src.core.enums import TransactionStatus, TransactionType
+from src.core.enums import PurchaseType, TransactionStatus, TransactionType
 from src.core.logging import get_logger
 from src.infrastructure.taskiq.broker import broker, get_container
 
@@ -92,6 +92,23 @@ async def _try_auto_purchase(container: object, payment_id: UUID) -> None:
         await c.notifier.notify_user(telegram_id, text)
 
 
+async def _lifecycle_dm(c: object, telegram_id: int | None, event: str, **values: object) -> None:
+    """DM the user an owner-editable lifecycle template (NOTIF-1). Silent when the owner
+    disabled the event or there is no chat. Best-effort — never raises to the caller."""
+    if telegram_id is None:
+        return
+    from typing import cast
+
+    from src.infrastructure.di import AppContainer
+    from src.web.routes.admin.notifications import notification_text
+
+    cc = cast(AppContainer, c)
+    async with cc.uow() as uow:
+        text = await notification_text(uow, event, **values)
+    if text:
+        await cc.notifier.notify_user(telegram_id, text)
+
+
 async def _store_saved_method(
     container: object, payment_id: UUID, *, method_enc: str, title: str | None
 ) -> None:
@@ -149,10 +166,18 @@ async def _notify_paid(container: object, payment_id: UUID) -> None:
                     plan_name = str((sub.plan_snapshot or {}).get("name") or "")
                     expire = sub.expire_at.strftime("%d.%m.%Y") if sub.expire_at else ""
                     sub_url = sub.subscription_url
+            # Distinct owner-editable template per purchase kind (NOTIF-1).
+            event = "purchase"
+            if txn.purchase_type is PurchaseType.RENEW:
+                event = "renewal"
+            elif txn.purchase_type is PurchaseType.CHANGE:
+                event = "plan_changed"
+            elif txn.purchase_type is PurchaseType.TRAFFIC_TOPUP:
+                event = "traffic_topup"
             text = await notification_text(
-                uow, "purchase", name=user.first_name or "", plan=plan_name, expire=expire
+                uow, event, name=user.first_name or "", plan=plan_name, expire=expire
             )
-            if text is not None and sub_url:
+            if text is not None and sub_url and event != "traffic_topup":
                 text += f"\n{sub_url}"
         else:
             text = "✅ Оплата получена."
@@ -1258,19 +1283,15 @@ async def _autopay_one(container: object, subscription_id: int) -> bool:
             )
             await c.subscriptions.renew(uow, sub, days=duration.days, telegram_id=user.telegram_id)
             await uow.commit()
-            telegram_id = user.telegram_id
-            if telegram_id is not None:
-                await c.notifier.notify_user(
-                    telegram_id, "🔁 Автопродление выполнено — подписка продлена."
-                )
+            await _lifecycle_dm(
+                c,
+                user.telegram_id,
+                "autopay_success",
+                plan=str((sub.plan_snapshot or {}).get("name") or ""),
+                expire=sub.expire_at.strftime("%d.%m.%Y") if sub.expire_at else "",
+            )
             return True
     return await _autopay_charge_card(c, subscription_id)
-
-
-_AUTOPAY_CARD_FAIL = (
-    "⚠️ Автопродление: не удалось списать оплату с карты.\n"  # noqa: RUF001
-    "Продли подписку вручную или пополни баланс, иначе доступ отключится."
-)
 
 
 async def _autopay_charge_card(c: AppContainer, subscription_id: int) -> bool:
@@ -1352,8 +1373,7 @@ async def _autopay_charge_card(c: AppContainer, subscription_id: int) -> bool:
         result = await gateway.charge_saved(ctx, method_token)
     except Exception:
         log.warning("autopay card charge failed", subscription_id=subscription_id, exc_info=True)
-        if telegram_id is not None:
-            await c.notifier.notify_user(telegram_id, _AUTOPAY_CARD_FAIL)
+        await _lifecycle_dm(c, telegram_id, "autopay_failed")
         return False
 
     async with c.uow() as uow:
@@ -1372,13 +1392,12 @@ async def _autopay_charge_card(c: AppContainer, subscription_id: int) -> bool:
         await uow.commit()
 
     if result.status is TransactionStatus.COMPLETED and moved:
-        if telegram_id is not None:
-            await c.notifier.notify_user(
-                telegram_id,
-                f"🔁 Автопродление: {amount.amount_minor / 100:.0f} ₽ списано с карты — "  # noqa: RUF001
-                "подписка продлена.",
-            )
+        expire_s = ""
+        async with c.uow() as uow:
+            sub2 = await uow.subscriptions.get(subscription_id)
+            if sub2 is not None and sub2.expire_at:
+                expire_s = sub2.expire_at.strftime("%d.%m.%Y")
+        await _lifecycle_dm(c, telegram_id, "autopay_success", plan=title, expire=expire_s)
         return True
-    if telegram_id is not None:
-        await c.notifier.notify_user(telegram_id, _AUTOPAY_CARD_FAIL)
+    await _lifecycle_dm(c, telegram_id, "autopay_failed")
     return False

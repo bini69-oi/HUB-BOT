@@ -63,7 +63,11 @@ async def send_main_menu(
             try:
                 await target.message.edit_text(start_text, reply_markup=markup)  # type: ignore[union-attr,unused-ignore]
             except Exception:
+                # A banner (photo) screen can't be edited text->text: send a fresh menu and
+                # delete the old card so banners don't pile up with stale live buttons (NAV-1).
                 await target.message.answer(start_text, reply_markup=markup)
+                with contextlib.suppress(Exception):
+                    await target.message.delete()  # type: ignore[union-attr,unused-ignore]
         await target.answer()
     else:
         # Fresh /start: show the configurable sticker or logo image above the menu.

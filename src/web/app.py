@@ -19,6 +19,7 @@ from src.core.logging import configure_logging
 from src.infrastructure.di import AppContainer
 from src.web.routes import admin, cabinet, cabinet_auth, health, panel, payments
 from src.web.routes.admin.auth import bootstrap_admin
+from src.web.routes.admin.maintenance import bootstrap_report_topics
 from src.web.routes.admin.menu import bootstrap_menu
 from src.web.routes.admin.notifications import bootstrap_notifications
 from src.web.routes.admin.reminders import bootstrap_reminders
@@ -43,6 +44,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     await bootstrap_menu(container)
     await bootstrap_reminders(container)
     await bootstrap_notifications(container)
+    await bootstrap_report_topics(container)
     try:
         yield
     finally:

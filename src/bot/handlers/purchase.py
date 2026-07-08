@@ -84,6 +84,16 @@ async def check_sub(cb: CallbackQuery, container: AppContainer, db_user: User) -
         await open_buy(cb, container, db_user)
 
 
+def _duration_label(days: int) -> str:
+    """'7 дн.' / '1 мес' / '1 год' — never labels a sub-monthly period as '1 мес' (DUR-1)."""
+    if days >= 365 and days % 365 == 0:
+        years = days // 365
+        return "1 год" if years == 1 else f"{years} г."
+    if days >= 30 and days % 30 == 0:
+        return f"{days // 30} мес"
+    return f"{days} дн."
+
+
 @router.callback_query(F.data.startswith("plan:"))
 async def show_durations(cb: CallbackQuery, container: AppContainer, db_user: User) -> None:
     plan_id = int((cb.data or "plan:0").split(":")[1])
@@ -99,8 +109,7 @@ async def show_durations(cb: CallbackQuery, container: AppContainer, db_user: Us
         rub = next((p.price_minor for p in d.prices if p.currency is Currency.RUB), None)
         if rub is None:
             continue
-        months = round(d.days / 30) or 1
-        rows.append((f"{months} мес · {fmt_money(rub)}", f"dur:{plan.id}:{d.days}"))
+        rows.append((f"{_duration_label(d.days)} · {fmt_money(rub)}", f"dur:{plan.id}:{d.days}"))
     rows.append(("‹ Назад", "act:buy:0"))
     await show_screen(
         cb,
@@ -544,7 +553,22 @@ async def traffic_pack_pay(cb: CallbackQuery, container: AppContainer, db_user: 
     if pack is None or sub is None or sub.plan_id is None:
         await cb.answer("Пакет недоступен", show_alert=True)
         return
-    price = pack.price_minor
+    # Pricing applies the user's personal/purchase discount to traffic packs too, so quote the
+    # real price — otherwise the shown total is full price but a smaller amount is charged (TRAF-1).
+    async with container.uow() as uow:
+        quote = await container.pricing.quote(
+            uow,
+            PurchaseRequest(
+                user_id=db_user.id,
+                plan_id=sub.plan_id,
+                duration_days=0,
+                currency=Currency.RUB,
+                purchase_type=PurchaseType.TRAFFIC_TOPUP,
+                subscription_id=sub.id,
+                traffic_pack_id=pack_id,
+            ),
+        )
+    price = quote.final.amount_minor
     stars = max(1, math.ceil(price / max(1, stars_rate)))
     rows = []
     if balance_enabled:
@@ -683,6 +707,11 @@ async def successful_payment(message: Message, container: AppContainer, db_user:
         await message.answer(
             f"✅ <b>Баланс пополнен.</b>\nТекущий баланс: {balance}", parse_mode="HTML"
         )
+        # Stars is the in-bot top-up path too, so it must complete a stashed «smart cart»
+        # purchase just like the out-of-band webhook path does (PAY-1). No-ops without a cart.
+        from src.infrastructure.taskiq.tasks import _try_auto_purchase
+
+        await _try_auto_purchase(container, payment_id)
         return
     text = "✅ <b>Оплата получена — подписка активирована!</b>"
     if sub is not None and sub.subscription_url:

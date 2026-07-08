@@ -163,6 +163,9 @@ async def me(
             "ui": miniapp.ui or {},
             "payment_methods": gateways,
             "balance_enabled": bool(await container.bot_config.value(uow, "BALANCE_ENABLED")),
+            "hide_subscription_link": bool(
+                await container.bot_config.value(uow, "HIDE_SUBSCRIPTION_LINK")
+            ),
             "sales_mode": sales_mode,
         },
     }
@@ -529,13 +532,17 @@ async def connection(
             if user.current_subscription_id
             else None
         )
+        hide_link = bool(await container.bot_config.value(uow, "HIDE_SUBSCRIPTION_LINK"))
     if sub is None or not sub.status.is_usable or not sub.subscription_url:
         raise HTTPException(404, "no active subscription")
     url = sub.subscription_url
     return {
-        "subscription_url": url,
+        # When the owner hides the raw link, the app still imports via deep links; it just
+        # doesn't render the copyable URL box (HIDE-1). Deep links stay so import keeps working.
+        "subscription_url": None if hide_link else url,
         "expires_at": sub.expire_at.isoformat() if sub.expire_at else None,
         "deep_links": build_deep_links(url, sub.crypto_link),
+        "hide_link": hide_link,
     }
 
 

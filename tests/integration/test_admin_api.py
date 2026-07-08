@@ -335,7 +335,7 @@ async def test_notifications_list_and_patch(
     res = await http.get("/api/admin/notifications", headers=auth)
     assert res.status_code == 200
     events = {i["event"] for i in res.json()["items"]}
-    assert {"purchase", "balance_topup", "welcome", "refund"} <= events
+    assert {"purchase", "balance_topup", "trial_started", "refund"} <= events
     res = await http.patch(
         "/api/admin/notifications/purchase",
         headers=auth,
@@ -362,8 +362,8 @@ async def test_bootstrap_notifications_additive_and_render(
     await bootstrap_notifications(container)
     async with container.uow() as uow:
         assert await uow.notifications.count() == len(NOTIFICATION_EVENTS)
-        rendered = await notification_text(uow, "welcome", name="Иван")
-        assert rendered is not None and "Иван" in rendered
+        rendered = await notification_text(uow, "balance_topup", amount="777 ₽", balance="1000 ₽")
+        assert rendered is not None and "777" in rendered
     await bootstrap_notifications(container)  # idempotent
     async with container.uow() as uow:
         assert await uow.notifications.count() == len(NOTIFICATION_EVENTS)

@@ -157,7 +157,7 @@ async def test_card_charge_renews_subscription(session_factory: async_sessionmak
     assert txn.status is TransactionStatus.COMPLETED
     assert txn.external_id == "yk-auto-1"
     assert txn.gateway_type is PaymentGatewayType.YOOKASSA
-    assert any("списано" in text for _, text in container.notifier.sent)
+    assert any("продлена" in text for _, text in container.notifier.sent)
 
 
 @respx.mock
@@ -178,7 +178,7 @@ async def test_card_charge_declined_notifies_and_keeps_sub(
         txns = list(await uow.transactions.list(user_id=sub.user_id))
     assert len(txns) == 1
     assert txns[0].status is TransactionStatus.CANCELED
-    assert any("не удалось списать" in text for _, text in container.notifier.sent)
+    assert any("списать оплату" in text for _, text in container.notifier.sent)
 
 
 @respx.mock
@@ -198,7 +198,7 @@ async def test_card_charge_http_error_notifies_leaves_pending(
         txns = list(await uow.transactions.list(user_id=sub.user_id))
     assert len(txns) == 1
     assert txns[0].status is TransactionStatus.PENDING  # same contract as interactive flow
-    assert any("не удалось списать" in text for _, text in container.notifier.sent)
+    assert any("списать оплату" in text for _, text in container.notifier.sent)
 
 
 @respx.mock

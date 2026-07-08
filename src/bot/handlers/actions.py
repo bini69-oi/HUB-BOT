@@ -20,7 +20,7 @@ from aiogram.types import (
 from src.application.dto.pricing import PurchaseRequest
 from src.application.services.connection import CLIENT_LABELS, build_deep_links
 from src.bot.gate import ensure_channel
-from src.bot.keyboards import menu_keyboard, simple_keyboard, url_keyboard, webapp_button
+from src.bot.keyboards import menu_keyboard, simple_keyboard, webapp_button
 from src.bot.media import photo_input
 from src.bot.menu_render import send_main_menu
 from src.bot.screen import safe_answer, show_photo_screen, show_screen
@@ -118,6 +118,7 @@ async def act_subscription(cb: CallbackQuery, container: AppContainer, db_user: 
             else None
         )
         hide_link = bool(await container.bot_config.value(uow, "HIDE_SUBSCRIPTION_LINK"))
+        show_traffic = bool(await container.bot_config.value(uow, "SHOW_TRAFFIC_USAGE"))
         miniapp_url = str(await container.bot_config.value(uow, "SUBSCRIPTION_MINI_APP_URL") or "")
         autopay_global = bool(await container.bot_config.value(uow, "AUTO_RENEWAL_ENABLED"))
     if sub is None or not sub.status.is_usable:
@@ -138,11 +139,9 @@ async def act_subscription(cb: CallbackQuery, container: AppContainer, db_user: 
             f"{sub.traffic_limit_bytes / GIB:.0f} ГБ" if sub.traffic_limit_bytes else "∞"
         )
         plan_name = hesc(str((sub.plan_snapshot or {}).get("name", "—")))
-        text = (
-            f"📶 <b>Твоя подписка</b>\n\n"
-            f"🏷 Тариф: <b>{plan_name}</b>{days_left}\n"
-            f"📊 Трафик: <b>{traffic}</b>"
-        )
+        text = f"📶 <b>Твоя подписка</b>\n\n🏷 Тариф: <b>{plan_name}</b>{days_left}"
+        if show_traffic:  # SHOW_TRAFFIC_USAGE toggle now actually hides the line (SHOWTRAF-1)
+            text += f"\n📊 Трафик: <b>{traffic}</b>"
         if not hide_link and sub.subscription_url:
             text += f"\n\nСсылка подписки:\n<code>{sub.subscription_url}</code>"
         kb: list[list[InlineKeyboardButton]] = [
@@ -250,6 +249,7 @@ async def act_cabinet(cb: CallbackQuery, container: AppContainer, db_user: User)
         miniapp_url = str(await container.bot_config.value(uow, "SUBSCRIPTION_MINI_APP_URL") or "")
         balance_on = bool(await container.bot_config.value(uow, "BALANCE_ENABLED"))
         referral_on = bool(await container.bot_config.value(uow, "REFERRAL_ENABLED"))
+        show_traffic = bool(await container.bot_config.value(uow, "SHOW_TRAFFIC_USAGE"))
 
     name = hesc(db_user.first_name or db_user.username or "друг")
     lines = [
@@ -263,24 +263,30 @@ async def act_cabinet(cb: CallbackQuery, container: AppContainer, db_user: User)
         now = dt.datetime.now(dt.UTC)
         expire = sub.expire_at.strftime("%d.%m.%Y") if sub.expire_at else "—"
         if sub.expire_at is not None:
-            delta = sub.expire_at - now
-            d_left, h_left = max(0, delta.days), max(0, delta.seconds // 3600)
+            # Clamp on total seconds: a negative timedelta has .seconds in [0,86400), which
+            # would render a bogus positive "23 ч." for an already-expired sub (CAB-1).
+            secs = max(0, int((sub.expire_at - now).total_seconds()))
+            d_left, h_left = secs // 86400, (secs % 86400) // 3600
             left = f"{d_left} дн. {h_left} ч." if d_left else f"{h_left} ч."
         else:
             left = "—"
         traffic = f"{sub.traffic_used_bytes / GIB:.1f} / " + (
             f"{sub.traffic_limit_bytes / GIB:.0f} ГБ" if sub.traffic_limit_bytes else "∞"
         )
-        lines += [
+        sub_lines = [
             "⭐ <b>Подписка</b>",
             "├ Статус: <b>активна</b>",
             f"├ Действует до: <b>{expire}</b>",
             f"├ Осталось: <b>{left}</b>",
             f"├ Устройств: <b>{sub.device_limit or '—'}</b>",
-            f"├ Трафик: <b>{traffic}</b>",
+        ]
+        if show_traffic:  # honor SHOW_TRAFFIC_USAGE here too (SHOWTRAF-1)
+            sub_lines.append(f"├ Трафик: <b>{traffic}</b>")
+        sub_lines += [
             f"├ Автопродление: <b>{'вкл' if sub.autopay_enabled else 'выкл'}</b>",
             "└ Ключ-ссылка — в разделе «Моя подписка».",
         ]
+        lines += sub_lines
     else:
         lines += ["⭐ <b>Подписка</b>", "└ Не оформлена — нажми «Купить VPN» в меню."]
     lines += [
@@ -498,7 +504,13 @@ async def act_trial(cb: CallbackQuery, container: AppContainer, db_user: User) -
         await container.event_bus.publish(TrialGranted(user_id=user.id, subscription_id=sub.id))
         url = sub.subscription_url
 
-    text = f"🎁 <b>Пробный период активирован: {days} дн.</b>"
+    from src.web.routes.admin.notifications import notification_text
+
+    async with container.uow() as uow:  # owner-editable «trial_started» template (NOTIF-1)
+        base = await notification_text(
+            uow, "trial_started", name=db_user.first_name or "", days=days
+        )
+    text = base or f"🎁 Пробный период активирован на {days} дн."
     if url:
         text += f"\n\nСсылка подписки:\n<code>{url}</code>"
     await show_screen(
@@ -517,11 +529,22 @@ async def act_support(cb: CallbackQuery, container: AppContainer, db_user: User)
         redirect = str(await cfg.value(uow, "SUPPORT_REDIRECT_USERNAME") or "")
         support_bot = str(await cfg.value(uow, "SUPPORT_BOT_USERNAME") or "")
         miniapp_url = str(await cfg.value(uow, "SUBSCRIPTION_MINI_APP_URL") or "")
+    back = InlineKeyboardButton(text="‹ Меню", callback_data="nav:root")  # never a dead end (SUP-1)
     if mode == "bot" and support_bot:
         await show_screen(
             cb,
             "🆘 <b>Поддержка</b>\n\nНапиши в наш саппорт-бот — оператор ответит прямо там:",
-            url_keyboard([("💬 Открыть поддержку", f"https://t.me/{support_bot.lstrip('@')}")]),
+            InlineKeyboardMarkup(
+                inline_keyboard=[
+                    [
+                        InlineKeyboardButton(
+                            text="💬 Открыть поддержку",
+                            url=f"https://t.me/{support_bot.lstrip('@')}",
+                        )
+                    ],
+                    [back],
+                ]
+            ),
         )
         await cb.answer()
         return
@@ -529,7 +552,16 @@ async def act_support(cb: CallbackQuery, container: AppContainer, db_user: User)
         await show_screen(
             cb,
             "🆘 <b>Поддержка</b>\n\nНапиши нам — ответим быстро:",
-            url_keyboard([("💬 Написать", f"https://t.me/{redirect.lstrip('@')}")]),
+            InlineKeyboardMarkup(
+                inline_keyboard=[
+                    [
+                        InlineKeyboardButton(
+                            text="💬 Написать", url=f"https://t.me/{redirect.lstrip('@')}"
+                        )
+                    ],
+                    [back],
+                ]
+            ),
         )
         await cb.answer()
         return
@@ -538,7 +570,7 @@ async def act_support(cb: CallbackQuery, container: AppContainer, db_user: User)
             cb,
             "🆘 <b>Поддержка</b>\n\nОткрой чат поддержки в приложении:",
             InlineKeyboardMarkup(
-                inline_keyboard=[[webapp_button("💬 Открыть поддержку", miniapp_url)]]
+                inline_keyboard=[[webapp_button("💬 Открыть поддержку", miniapp_url)], [back]]
             ),
         )
         await cb.answer()

@@ -48,11 +48,16 @@ async def send_topic_report(
         group = str(await container.bot_config.value(uow, "REPORT_GROUP_ID") or "").strip()
         dm_admins = bool(await container.bot_config.value(uow, "REPORT_DM_ADMINS"))
         topic = next((t for t in await uow.report_topics.list() if t.code == code), None)
-    if topic is None or not topic.enabled or not container.settings.bot.token:
+    if not container.settings.bot.token:
+        return False
+    # A kind is "on" unless the owner explicitly disabled its topic. A not-yet-seeded topic
+    # (None) defaults to on, so reports work on a fresh server before the first admin visit
+    # (RPT-1/RPT-2). Group and DM are independent destinations; either alone is enough.
+    if topic is not None and not topic.enabled:
         return False
     delivered = False
-    # Group forum topic (when a group id is configured).
-    if group.lstrip("-").isdigit():
+    # Group forum topic (only when both a group id and the topic are configured).
+    if topic is not None and group.lstrip("-").isdigit():
         try:
             await _deliver(container.settings.bot.token, int(group), topic.topic_id, text, document)
             delivered = True

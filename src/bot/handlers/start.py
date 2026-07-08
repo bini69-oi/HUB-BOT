@@ -69,6 +69,18 @@ async def _attribute(container: AppContainer, db_user: User, param: str, *, crea
                 referral = await container.referrals.bind(uow, user, param.removeprefix("ref_"))
                 if referral is not None:
                     log.info("referral attributed", user=user.id, referrer=referral.referrer_id)
+        elif param.startswith("partner_"):
+            # A reseller/affiliate link (?start=partner_<code>). Attribute the new user to the
+            # partner's own account so they earn the standard referral commission through the
+            # tested engine — the link used to be silently ignored and paid nobody (PART-1).
+            if user.referred_by_id is None and created:
+                partner = await uow.partners.by_code(param.removeprefix("partner_").lower())
+                if partner is not None and partner.enabled and partner.telegram_id:
+                    owner = await uow.users.get_by_telegram_id(partner.telegram_id)
+                    if owner is not None and owner.id != user.id:
+                        referral = await container.referrals.bind(uow, user, owner.referral_code)
+                        if referral is not None:
+                            log.info("partner attributed", user=user.id, partner=partner.id)
         elif user.campaign_id is None:
             campaign = await uow.campaigns.find_one(start_param=param, is_active=True)
             if campaign is not None:

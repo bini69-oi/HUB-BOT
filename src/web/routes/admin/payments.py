@@ -408,6 +408,8 @@ async def refund_payment(
 
     warnings: list[str] = []
     async with container.uow() as uow:
+        if not bool(await container.bot_config.value(uow, "REFUND_ENABLED")):
+            raise HTTPException(403, "Возвраты отключены в настройках (REFUND_ENABLED)")
         txn = await uow.transactions.get(txn_id)
         if txn is None:
             raise HTTPException(404, "transaction not found")
@@ -475,12 +477,18 @@ async def refund_payment(
         await uow.commit()
         telegram_id = user.telegram_id if user else None
         amount = txn.amount_minor
+        currency = txn.currency.value
 
     if telegram_id is not None:
-        note = f"↩️ Оформлен возврат {amount / 100:.2f} ₽ по вашему платежу."
-        if body.comment:
-            note += "\n" + body.comment
-        await container.notifier.notify_user(telegram_id, note)
+        from src.infrastructure.services.reports import fmt_amount
+        from src.web.routes.admin.notifications import notification_text
+
+        async with container.uow() as uow:  # owner-editable «refund» template (NOTIF-1)
+            note = await notification_text(uow, "refund", amount=fmt_amount(amount, currency))
+        if note:
+            if body.comment:
+                note += "\n" + body.comment
+            await container.notifier.notify_user(telegram_id, note)
     return {"ok": True, "via": refunded_via, "revoked": revoked, "warnings": warnings}
 
 

@@ -118,17 +118,6 @@ REGISTRY: tuple[ParamSpec, ...] = (
     ),
     _p("DEFAULT_LANGUAGE", C.MAIN, STR, "ru", "Язык по умолчанию", "Default language"),
     _p(
-        "RULES_ACCEPT_REQUIRED",
-        C.MAIN,
-        BOOL,
-        False,
-        "Принятие правил",
-        "Rules acceptance",
-        "Требовать принять правила до покупки",
-        "Require accepting rules before purchase",
-    ),
-    _p("RULES_TEXT", C.MAIN, STR, "", "Текст правил", "Rules text"),
-    _p(
         "START_MESSAGE",
         C.MAIN,
         STR,
@@ -177,16 +166,6 @@ REGISTRY: tuple[ParamSpec, ...] = (
         "Main menu mode",
         "inline — кнопки под сообщением, reply — клавиатура",
         "inline or reply keyboard",
-    ),
-    _p(
-        "TIMEZONE",
-        C.MAIN,
-        STR,
-        "Europe/Moscow",
-        "Часовой пояс",
-        "Timezone",
-        "Для расписаний рассылок и отчётов",
-        "Used by schedules and reports",
     ),
     # --- SUBSCRIPTIONS & TRIAL ----------------------------------------------
     _p(
@@ -244,18 +223,6 @@ REGISTRY: tuple[ParamSpec, ...] = (
         "Auto-renew days before",
     ),
     _p(
-        "GRACE_ENABLED",
-        C.SUBSCRIPTIONS,
-        BOOL,
-        False,
-        "Grace-период",
-        "Grace period",
-        "Не отключать сразу: урезанный доступ на N дней",
-        "Reduced access instead of cut-off",
-    ),
-    _p("GRACE_DAYS", C.SUBSCRIPTIONS, INT, 3, "Дней grace", "Grace days"),
-    _p("GRACE_TRAFFIC_GB", C.SUBSCRIPTIONS, INT, 1, "Трафик в grace (ГБ)", "Grace traffic GB"),
-    _p(
         "CONSTRUCTOR_EXTRA_DEVICE_PRICE",
         C.SUBSCRIPTIONS,
         INT,
@@ -282,14 +249,6 @@ REGISTRY: tuple[ParamSpec, ...] = (
         5000,
         "Минимальное пополнение (коп.)",
         "Min deposit (minor)",
-    ),
-    _p(
-        "MAX_DEPOSIT_AMOUNT",
-        C.PAYMENTS,
-        INT,
-        10000000,
-        "Максимальное пополнение (коп.)",
-        "Max deposit (minor)",
     ),
     _p(
         "BALANCE_ENABLED",
@@ -322,14 +281,6 @@ REGISTRY: tuple[ParamSpec, ...] = (
         "Converts RUB prices to Stars",
     ),
     _p(
-        "PAYMENT_DESCRIPTION",
-        C.PAYMENTS,
-        STR,
-        "Оплата VPN-подписки",
-        "Назначение платежа",
-        "Payment description",
-    ),
-    _p(
         "REFUND_ENABLED",
         C.PAYMENTS,
         BOOL,
@@ -340,16 +291,6 @@ REGISTRY: tuple[ParamSpec, ...] = (
         "Allow refunds from the cabinet",
     ),
     # --- NOTIFICATIONS --------------------------------------------------------
-    _p(
-        "ADMIN_ALERTS_ENABLED",
-        C.NOTIFICATIONS,
-        BOOL,
-        True,
-        "Алерты администраторам",
-        "Admin alerts",
-        "Ошибки/события в личку админам",
-        "DM critical events to admins",
-    ),
     _p(
         "REPORT_GROUP_ID",
         C.NOTIFICATIONS,
@@ -767,7 +708,6 @@ REGISTRY: tuple[ParamSpec, ...] = (
         "all — everything; trial — only the trial; buy — only purchases",
     ),
     _p("HWID_DEVICE_LIMIT_ENABLED", C.SECURITY, BOOL, True, "Лимит HWID-устройств", "HWID limit"),
-    _p("SESSION_TTL_HOURS", C.SECURITY, INT, 12, "Сессия админки (ч)", "Cabinet session TTL (h)"),
     # --- BACKUPS -------------------------------------------------------------------
     _p("BACKUP_ENABLED", C.BACKUPS, BOOL, True, "Автоматический бэкап", "Auto backup"),
     _p("BACKUP_INTERVAL_HOURS", C.BACKUPS, INT, 24, "Интервал бэкапа (ч)", "Backup interval (h)"),

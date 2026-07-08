@@ -1,9 +1,13 @@
-"""Partner — a reseller/affiliate with their own link, markup and revenue share.
+"""Partner — a reseller/affiliate with their own deep-link code.
 
 The owner onboards partners (screen «Партнёры»): each gets a ``code`` for a deep link
-(?start=partner_<code>), an optional ``markup_pct`` they add on top of the base price and
-a ``revenue_share_pct`` cut of the turnover they drive. ``turnover_minor`` / ``earnings_minor``
-accrue as their referred users pay (wired at payment fulfilment).
+(``?start=partner_<code>``). A user who joins through it is bound to the partner's own
+account, so the partner earns the standard referral commission via ``ReferralService`` —
+real payouts live in the referral ledger (``ReferralEarning``), not on this row.
+
+``markup_pct`` / ``revenue_share_pct`` / ``turnover_minor`` / ``earnings_minor`` are reserved
+for a future full reseller model (partner sets own price); they are NOT populated yet, so the
+admin API deliberately does not expose them. Do not read them as live figures.
 """
 
 from __future__ import annotations

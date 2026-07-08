@@ -67,7 +67,12 @@ class ReferralService:
         if existing is not None:
             return existing
 
-        percent = referrer.referral_commission_percent or DEFAULT_COMMISSION_PERCENT
+        # Per-user override wins; otherwise the shop-wide REFERRAL_PERCENT the owner set (and
+        # that we advertise to users) — never a silent hardcoded rate (REF-1).
+        default_pct = DEFAULT_COMMISSION_PERCENT
+        if self._config is not None:
+            default_pct = int(await self._config.value(uow, "REFERRAL_PERCENT") or default_pct)
+        percent = referrer.referral_commission_percent or default_pct
         reward = self.commission(amount_minor, percent)
         if reward <= 0:
             return None

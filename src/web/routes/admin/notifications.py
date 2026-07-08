@@ -28,12 +28,6 @@ router = APIRouter(prefix="/notifications")
 # (event, RU title, default text, available placeholders). Order = display order.
 NOTIFICATION_EVENTS: tuple[tuple[str, str, str, tuple[str, ...]], ...] = (
     (
-        "welcome",
-        "Приветствие (регистрация)",
-        "👋 Привет, {name}! Это VPN-бот. Оформи подписку за пару тапов — выбери действие в меню.",
-        ("name",),
-    ),
-    (
         "trial_started",
         "Пробный период выдан",
         "🎁 Пробный период активирован на {days} дн. Приятного пользования!",
@@ -93,12 +87,6 @@ NOTIFICATION_EVENTS: tuple[tuple[str, str, str, tuple[str, ...]], ...] = (
         "Возврат средств",
         "↩️ Оформлен возврат {amount}. Если это ошибка — напиши в поддержку.",
         ("amount",),
-    ),
-    (
-        "expired",
-        "Подписка истекла",
-        "⌛ Подписка закончилась. Продли — и доступ вернётся сразу.",
-        ("name",),
     ),
 )
 

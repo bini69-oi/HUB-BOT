@@ -33,15 +33,28 @@ _TOPIC_SEED: tuple[tuple[str, str], ...] = (
 )
 
 
+async def bootstrap_report_topics(container: AppContainer) -> None:
+    """Seed the fixed report-topic kinds on boot (idempotent, adds only missing codes).
+
+    Runs in the web lifespan so scheduled/instant reports (backups, alerts, daily summary)
+    deliver on a fresh server before an admin ever opens screen 14 (RPT-1).
+    """
+    async with container.uow() as uow:
+        existing = {t.code for t in await uow.report_topics.list()}
+        added = False
+        for code, sched in _TOPIC_SEED:
+            if code not in existing:
+                await uow.report_topics.add(ReportTopic(code=code, schedule=sched))
+                added = True
+        if added:
+            await uow.commit()
+
+
 @router.get("/report-topics")
 async def list_report_topics(container: AppContainer = Depends(get_container)) -> dict[str, Any]:
+    await bootstrap_report_topics(container)
     async with container.uow() as uow:
         rows = list(await uow.report_topics.list())
-        if not rows:
-            for code, sched in _TOPIC_SEED:
-                await uow.report_topics.add(ReportTopic(code=code, schedule=sched))
-            await uow.commit()
-            rows = list(await uow.report_topics.list())
         group_id = await container.bot_config.value(uow, "REPORT_GROUP_ID")
     return {
         "group_id": group_id,

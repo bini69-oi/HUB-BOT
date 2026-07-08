@@ -1,7 +1,10 @@
 """Admin: resellers / affiliates (screen «Партнёры»).
 
-Onboard a partner, give them a deep-link code, an optional markup and a revenue share.
-Turnover/earnings accrue as their referred users pay (wired at payment fulfilment).
+Onboard a partner with a deep-link code (``?start=partner_<code>``). Users who join through it
+are attributed to the partner's own account, so the partner earns the standard referral
+commission via the tested referral engine (see ``bot.handlers.start`` + ``ReferralService``).
+The partner must have started the bot once (so their account has a referral code) and their
+``telegram_id`` must be set here for attribution to pay out.
 """
 
 from __future__ import annotations
@@ -22,15 +25,13 @@ router = APIRouter(prefix="/partners")
 
 
 def _serialize(p: Partner) -> dict[str, Any]:
+    # Only real fields are exposed: the partner's earnings live in the referral ledger
+    # (ReferralEarning), not on fabricated turnover/earnings columns (PART-1).
     return {
         "id": p.id,
         "name": p.name,
         "telegram_id": p.telegram_id,
         "code": p.code,
-        "markup_pct": p.markup_pct,
-        "revenue_share_pct": p.revenue_share_pct,
-        "turnover_minor": p.turnover_minor,
-        "earnings_minor": p.earnings_minor,
         "enabled": p.enabled,
         "created_at": iso(p.created_at),
     }
@@ -40,16 +41,12 @@ class PartnerIn(BaseModel):
     name: str = Field(min_length=1, max_length=128)
     telegram_id: int | None = None
     code: str | None = Field(None, min_length=2, max_length=32)
-    markup_pct: int = Field(0, ge=0, le=500)
-    revenue_share_pct: int = Field(0, ge=0, le=100)
     enabled: bool = True
 
 
 class PartnerPatch(BaseModel):
     name: str | None = Field(None, min_length=1, max_length=128)
     telegram_id: int | None = None
-    markup_pct: int | None = Field(None, ge=0, le=500)
-    revenue_share_pct: int | None = Field(None, ge=0, le=100)
     enabled: bool | None = None
 
 
@@ -74,8 +71,6 @@ async def create_partner(
             name=body.name,
             telegram_id=body.telegram_id,
             code=code,
-            markup_pct=body.markup_pct,
-            revenue_share_pct=body.revenue_share_pct,
             enabled=body.enabled,
         )
         await uow.partners.add(partner)
@@ -95,7 +90,7 @@ async def update_partner(
         partner = await uow.partners.get(partner_id)
         if partner is None:
             raise HTTPException(404, "partner not found")
-        for fld in ("name", "telegram_id", "markup_pct", "revenue_share_pct", "enabled"):
+        for fld in ("name", "telegram_id", "enabled"):
             val = getattr(body, fld)
             if val is not None:
                 setattr(partner, fld, val)

@@ -36,6 +36,7 @@ from src.infrastructure.services.mailer import Mailer
 from src.infrastructure.services.notification import LogNotifier, TelegramNotifier
 from src.infrastructure.services.postback import wire_postback_events
 from src.infrastructure.services.reports import wire_report_events
+from src.infrastructure.services.user_notifications import wire_user_notifications
 
 
 class AppContainer:
@@ -82,6 +83,7 @@ class AppContainer:
         # Screen 14: instant report topics (payments/tickets/registrations) listen on the bus.
         wire_report_events(self)
         wire_postback_events(self)  # S2S tracking pixels on registration/trial/purchase
+        wire_user_notifications(self)  # user-facing lifecycle DMs (referral reward)
 
     @classmethod
     def from_env(cls) -> AppContainer:
