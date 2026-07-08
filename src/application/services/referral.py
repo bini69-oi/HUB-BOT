@@ -5,6 +5,8 @@ from __future__ import annotations
 from decimal import Decimal
 from typing import TYPE_CHECKING
 
+from sqlalchemy.exc import IntegrityError
+
 from src.application.common.events import EventBus
 from src.application.events import ReferralRewardIssued
 from src.core.enums import Currency, ReferralLevel, TransactionStatus, TransactionType
@@ -116,11 +118,25 @@ class ReferralService:
         days = int(await self._config.value(uow, "REFERRAL_BONUS_DAYS") or 0)
         if days <= 0:
             return
-        already = await uow.referral_earnings.find_one(
-            referral_id=referral_id, reason="signup_days_bonus"
+        # Claim the one-time slot in the DB BEFORE renewing (renew extends on the panel — a side
+        # effect we cannot roll back). Insert the marker in a SAVEPOINT + flush: the partial-unique
+        # index serializes concurrent workers (a conflicting insert blocks then fails), so only the
+        # winner renews. The loser's savepoint rolls back without poisoning the outer transaction
+        # or double-extending. Replaces the old check-then-insert that two workers could both pass.
+        await uow.session.flush()  # persist the commission etc. before the savepoint claim
+        marker = ReferralEarning(
+            user_id=referrer.id,
+            referral_id=referral_id,
+            amount_minor=0,
+            reason="signup_days_bonus",
+            is_issued=True,
         )
-        if already is not None:
-            return
+        try:
+            async with uow.session.begin_nested():
+                uow.session.add(marker)
+                await uow.session.flush()
+        except IntegrityError:
+            return  # another worker already claimed this referral's signup bonus (at-most-once)
         for party in (referrer, payer):
             sub = (
                 await uow.subscriptions.get(party.current_subscription_id)
@@ -129,12 +145,3 @@ class ReferralService:
             )
             if sub is not None and sub.status.is_usable:
                 await self._subscriptions.renew(uow, sub, days=days, telegram_id=party.telegram_id)
-        await uow.referral_earnings.add(
-            ReferralEarning(
-                user_id=referrer.id,
-                referral_id=referral_id,
-                amount_minor=0,
-                reason="signup_days_bonus",
-                is_issued=True,
-            )
-        )

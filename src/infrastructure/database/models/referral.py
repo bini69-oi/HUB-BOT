@@ -6,7 +6,7 @@ retried webhook cannot double-pay (at-most-once, gotcha #13).
 
 from __future__ import annotations
 
-from sqlalchemy import Boolean, ForeignKey, String
+from sqlalchemy import Boolean, ForeignKey, Index, String, text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from src.core.enums import ReferralLevel
@@ -26,6 +26,26 @@ class Referral(IntPk, TimestampMixin, Base):
 
 class ReferralEarning(IntPk, TimestampMixin, Base):
     __tablename__ = "referral_earnings"
+    __table_args__ = (
+        # At-most-once, enforced by the DB (not just an app-level check-then-insert, which two
+        # concurrent workers could both pass). One signup-days bonus per referral (#9)...
+        Index(
+            "uq_earning_signup_bonus",
+            "referral_id",
+            unique=True,
+            postgresql_where=text("reason = 'signup_days_bonus'"),
+            sqlite_where=text("reason = 'signup_days_bonus'"),
+        ),
+        # ...and one commission per (earner, source transaction), belt-and-braces with the CAS.
+        Index(
+            "uq_earning_txn",
+            "user_id",
+            "transaction_id",
+            unique=True,
+            postgresql_where=text("transaction_id IS NOT NULL"),
+            sqlite_where=text("transaction_id IS NOT NULL"),
+        ),
+    )
 
     user_id: Mapped[int] = mapped_column(  # the earner (referrer)
         ForeignKey("users.id", ondelete="CASCADE"), index=True
