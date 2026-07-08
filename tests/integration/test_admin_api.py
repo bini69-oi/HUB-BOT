@@ -516,6 +516,33 @@ async def test_cabinet_purchase_insufficient_balance(
     assert container.remnawave_client.created_count() == 0
 
 
+async def test_cabinet_reset_link(
+    client: tuple[httpx.AsyncClient, ApiTestContainer],
+) -> None:
+    http, _ = client
+    auth = await _login(http)
+    tma = _tma_headers(tg_id=666000444)
+    res = await http.post(
+        "/api/admin/plans",
+        headers=auth,
+        json={"name": "Reset", "durations": [{"days": 30, "price_minor": 10000}]},
+    )
+    plan_id = res.json()["id"]
+    uid = (await http.get("/api/cabinet/me", headers=tma)).json()["user"]["id"]
+    await http.post(f"/api/admin/users/{uid}/balance", headers=auth, json={"amount_minor": 50000})
+    res = await http.post(
+        "/api/cabinet/purchase",
+        headers=tma,
+        json={"plan_id": plan_id, "days": 30, "method": "balance"},
+    )
+    assert res.status_code == 200, res.text
+    res = await http.post("/api/cabinet/subscription/reset-link", headers=tma)
+    assert res.status_code == 200, res.text
+    assert res.json()["subscription_url"]
+    # rate-limited on an immediate retry
+    assert (await http.post("/api/cabinet/subscription/reset-link", headers=tma)).status_code == 429
+
+
 # --- servers sync -------------------------------------------------------------------------
 
 

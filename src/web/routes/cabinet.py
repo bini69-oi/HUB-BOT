@@ -7,6 +7,7 @@ maintains. Endpoints mirror miniapp/CONTRACT.md and power all 8 visual themes.
 
 from __future__ import annotations
 
+import contextlib
 import math
 from typing import Any
 
@@ -536,6 +537,41 @@ async def connection(
         "expires_at": sub.expire_at.isoformat() if sub.expire_at else None,
         "deep_links": build_deep_links(url, sub.crypto_link),
     }
+
+
+@router.post("/subscription/reset-link")
+async def reset_link(
+    user: User = Depends(cabinet_user), container: AppContainer = Depends(get_container)
+) -> dict[str, Any]:
+    """Self-serve: rotate the subscription URL on the panel (revoke) and drop stale sessions.
+
+    Rate-limited to once per 10 min per user so tap-spam can't churn the panel; the old link
+    stops working immediately, so the client must show and re-import the returned new URL.
+    """
+    async with container.uow() as uow:
+        sub = (
+            await uow.subscriptions.get(user.current_subscription_id)
+            if user.current_subscription_id
+            else None
+        )
+    if sub is None or not sub.status.is_usable or sub.remnawave_uuid is None:
+        raise HTTPException(404, "no active subscription")
+    if not await container.redis.set(f"resetlink:{user.id}", "1", nx=True, ex=600):
+        raise HTTPException(429, "link was just reset — try again in a few minutes")
+    try:
+        revoked = await container.remnawave_client.revoke_subscription(sub.remnawave_uuid)
+    except Exception as exc:
+        raise HTTPException(502, "panel temporarily unavailable") from exc
+    new_url = revoked.subscription_url or sub.subscription_url
+    async with container.uow() as uow:
+        fresh = await uow.subscriptions.get(sub.id)
+        if fresh is not None:
+            fresh.subscription_url = new_url
+            fresh.crypto_link = None  # the old happ link is stale after rotation
+            await uow.commit()
+    with contextlib.suppress(Exception):  # best-effort: link is already rotated
+        await container.remnawave_client.drop_connections(sub.remnawave_uuid)
+    return {"subscription_url": new_url, "deep_links": build_deep_links(new_url or "", None)}
 
 
 @router.get("/config")
