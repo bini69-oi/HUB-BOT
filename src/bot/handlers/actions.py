@@ -22,7 +22,7 @@ from src.bot.gate import ensure_channel
 from src.bot.keyboards import menu_keyboard, simple_keyboard, webapp_button
 from src.bot.media import photo_input
 from src.bot.menu_render import send_main_menu
-from src.bot.screen import safe_answer, show_screen
+from src.bot.screen import ack, safe_answer, show_screen
 from src.core.enums import Currency, PurchaseType, TransactionStatus, TransactionType
 from src.core.exceptions import RemnawaveError
 from src.core.logging import get_logger
@@ -91,17 +91,19 @@ async def nav_screen(cb: CallbackQuery, container: AppContainer, db_user: User) 
         else:
             with contextlib.suppress(Exception):
                 await msg.delete()
-            await cb.answer()
+            await ack(cb)
             return
     await show_screen(cb, text, markup, parse_mode=None)
-    await cb.answer()
+    await ack(cb)
 
 
 # --- built-in actions ---------------------------------------------------------
 
 
 @router.callback_query(F.data.startswith("act:subscription"))
-async def act_subscription(cb: CallbackQuery, container: AppContainer, db_user: User) -> None:
+async def act_subscription(
+    cb: CallbackQuery | Message, container: AppContainer, db_user: User
+) -> None:
     async with container.uow() as uow:
         sub = (
             await uow.subscriptions.get(db_user.current_subscription_id)
@@ -174,7 +176,9 @@ async def act_subscription(cb: CallbackQuery, container: AppContainer, db_user: 
 
 
 @router.callback_query(F.data == "autopay:toggle")
-async def autopay_toggle(cb: CallbackQuery, container: AppContainer, db_user: User) -> None:
+async def autopay_toggle(
+    cb: CallbackQuery | Message, container: AppContainer, db_user: User
+) -> None:
     async with container.uow() as uow:
         sub = (
             await uow.subscriptions.get(db_user.current_subscription_id)
@@ -182,17 +186,19 @@ async def autopay_toggle(cb: CallbackQuery, container: AppContainer, db_user: Us
             else None
         )
         if sub is None:
-            await cb.answer("Нет активной подписки", show_alert=True)
+            await ack(cb, "Нет активной подписки", alert=True)
             return
         sub.autopay_enabled = not sub.autopay_enabled
         await uow.commit()
         enabled = sub.autopay_enabled
-    await cb.answer("Автопродление включено ✅" if enabled else "Автопродление выключено ❌")
+    await ack(cb, "Автопродление включено ✅" if enabled else "Автопродление выключено ❌")
     await act_subscription(cb, container, db_user)
 
 
 @router.callback_query(F.data == "autopay:card")
-async def autopay_card_toggle(cb: CallbackQuery, container: AppContainer, db_user: User) -> None:
+async def autopay_card_toggle(
+    cb: CallbackQuery | Message, container: AppContainer, db_user: User
+) -> None:
     """Opt-in to charge the saved card when the balance can't cover the renewal."""
     async with container.uow() as uow:
         sub = (
@@ -201,16 +207,17 @@ async def autopay_card_toggle(cb: CallbackQuery, container: AppContainer, db_use
             else None
         )
         if sub is None:
-            await cb.answer("Нет активной подписки", show_alert=True)
+            await ack(cb, "Нет активной подписки", alert=True)
             return
         card_title = None
         if not sub.autopay_card_enabled:  # turning ON requires a saved card
             user = await uow.users.get(db_user.id)
             if user is None or not user.saved_payment_method_id:
-                await cb.answer(
+                await ack(
+                    cb,
                     "Карта ещё не сохранена. Оплати подписку картой через ЮKassa — "
                     "она привяжется автоматически, и автосписание станет доступно.",
-                    show_alert=True,
+                    alert=True,
                 )
                 return
             card_title = user.saved_payment_method_title
@@ -219,14 +226,14 @@ async def autopay_card_toggle(cb: CallbackQuery, container: AppContainer, db_use
         enabled = sub.autopay_card_enabled
     if enabled:
         card = f" ({card_title})" if card_title else ""
-        await cb.answer(f"Автосписание картой{card} включено ✅")
+        await ack(cb, f"Автосписание картой{card} включено ✅")
     else:
-        await cb.answer("Автосписание картой выключено ❌")
+        await ack(cb, "Автосписание картой выключено ❌")
     await act_subscription(cb, container, db_user)
 
 
 @router.callback_query(F.data.startswith("act:cabinet"))
-async def act_cabinet(cb: CallbackQuery, container: AppContainer, db_user: User) -> None:
+async def act_cabinet(cb: CallbackQuery | Message, container: AppContainer, db_user: User) -> None:
     """Личный кабинет — one screen: profile, balance, subscription, referral, quick actions."""
     import datetime as dt
 
@@ -306,11 +313,11 @@ async def act_cabinet(cb: CallbackQuery, container: AppContainer, db_user: User)
     await render_screen(
         cb, container, "cabinet", "\n".join(lines), InlineKeyboardMarkup(inline_keyboard=kb)
     )
-    await cb.answer()
+    await ack(cb)
 
 
 @router.callback_query(F.data.startswith("act:connect"))
-async def act_connect(cb: CallbackQuery, container: AppContainer, db_user: User) -> None:
+async def act_connect(cb: CallbackQuery | Message, container: AppContainer, db_user: User) -> None:
     """Mini-app-parity Connect screen: subscription URL + per-client import links + WebApp."""
     async with container.uow() as uow:
         sub = (
@@ -320,7 +327,7 @@ async def act_connect(cb: CallbackQuery, container: AppContainer, db_user: User)
         )
         miniapp_url = str(await container.bot_config.value(uow, "SUBSCRIPTION_MINI_APP_URL") or "")
     if sub is None or not sub.status.is_usable or not sub.subscription_url:
-        await cb.answer("Сначала оформи подписку", show_alert=True)
+        await ack(cb, "Сначала оформи подписку", alert=True)
         return
     links = build_deep_links(sub.subscription_url, sub.crypto_link)
     apps = "\n".join(f"• {CLIENT_LABELS[k]}: <code>{v}</code>" for k, v in links.items())
@@ -337,7 +344,7 @@ async def act_connect(cb: CallbackQuery, container: AppContainer, db_user: User)
     kb.append([InlineKeyboardButton(text="👤 Моя подписка", callback_data="act:subscription:0")])
     kb.append([InlineKeyboardButton(text="‹ Меню", callback_data="nav:root")])
     await render_screen(cb, container, "connect", text, InlineKeyboardMarkup(inline_keyboard=kb))
-    await cb.answer()
+    await ack(cb)
 
 
 _TXN_LABEL: dict[TransactionType, str] = {
@@ -358,7 +365,7 @@ _TXN_STATUS_EMOJI: dict[TransactionStatus, str] = {
 
 
 @router.callback_query(F.data.startswith("act:history"))
-async def act_history(cb: CallbackQuery, container: AppContainer, db_user: User) -> None:
+async def act_history(cb: CallbackQuery | Message, container: AppContainer, db_user: User) -> None:
     async with container.uow() as uow:
         txns = list(await uow.transactions.list(user_id=db_user.id))
     txns.sort(key=lambda t: t.created_at, reverse=True)
@@ -372,11 +379,11 @@ async def act_history(cb: CallbackQuery, container: AppContainer, db_user: User)
         ]
         text = "<b>🧾 История операций</b>\n\n" + "\n".join(lines)
     await render_screen(cb, container, "history", text, simple_keyboard([("‹ Меню", "nav:root")]))
-    await cb.answer()
+    await ack(cb)
 
 
 @router.callback_query(F.data.startswith("act:balance"))
-async def act_balance(cb: CallbackQuery, container: AppContainer, db_user: User) -> None:
+async def act_balance(cb: CallbackQuery | Message, container: AppContainer, db_user: User) -> None:
     async with container.uow() as uow:
         min_dep = int(await container.bot_config.value(uow, "MIN_DEPOSIT_AMOUNT"))
     text = (
@@ -393,11 +400,11 @@ async def act_balance(cb: CallbackQuery, container: AppContainer, db_user: User)
         ]
     )
     await render_screen(cb, container, "balance", text, markup)
-    await cb.answer()
+    await ack(cb)
 
 
 @router.callback_query(F.data.startswith("act:referral"))
-async def act_referral(cb: CallbackQuery, container: AppContainer, db_user: User) -> None:
+async def act_referral(cb: CallbackQuery | Message, container: AppContainer, db_user: User) -> None:
     async with container.uow() as uow:
         cfg = container.bot_config
         enabled = bool(await cfg.value(uow, "REFERRAL_ENABLED"))
@@ -406,7 +413,7 @@ async def act_referral(cb: CallbackQuery, container: AppContainer, db_user: User
         invited = await uow.users.count(referred_by_id=db_user.id)
         withdrawals_on = bool(await cfg.value(uow, "REFERRAL_WITHDRAWAL_ENABLED"))
     if not enabled:
-        await cb.answer("Реферальная программа отключена", show_alert=True)
+        await ack(cb, "Реферальная программа отключена", alert=True)
         return
     link = f"https://t.me/{bot_username}?start=ref_{db_user.referral_code}"
     text = (
@@ -429,22 +436,22 @@ async def act_referral(cb: CallbackQuery, container: AppContainer, db_user: User
     kb_rows.append([InlineKeyboardButton(text="‹ Меню", callback_data="nav:root")])
     markup = InlineKeyboardMarkup(inline_keyboard=kb_rows)
     await render_screen(cb, container, "referral", text, markup)
-    await cb.answer()
+    await ack(cb)
 
 
 @router.callback_query(F.data.startswith("act:trial"))
-async def act_trial(cb: CallbackQuery, container: AppContainer, db_user: User) -> None:
+async def act_trial(cb: CallbackQuery | Message, container: AppContainer, db_user: User) -> None:
     if not await ensure_channel(cb, container, scope="trial"):  # channel-lock (#1)
         return
     async with container.uow() as uow:
         cfg = container.bot_config
         if not bool(await cfg.value(uow, "TRIAL_ENABLED")):
-            await cb.answer("Пробный период недоступен", show_alert=True)
+            await ack(cb, "Пробный период недоступен", alert=True)
             return
         # FOR UPDATE: double-tap on the trial button must not grant twice.
         user = await uow.users.lock_for_update(db_user.id)
         if user is None or not user.is_trial_available:
-            await cb.answer("Пробный период уже использован", show_alert=True)
+            await ack(cb, "Пробный период уже использован", alert=True)
             return
         days = int(await cfg.value(uow, "TRIAL_DURATION_DAYS"))
         traffic_gb = int(await cfg.value(uow, "TRIAL_TRAFFIC_GB"))
@@ -453,9 +460,10 @@ async def act_trial(cb: CallbackQuery, container: AppContainer, db_user: User) -
 
         # Paid trial: charge the wallet (guarded) before provisioning.
         if trial_price > 0 and not await uow.users.debit_balance_guarded(user, trial_price):
-            await cb.answer(
+            await ack(
+                cb,
                 f"Пробный стоит {trial_price / 100:.0f} ₽ — пополни баланс и повтори",
-                show_alert=True,
+                alert=True,
             )
             return
 
@@ -485,7 +493,7 @@ async def act_trial(cb: CallbackQuery, container: AppContainer, db_user: User) -
                 uow, user=user, plan=plan, req=req, is_trial=True
             )
         except RemnawaveError:
-            await cb.answer("Сервис временно недоступен, попробуй позже", show_alert=True)
+            await ack(cb, "Сервис временно недоступен, попробуй позже", alert=True)
             return
         await uow.commit()
         from src.application.events import TrialGranted
@@ -512,11 +520,11 @@ async def act_trial(cb: CallbackQuery, container: AppContainer, db_user: User) -
         text,
         simple_keyboard([("👤 Моя подписка", "act:subscription:0"), ("‹ Меню", "nav:root")]),
     )
-    await cb.answer("Готово!")
+    await ack(cb, "Готово!")
 
 
 @router.callback_query(F.data.startswith("act:support"))
-async def act_support(cb: CallbackQuery, container: AppContainer, db_user: User) -> None:
+async def act_support(cb: CallbackQuery | Message, container: AppContainer, db_user: User) -> None:
     async with container.uow() as uow:
         cfg = container.bot_config
         mode = str(await cfg.value(uow, "SUPPORT_MODE"))
@@ -543,7 +551,7 @@ async def act_support(cb: CallbackQuery, container: AppContainer, db_user: User)
                 ]
             ),
         )
-        await cb.answer()
+        await ack(cb)
         return
     if mode == "redirect" and redirect:
         await render_screen(
@@ -562,7 +570,7 @@ async def act_support(cb: CallbackQuery, container: AppContainer, db_user: User)
                 ]
             ),
         )
-        await cb.answer()
+        await ack(cb)
         return
     if mode == "miniapp" and miniapp_url.startswith("https://"):
         await render_screen(
@@ -575,7 +583,7 @@ async def act_support(cb: CallbackQuery, container: AppContainer, db_user: User)
                 inline_keyboard=[[webapp_button("💬 Открыть поддержку", miniapp_url)], [back]]
             ),
         )
-        await cb.answer()
+        await ack(cb)
         return
     # tickets mode (default): hand off to the tickets FSM
     from src.bot.handlers.tickets import begin_ticket
@@ -599,7 +607,7 @@ async def cmd_bug(message: Message, container: AppContainer, db_user: User) -> N
 
 
 @router.callback_query(F.data.startswith("act:devices"))
-async def act_devices(cb: CallbackQuery, container: AppContainer, db_user: User) -> None:
+async def act_devices(cb: CallbackQuery | Message, container: AppContainer, db_user: User) -> None:
     """HWID devices of the current subscription: list + one-tap unbind."""
     async with container.uow() as uow:
         sub = (
@@ -608,12 +616,12 @@ async def act_devices(cb: CallbackQuery, container: AppContainer, db_user: User)
             else None
         )
     if sub is None or not sub.status.is_usable or sub.remnawave_uuid is None:
-        await cb.answer("Сначала оформи подписку", show_alert=True)
+        await ack(cb, "Сначала оформи подписку", alert=True)
         return
     try:
         devices = await container.remnawave_client.get_devices(sub.remnawave_uuid)
     except Exception:
-        await cb.answer("Панель временно недоступна, попробуй позже", show_alert=True)
+        await ack(cb, "Панель временно недоступна, попробуй позже", alert=True)
         return
     limit = f" (лимит {sub.device_limit})" if sub.device_limit else ""
     if not devices:
@@ -643,25 +651,25 @@ async def devdel(cb: CallbackQuery, container: AppContainer, db_user: User) -> N
             else None
         )
     if sub is None or sub.remnawave_uuid is None or not hwid:
-        await cb.answer("Нет активной подписки", show_alert=True)
+        await ack(cb, "Нет активной подписки", alert=True)
         return
     try:
         await container.remnawave_client.delete_device(sub.remnawave_uuid, hwid)
     except Exception:
-        await cb.answer("Не получилось — попробуй позже", show_alert=True)
+        await ack(cb, "Не получилось — попробуй позже", alert=True)
         return
-    await cb.answer("Устройство отвязано ✅")
+    await ack(cb, "Устройство отвязано ✅")
     await act_devices(cb, container, db_user)
 
 
 @router.callback_query(F.data.startswith("act:nodes"))
-async def act_nodes(cb: CallbackQuery, container: AppContainer, db_user: User) -> None:
+async def act_nodes(cb: CallbackQuery | Message, container: AppContainer, db_user: User) -> None:
     """User-facing server status: 🟢/🟠/🔴 per node with online counts."""
     from src.core.enums import ServerNodeStatus
 
     async with container.uow() as uow:
         if not bool(await container.bot_config.value(uow, "NODE_STATUS_ENABLED")):
-            await cb.answer("Раздел недоступен", show_alert=True)
+            await ack(cb, "Раздел недоступен", alert=True)
             return
         nodes = sorted(await uow.server_nodes.list(), key=lambda n: n.name)
     if not nodes:
@@ -680,18 +688,18 @@ async def act_nodes(cb: CallbackQuery, container: AppContainer, db_user: User) -
             )
         text = "\n".join(lines)
     await render_screen(cb, container, "nodes", text, simple_keyboard([("‹ Меню", "nav:root")]))
-    await cb.answer()
+    await ack(cb)
 
 
 @router.callback_query(F.data.startswith("act:proxy"))
-async def act_proxy(cb: CallbackQuery, container: AppContainer, db_user: User) -> None:
+async def act_proxy(cb: CallbackQuery | Message, container: AppContainer, db_user: User) -> None:
     """MTProto proxy button: one tap connects Telegram through the owner's proxy."""
     async with container.uow() as uow:
         cfg = container.bot_config
         enabled = bool(await cfg.value(uow, "MTPROTO_PROXY_ENABLED"))
         raw = str(await cfg.value(uow, "MTPROTO_PROXY_URL") or "").strip()
     if not enabled or not raw:
-        await cb.answer("Прокси не настроен", show_alert=True)
+        await ack(cb, "Прокси не настроен", alert=True)
         return
     if raw.startswith("tg://proxy"):
         raw = "https://t.me/proxy" + raw.removeprefix("tg://proxy")
@@ -709,7 +717,7 @@ async def act_proxy(cb: CallbackQuery, container: AppContainer, db_user: User) -
         ]
     )
     await render_screen(cb, container, "proxy", text, markup)
-    await cb.answer()
+    await ack(cb)
 
 
 @router.callback_query(F.data.startswith("act:"))

@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from collections.abc import Sequence
 
-from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
+from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup, ReplyKeyboardMarkup
 
 from src.infrastructure.database.models.menu_node import MenuNode
 
@@ -107,6 +107,72 @@ def webapp_button(text: str, url: str) -> InlineKeyboardButton:
     from aiogram.types import WebAppInfo
 
     return InlineKeyboardButton(text=text, web_app=WebAppInfo(url=url))
+
+
+def reply_menu_markup(
+    nodes: Sequence[MenuNode],
+    *,
+    miniapp_url: str | None = None,
+    miniapp_label: str = "📱 Приложение",
+    extras: Sequence[str] = (),
+) -> ReplyKeyboardMarkup | None:
+    """Persistent bottom-bar (reply keyboard) from the top-level menu tree.
+
+    Text buttons carry only their label (the reply-menu dispatcher maps it back to the action);
+    a mini-app node becomes a native ``web_app`` button that opens the app in one tap. Reply
+    keyboards can't hold url/callback buttons, so link nodes fall back to plain text buttons.
+    """
+    from aiogram.types import KeyboardButton, ReplyKeyboardMarkup, WebAppInfo
+
+    has_app = bool(miniapp_url and miniapp_url.startswith("https://"))
+    siblings = sorted(
+        (n for n in nodes if n.parent_id is None and n.is_active),
+        key=lambda n: (n.row_index, n.order_index),
+    )
+    rows: list[list[KeyboardButton]] = []
+    current: int | None = None
+    for n in siblings:
+        if n.kind.value == "back":
+            continue
+        if n.kind.value == "miniapp":
+            if not has_app:
+                continue
+            button = KeyboardButton(text=n.label, web_app=WebAppInfo(url=miniapp_url or ""))
+        else:
+            button = KeyboardButton(text=n.label)
+        if not rows or n.row_index != current:
+            rows.append([])
+            current = n.row_index
+        rows[-1].append(button)
+    for label in extras:  # runtime smart shortcuts (trial/proxy/nodes), one per row
+        rows.append([KeyboardButton(text=label)])
+    if has_app and not any(n.kind.value == "miniapp" for n in siblings):
+        rows.append([KeyboardButton(text=miniapp_label, web_app=WebAppInfo(url=miniapp_url or ""))])
+    if not rows:
+        return None
+    return ReplyKeyboardMarkup(keyboard=rows, resize_keyboard=True, is_persistent=True)
+
+
+def default_reply_markup(
+    miniapp_url: str | None = None, extras: Sequence[str] = ()
+) -> ReplyKeyboardMarkup:
+    """Bottom-bar for a fresh shop (no custom menu): the seeded buttons + smart shortcuts + app."""
+    from aiogram.types import KeyboardButton, ReplyKeyboardMarkup, WebAppInfo
+
+    from src.bot.default_menu import DEFAULT_MENU
+
+    rows: list[list[KeyboardButton]] = []
+    current: int | None = None
+    for b in DEFAULT_MENU:
+        if not rows or b.row != current:
+            rows.append([])
+            current = b.row
+        rows[-1].append(KeyboardButton(text=b.label))
+    for label in extras:
+        rows.append([KeyboardButton(text=label)])
+    if miniapp_url and miniapp_url.startswith("https://"):
+        rows.append([KeyboardButton(text="📱 Приложение", web_app=WebAppInfo(url=miniapp_url))])
+    return ReplyKeyboardMarkup(keyboard=rows, resize_keyboard=True, is_persistent=True)
 
 
 def default_menu_markup(default_color: str | None = None) -> InlineKeyboardMarkup:

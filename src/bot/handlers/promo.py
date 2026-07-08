@@ -15,6 +15,7 @@ from aiogram.types import CallbackQuery, Message
 from src.application.services.promo import PromoError
 from src.bot.banners import render_screen
 from src.bot.keyboards import simple_keyboard
+from src.bot.screen import ack
 from src.core.enums import RewardType
 from src.infrastructure.database.models.user import User
 from src.infrastructure.di import AppContainer
@@ -38,7 +39,7 @@ _REWARD_TEXT: dict[RewardType, str] = {
 
 @router.callback_query(F.data.startswith("act:promocode"))
 async def ask_code(
-    cb: CallbackQuery, container: AppContainer, db_user: User, state: FSMContext
+    cb: CallbackQuery | Message, container: AppContainer, db_user: User, state: FSMContext
 ) -> None:
     await state.set_state(PromoForm.waiting_code)
     await render_screen(
@@ -48,7 +49,7 @@ async def ask_code(
         "<b>🎟 Промокод</b>\n\nПришли код одним сообщением — начислим бонус сразу.",
         simple_keyboard([("‹ Меню", "nav:root")]),
     )
-    await cb.answer()
+    await ack(cb)
 
 
 @router.message(PromoForm.waiting_code, F.text)

@@ -18,7 +18,7 @@ from src.bot.media import photo_input
 from src.bot.screen import show_media_screen
 
 if TYPE_CHECKING:
-    from aiogram.types import CallbackQuery
+    from aiogram.types import CallbackQuery, Message
 
     from src.infrastructure.di import AppContainer
 
@@ -72,12 +72,16 @@ async def banner_for(container: AppContainer, screen_key: str) -> str | FSInputF
 
 
 async def render_screen(
-    cb: CallbackQuery,
+    target: CallbackQuery | Message,
     container: AppContainer,
     screen_key: str,
     caption: str,
     markup: InlineKeyboardMarkup | None = None,
 ) -> None:
-    """Resolve ``screen_key``'s banner and render the caption + buttons over it (one call)."""
+    """Resolve ``screen_key``'s banner and render the caption + buttons over it (one call).
+
+    ``target`` is an inline tap (CallbackQuery — edit in place) or a reply-keyboard tap /
+    command (Message — send fresh), so the same handlers render from both entry points.
+    """
     photo = await banner_for(container, screen_key)
-    await show_media_screen(cb, photo, caption, markup)
+    await show_media_screen(target, photo, caption, markup)

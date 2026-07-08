@@ -19,6 +19,7 @@ from aiogram.types import CallbackQuery, Message
 from src.application.events import TicketOpened
 from src.bot.banners import render_screen
 from src.bot.keyboards import simple_keyboard
+from src.bot.screen import ack
 from src.core.enums import TicketAuthor, TicketStatus
 from src.infrastructure.database.base import utcnow
 from src.infrastructure.database.models.ticket import Ticket, TicketMessage
@@ -32,7 +33,7 @@ class TicketForm(StatesGroup):
     waiting_text = State()
 
 
-async def begin_ticket(cb: CallbackQuery, container: AppContainer, db_user: User) -> None:
+async def begin_ticket(cb: CallbackQuery | Message, container: AppContainer, db_user: User) -> None:
     """Entry from the support action: show the open ticket or start a new one."""
     async with container.uow() as uow:
         open_tickets = await uow.tickets.list(user_id=db_user.id)
@@ -49,7 +50,7 @@ async def begin_ticket(cb: CallbackQuery, container: AppContainer, db_user: User
             "Опиши проблему одним сообщением — создадим тикет и ответим прямо здесь."
         )
     await render_screen(cb, container, "support", text, simple_keyboard([("‹ Меню", "nav:root")]))
-    await cb.answer()
+    await ack(cb)
 
 
 @router.message(Command("support"))

@@ -44,6 +44,15 @@ MENU_ACTIONS: tuple[MenuAction, ...] = (
     MenuAction("support", "Поддержка", "Support"),
 )
 
+# Runtime "smart" shortcuts the menu renderer appends when applicable — (label, action code).
+# One source of truth so the inline menu, the reply-keyboard bottom-bar and its dispatcher stay
+# in sync (their applicability is decided at render time: trial availability, proxy, node status).
+SMART_EXTRAS: tuple[tuple[str, str], ...] = (
+    ("🎁 Попробовать бесплатно", "trial"),
+    ("🔌 MTProto-прокси", "proxy"),
+    ("🌍 Статус серверов", "nodes"),
+)
+
 _ACTIONS_BY_CODE = {a.code: a for a in MENU_ACTIONS}
 
 

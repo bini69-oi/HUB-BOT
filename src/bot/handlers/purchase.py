@@ -20,6 +20,7 @@ from src.application.dto.pricing import PurchaseRequest
 from src.bot.banners import render_screen
 from src.bot.gate import ensure_channel
 from src.bot.keyboards import simple_keyboard
+from src.bot.screen import ack
 from src.core.enums import Currency, PurchaseType, TransactionStatus, TransactionType
 from src.core.exceptions import (
     DomainError,
@@ -47,7 +48,7 @@ def fmt_money(minor: int) -> str:
     return f"{v:,.0f} ₽".replace(",", " ") if v == int(v) else f"{v:,.2f} ₽".replace(",", " ")
 
 
-async def open_buy(cb: CallbackQuery, container: AppContainer, db_user: User) -> None:
+async def open_buy(cb: CallbackQuery | Message, container: AppContainer, db_user: User) -> None:
     """Buy-flow entry: SALES_MODE routes to the plan catalogue or the constructor."""
     async with container.uow() as uow:
         mode = str(await container.bot_config.value(uow, "SALES_MODE"))
@@ -57,13 +58,13 @@ async def open_buy(cb: CallbackQuery, container: AppContainer, db_user: User) ->
         await show_plans(cb, container, db_user)
 
 
-async def show_plans(cb: CallbackQuery, container: AppContainer, db_user: User) -> None:
+async def show_plans(cb: CallbackQuery | Message, container: AppContainer, db_user: User) -> None:
     if not await ensure_channel(cb, container, scope="buy"):  # channel-lock (#1)
         return
     async with container.uow() as uow:
         plans = [p for p in await uow.plans.list_with_durations() if p.is_active and not p.is_trial]
     if not plans:
-        await cb.answer("Тарифы ещё не настроены", show_alert=True)
+        await ack(cb, "Тарифы ещё не настроены", alert=True)
         return
     rows = []
     for p in sorted(plans, key=lambda p: p.order_index):
@@ -80,7 +81,7 @@ async def show_plans(cb: CallbackQuery, container: AppContainer, db_user: User) 
         "Жми подходящий, срок выберешь на следующем шаге."
     )
     await render_screen(cb, container, "buy", caption, simple_keyboard(rows))
-    await cb.answer()
+    await ack(cb)
 
 
 @router.callback_query(F.data == "check:sub")
@@ -284,13 +285,15 @@ async def _constructor_request(
     )
 
 
-async def show_constructor(cb: CallbackQuery, container: AppContainer, db_user: User) -> None:
+async def show_constructor(
+    cb: CallbackQuery | Message, container: AppContainer, db_user: User
+) -> None:
     if not await ensure_channel(cb, container, scope="buy"):  # channel-lock (#1)
         return
     async with container.uow() as uow:
         periods = [p for p in await uow.constructor_periods.list() if p.is_active]
     if not periods:
-        await cb.answer("Конструктор ещё не настроен", show_alert=True)
+        await ack(cb, "Конструктор ещё не настроен", alert=True)
         return
     rows = [
         (f"{_period_label(p.days)} · {fmt_money(p.price_minor)}", f"cper:{p.id}")
@@ -304,7 +307,7 @@ async def show_constructor(cb: CallbackQuery, container: AppContainer, db_user: 
         "<b>🛒 Конструктор</b>\n\nСобери свою подписку под себя.\nШаг 1 — срок:",
         simple_keyboard(rows),
     )
-    await cb.answer()
+    await ack(cb)
 
 
 @router.callback_query(F.data.startswith("cper:"))
