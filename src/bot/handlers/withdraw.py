@@ -12,6 +12,7 @@ from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
 from aiogram.types import CallbackQuery, Message
 
+from src.bot.banners import render_screen
 from src.bot.keyboards import simple_keyboard
 from src.bot.screen import show_screen
 from src.core.logging import get_logger
@@ -78,10 +79,12 @@ async def start_withdraw(cb: CallbackQuery, container: AppContainer, db_user: Us
         return
     rows = [(label, f"withdraw:m:{code}") for code, label in _METHODS.items()]
     rows.append(("‹ Назад", "act:referral:0"))
-    await show_screen(
+    await render_screen(
         cb,
-        f"💸 <b>Вывод реф-заработка</b>\n\nДоступно: <b>{avail / 100:.2f} ₽</b>\n"
-        "Выведем всю доступную сумму. Куда отправить?",
+        container,
+        "withdraw",
+        f"<b>💸 Вывод заработка</b>\n\nДоступно к выводу: <b>{avail / 100:.2f} ₽</b>\n"
+        "Отправим всю сумму разом — выбери, куда:",
         simple_keyboard(rows),
     )
     await cb.answer()

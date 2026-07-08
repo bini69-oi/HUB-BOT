@@ -6,8 +6,9 @@ import contextlib
 
 from aiogram.types import CallbackQuery, Message
 
+from src.bot.banners import banner_for
 from src.bot.keyboards import default_menu_markup, menu_keyboard, simple_keyboard, webapp_button
-from src.bot.media import photo_input
+from src.bot.screen import show_media_screen
 from src.infrastructure.database.models.user import User
 from src.infrastructure.di import AppContainer
 
@@ -20,7 +21,6 @@ async def send_main_menu(
         cfg = container.bot_config
         start_text = str(await cfg.value(uow, "START_MESSAGE"))
         miniapp_url = str(await cfg.value(uow, "SUBSCRIPTION_MINI_APP_URL") or "")
-        welcome_image = str(await cfg.value(uow, "WELCOME_IMAGE") or "")
         welcome_sticker = str(await cfg.value(uow, "WELCOME_STICKER") or "")
         trial_enabled = bool(await cfg.value(uow, "TRIAL_ENABLED"))
         proxy_on = bool(await cfg.value(uow, "MTPROTO_PROXY_ENABLED")) and bool(
@@ -58,23 +58,27 @@ async def send_main_menu(
     if miniapp_url.startswith("https://") and not has_miniapp_node:
         markup.inline_keyboard.insert(0, [webapp_button("📱 Открыть приложение", miniapp_url)])
 
+    photo = await banner_for(container, "menu")
     if isinstance(target, CallbackQuery):
-        if target.message is not None:
-            try:
-                await target.message.edit_text(start_text, reply_markup=markup)  # type: ignore[union-attr,unused-ignore]
-            except Exception:
-                # A banner (photo) screen can't be edited text->text: send a fresh menu and
-                # delete the old card so banners don't pile up with stale live buttons (NAV-1).
-                await target.message.answer(start_text, reply_markup=markup)
-                with contextlib.suppress(Exception):
-                    await target.message.delete()  # type: ignore[union-attr,unused-ignore]
+        # Smooth in-place swap (edit media/caption) when navigating back to the menu; falls
+        # back to a fresh send + delete of the old card, so banners never pile up (NAV-1).
+        await show_media_screen(target, photo, start_text, markup)
         await target.answer()
     else:
-        # Fresh /start: show the configurable sticker or logo image above the menu.
+        # Fresh /start: optional decorative sticker, then the menu as a single banner message.
         if welcome_sticker:
             with contextlib.suppress(Exception):  # bad file_id must not break /start
                 await target.answer_sticker(welcome_sticker)
-        elif welcome_image:
+        if photo is not None:
             with contextlib.suppress(Exception):
-                await target.answer_photo(photo_input(welcome_image))
+                await target.answer_photo(
+                    photo,
+                    caption=start_text,
+                    reply_markup=markup,
+                    parse_mode="HTML",
+                )
+                return
+        with contextlib.suppress(Exception):  # HTML like every other render; plain on bad entities
+            await target.answer(start_text, reply_markup=markup, parse_mode="HTML")
+            return
         await target.answer(start_text, reply_markup=markup)

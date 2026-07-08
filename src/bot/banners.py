@@ -1,0 +1,83 @@
+"""Resolve the banner photo for a bot screen.
+
+Every screen shows a photo above its caption. A screen key maps to a config key
+(``BANNER_<AREA>``); resolution falls through: the screen's own banner -> ``BANNER_DEFAULT``
+-> ``WELCOME_IMAGE`` -> the bundled ``assets/banner.png`` that ships with the app. The owner
+sets any of these from the cabinet (upload/URL/file_id) or from the bot via ``/setbanner``.
+When ``BANNER_ENABLED`` is off, screens render as plain text (no photo).
+"""
+
+from __future__ import annotations
+
+from pathlib import Path
+from typing import TYPE_CHECKING
+
+from aiogram.types import FSInputFile, InlineKeyboardMarkup
+
+from src.bot.media import photo_input
+from src.bot.screen import show_media_screen
+
+if TYPE_CHECKING:
+    from aiogram.types import CallbackQuery
+
+    from src.infrastructure.di import AppContainer
+
+# The banner that ships in the repo (deploys with the app, unlike runtime uploads/).
+_BUNDLED = Path(__file__).resolve().parent / "assets" / "banner.png"
+
+# Screen key -> config key. Screens sharing a funnel share a banner; anything not listed
+# falls back to BANNER_DEFAULT. Keys here must exist in the config registry.
+_SCREEN_BANNER_KEY: dict[str, str] = {
+    "menu": "BANNER_MENU",
+    "buy": "BANNER_BUY",
+    "durations": "BANNER_BUY",
+    "payment": "BANNER_BUY",
+    "cabinet": "BANNER_CABINET",
+    "subscription": "BANNER_SUBSCRIPTION",
+    "connect": "BANNER_SUBSCRIPTION",
+    "devices": "BANNER_SUBSCRIPTION",
+    "traffic": "BANNER_TRAFFIC",
+    "balance": "BANNER_BALANCE",
+    "topup": "BANNER_BALANCE",
+    "referral": "BANNER_REFERRAL",
+    "support": "BANNER_SUPPORT",
+    "trial": "BANNER_TRIAL",
+}
+
+# Screen key -> the config key the owner edits, exposed so /setbanner accepts the same names.
+SCREEN_KEYS: tuple[str, ...] = tuple(_SCREEN_BANNER_KEY)
+
+
+def banner_config_key(screen_key: str) -> str:
+    """The BANNER_* config key a screen (or 'default') resolves to — used by /setbanner."""
+    if screen_key in ("default", "all", ""):
+        return "BANNER_DEFAULT"
+    return _SCREEN_BANNER_KEY.get(screen_key, "BANNER_DEFAULT")
+
+
+async def banner_for(container: AppContainer, screen_key: str) -> str | FSInputFile | None:
+    """Photo input for ``screen_key``: the configured image, else a fallback, else None."""
+    async with container.uow() as uow:
+        cfg = container.bot_config
+        if not bool(await cfg.value(uow, "BANNER_ENABLED")):
+            return None
+        candidates = (_SCREEN_BANNER_KEY.get(screen_key), "BANNER_DEFAULT", "WELCOME_IMAGE")
+        for key in candidates:
+            if not key:
+                continue
+            ref = str(await cfg.value(uow, key) or "").strip()
+            if ref:
+                return photo_input(ref)
+    return FSInputFile(str(_BUNDLED)) if _BUNDLED.is_file() else None
+
+
+async def render_screen(
+    cb: CallbackQuery,
+    container: AppContainer,
+    screen_key: str,
+    caption: str,
+    markup: InlineKeyboardMarkup | None = None,
+) -> None:
+    """Resolve ``screen_key``'s banner and render the caption + buttons over it (one call)."""
+    photo = await banner_for(container, screen_key)
+    await show_media_screen(cb, photo, caption, markup)

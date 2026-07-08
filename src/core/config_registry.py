@@ -121,9 +121,9 @@ REGISTRY: tuple[ParamSpec, ...] = (
         "START_MESSAGE",
         C.MAIN,
         STR,
-        "👋 Привет! Это твой личный VPN — быстрый, без лимитов скорости, "
-        "на всех устройствах.\n\nОформи подписку за пару тапов или попробуй "
-        "бесплатно. Выбери действие в меню 👇",
+        "👋 Это твой личный VPN.\n\nБыстрый, без лимитов скорости, сразу на всех "
+        "устройствах. Оформи подписку за пару тапов или попробуй бесплатно.\n\n"
+        "Выбирай, что дальше 👇",
         "Приветствие /start",
         "/start greeting",
     ),
@@ -816,6 +816,38 @@ REGISTRY: tuple[ParamSpec, ...] = (
         "#HEX; пусто — стандартный",
         "#HEX; empty = default",
     ),
+    # --- Screen banners: a photo above every screen. Each key falls back to BANNER_DEFAULT,
+    #     then to WELCOME_IMAGE, then to the bundled banner. Source: cabinet upload, URL,
+    #     file_id, or /setbanner <screen> in the bot (reply to a photo).
+    _p(
+        "BANNER_ENABLED",
+        C.INTERFACE,
+        BOOL,
+        True,
+        "Баннеры на экранах",
+        "Screen banners",
+        "Показывать фото-баннер над каждым экраном бота",
+        "Show a photo banner above every bot screen",
+    ),
+    _p(
+        "BANNER_DEFAULT",
+        C.INTERFACE,
+        STR,
+        "",
+        "Баннер по умолчанию",
+        "Default banner",
+        "Фото для экранов без своего баннера. Загрузка в кабинете, URL, file_id или /setbanner.",
+        "Photo for screens without their own banner. Cabinet upload, URL, file_id or /setbanner.",
+    ),
+    _p("BANNER_MENU", C.INTERFACE, STR, "", "Баннер: меню", "Banner: main menu"),
+    _p("BANNER_BUY", C.INTERFACE, STR, "", "Баннер: покупка", "Banner: buy funnel"),
+    _p("BANNER_CABINET", C.INTERFACE, STR, "", "Баннер: кабинет", "Banner: cabinet"),
+    _p("BANNER_SUBSCRIPTION", C.INTERFACE, STR, "", "Баннер: подписка", "Banner: subscription"),
+    _p("BANNER_TRAFFIC", C.INTERFACE, STR, "", "Баннер: трафик", "Banner: traffic"),
+    _p("BANNER_BALANCE", C.INTERFACE, STR, "", "Баннер: баланс", "Banner: balance"),
+    _p("BANNER_REFERRAL", C.INTERFACE, STR, "", "Баннер: рефералка", "Banner: referral"),
+    _p("BANNER_SUPPORT", C.INTERFACE, STR, "", "Баннер: поддержка", "Banner: support"),
+    _p("BANNER_TRIAL", C.INTERFACE, STR, "", "Баннер: пробный период", "Banner: trial"),
     _p(
         "MTPROTO_PROXY_ENABLED",
         C.INTERFACE,

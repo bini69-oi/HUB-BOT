@@ -8,6 +8,7 @@ ticket is open are appended and flip the status back to OPEN.
 from __future__ import annotations
 
 import contextlib
+from html import escape as hesc
 
 from aiogram import F, Router
 from aiogram.filters import Command
@@ -16,8 +17,8 @@ from aiogram.fsm.state import State, StatesGroup
 from aiogram.types import CallbackQuery, Message
 
 from src.application.events import TicketOpened
+from src.bot.banners import render_screen
 from src.bot.keyboards import simple_keyboard
-from src.bot.screen import show_screen
 from src.core.enums import TicketAuthor, TicketStatus
 from src.infrastructure.database.base import utcnow
 from src.infrastructure.database.models.ticket import Ticket, TicketMessage
@@ -38,12 +39,16 @@ async def begin_ticket(cb: CallbackQuery, container: AppContainer, db_user: User
         active = next((t for t in open_tickets if t.status is not TicketStatus.CLOSED), None)
     if active is not None:
         text = (
-            f"Тикет <b>#{active.id}</b> · {active.subject}\n\n"
-            "Просто напиши сообщение — мы ответим здесь же."
+            f"<b>🆘 Тикет #{active.id}</b>\n──────────\n"
+            f"Тема: <b>{hesc(active.subject)}</b>\n"
+            "Просто напиши сообщение — ответим в этой же переписке."
         )
     else:
-        text = "Опиши проблему одним сообщением — создадим тикет и ответим здесь."
-    await show_screen(cb, text, simple_keyboard([("‹ Меню", "nav:root")]))
+        text = (
+            "<b>🆘 Новый тикет</b>\n\n"
+            "Опиши проблему одним сообщением — создадим тикет и ответим прямо здесь."
+        )
+    await render_screen(cb, container, "support", text, simple_keyboard([("‹ Меню", "nav:root")]))
     await cb.answer()
 
 

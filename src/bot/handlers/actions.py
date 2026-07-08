@@ -4,14 +4,12 @@ from __future__ import annotations
 
 import contextlib
 from html import escape as hesc
-from pathlib import Path
 
 from aiogram import F, Router
 from aiogram.filters import Command
 from aiogram.fsm.context import FSMContext
 from aiogram.types import (
     CallbackQuery,
-    FSInputFile,
     InlineKeyboardButton,
     InlineKeyboardMarkup,
     Message,
@@ -19,11 +17,12 @@ from aiogram.types import (
 
 from src.application.dto.pricing import PurchaseRequest
 from src.application.services.connection import CLIENT_LABELS, build_deep_links
+from src.bot.banners import render_screen
 from src.bot.gate import ensure_channel
 from src.bot.keyboards import menu_keyboard, simple_keyboard, webapp_button
 from src.bot.media import photo_input
 from src.bot.menu_render import send_main_menu
-from src.bot.screen import safe_answer, show_photo_screen, show_screen
+from src.bot.screen import safe_answer, show_screen
 from src.core.enums import Currency, PurchaseType, TransactionStatus, TransactionType
 from src.core.exceptions import RemnawaveError
 from src.core.logging import get_logger
@@ -36,14 +35,6 @@ log = get_logger(__name__)
 router = Router(name="actions")
 
 GIB = 1024**3
-# Placeholder banner shipped with the code (owner swaps it for their own art). Lives under
-# src/bot/assets/, which deploys with the app (unlike runtime uploads/).
-_BANNER = Path(__file__).resolve().parent.parent / "assets" / "banner.png"
-
-
-def _banner() -> FSInputFile:
-    """Fresh FSInputFile for the screen banner (aiogram needs a new one per send)."""
-    return FSInputFile(str(_BANNER))
 
 
 def fmt_money(minor: int) -> str:
@@ -123,7 +114,7 @@ async def act_subscription(cb: CallbackQuery, container: AppContainer, db_user: 
         autopay_global = bool(await container.bot_config.value(uow, "AUTO_RENEWAL_ENABLED"))
     if sub is None or not sub.status.is_usable:
         text = (
-            "📶 <b>Подписка</b>\n\n"
+            "<b>📶 Подписка</b>\n\n"
             "У тебя пока нет активной подписки.\n"
             "Оформи за пару тапов — и сразу подключайся."
         )
@@ -134,16 +125,16 @@ async def act_subscription(cb: CallbackQuery, container: AppContainer, db_user: 
             import datetime as dt
 
             left = max(0, (sub.expire_at - dt.datetime.now(dt.UTC)).days)
-            days_left = f"\n⏳ Осталось: <b>{left} дн.</b> (до {sub.expire_at:%d.%m.%Y})"
+            days_left = f"\n⏳ Осталось: <b>{left} дн.</b> · до <b>{sub.expire_at:%d.%m.%Y}</b>"
         traffic = f"{sub.traffic_used_bytes / GIB:.1f} / " + (
             f"{sub.traffic_limit_bytes / GIB:.0f} ГБ" if sub.traffic_limit_bytes else "∞"
         )
         plan_name = hesc(str((sub.plan_snapshot or {}).get("name", "—")))
-        text = f"📶 <b>Твоя подписка</b>\n\n🏷 Тариф: <b>{plan_name}</b>{days_left}"
+        text = f"<b>📶 Твоя подписка</b>\n\n🏷 Тариф: <b>{plan_name}</b>{days_left}"
         if show_traffic:  # SHOW_TRAFFIC_USAGE toggle now actually hides the line (SHOWTRAF-1)
-            text += f"\n📊 Трафик: <b>{traffic}</b>"
+            text += f"\n📈 Трафик: <b>{traffic}</b>"
         if not hide_link and sub.subscription_url:
-            text += f"\n\nСсылка подписки:\n<code>{sub.subscription_url}</code>"
+            text += f"\n──────────\nСсылка подписки:\n<code>{sub.subscription_url}</code>"
         kb: list[list[InlineKeyboardButton]] = [
             [InlineKeyboardButton(text="🔌 Подключить", callback_data="act:connect:0")],
             [
@@ -178,7 +169,7 @@ async def act_subscription(cb: CallbackQuery, container: AppContainer, db_user: 
             kb.append([webapp_button("📱 Открыть приложение", miniapp_url)])
         kb.append([InlineKeyboardButton(text="‹ Меню", callback_data="nav:root")])
         markup = InlineKeyboardMarkup(inline_keyboard=kb)
-    await show_screen(cb, text, markup)
+    await render_screen(cb, container, "subscription", text, markup)
     await safe_answer(cb)  # autopay_toggle chains here after answering
 
 
@@ -253,11 +244,11 @@ async def act_cabinet(cb: CallbackQuery, container: AppContainer, db_user: User)
 
     name = hesc(db_user.first_name or db_user.username or "друг")
     lines = [
-        "👤 <b>Профиль</b>",
+        "<b>👤 Профиль</b>",
         "",
         f"Привет, {name}! 👋",
-        f"Твой ID: <code>{db_user.telegram_id}</code>",
-        "",
+        f"ID: <code>{db_user.telegram_id}</code>",
+        "──────────",
     ]
     if sub is not None and sub.status.is_usable:
         now = dt.datetime.now(dt.UTC)
@@ -274,21 +265,19 @@ async def act_cabinet(cb: CallbackQuery, container: AppContainer, db_user: User)
             f"{sub.traffic_limit_bytes / GIB:.0f} ГБ" if sub.traffic_limit_bytes else "∞"
         )
         sub_lines = [
-            "⭐ <b>Подписка</b>",
-            "├ Статус: <b>активна</b>",
-            f"├ Действует до: <b>{expire}</b>",
-            f"├ Осталось: <b>{left}</b>",
-            f"├ Устройств: <b>{sub.device_limit or '—'}</b>",
+            "<b>📶 Подписка активна</b>",
+            f"Действует до <b>{expire}</b> · осталось <b>{left}</b>",
+            f"📱 Устройств: <b>{sub.device_limit or '—'}</b>",
         ]
         if show_traffic:  # honor SHOW_TRAFFIC_USAGE here too (SHOWTRAF-1)
-            sub_lines.append(f"├ Трафик: <b>{traffic}</b>")
+            sub_lines.append(f"📈 Трафик: <b>{traffic}</b>")
         sub_lines += [
-            f"├ Автопродление: <b>{'вкл' if sub.autopay_enabled else 'выкл'}</b>",
-            "└ Ключ-ссылка — в разделе «Моя подписка».",
+            f"Автопродление: <b>{'вкл' if sub.autopay_enabled else 'выкл'}</b>",
+            "Ключ-ссылка — в разделе «Моя подписка».",
         ]
         lines += sub_lines
     else:
-        lines += ["⭐ <b>Подписка</b>", "└ Не оформлена — нажми «Купить VPN» в меню."]
+        lines += ["<b>📶 Подписка</b>", "Не оформлена — нажми «Купить VPN» в меню."]
     lines += [
         "",
         f"💳 Баланс: <b>{fmt_money(db_user.balance_minor)}</b>   ·   🎁 Друзей: <b>{invited}</b>",
@@ -302,7 +291,7 @@ async def act_cabinet(cb: CallbackQuery, container: AppContainer, db_user: User)
     entries: list[tuple[str, str]] = [("🔑 Моя подписка", "act:subscription:0")]
     if balance_on:
         entries.append(("💰 Баланс", "act:balance:0"))
-    entries.append(("📊 История", "act:history:0"))
+    entries.append(("🧾 История", "act:history:0"))
     if referral_on:
         entries.append(("🎁 Рефералка", "act:referral:0"))
     entries.append(("🎟 Промокод", "act:promocode"))
@@ -314,8 +303,8 @@ async def act_cabinet(cb: CallbackQuery, container: AppContainer, db_user: User)
     if miniapp_url.startswith("https://"):
         kb.append([webapp_button("📱 Открыть приложение", miniapp_url)])
     kb.append([InlineKeyboardButton(text="‹ Меню", callback_data="nav:root")])
-    await show_photo_screen(
-        cb, _banner(), "\n".join(lines), InlineKeyboardMarkup(inline_keyboard=kb)
+    await render_screen(
+        cb, container, "cabinet", "\n".join(lines), InlineKeyboardMarkup(inline_keyboard=kb)
     )
     await cb.answer()
 
@@ -337,7 +326,7 @@ async def act_connect(cb: CallbackQuery, container: AppContainer, db_user: User)
     apps = "\n".join(f"• {CLIENT_LABELS[k]}: <code>{v}</code>" for k, v in links.items())
     text = (
         "<b>🔌 Подключение</b>\n\n"
-        "1) Установи приложение: Happ, v2RayTun, Hiddify или Streisand.\n"
+        "1) Поставь приложение: Happ, v2RayTun, Hiddify или Streisand.\n"
         "2) Открой мини-приложение (импорт в один тап + QR) или вставь ссылку подписки вручную:\n\n"
         f"<code>{sub.subscription_url}</code>\n\n"
         f"Ссылки-импорт:\n{apps}"
@@ -347,7 +336,7 @@ async def act_connect(cb: CallbackQuery, container: AppContainer, db_user: User)
         kb.append([webapp_button("📱 Открыть приложение", miniapp_url)])
     kb.append([InlineKeyboardButton(text="👤 Моя подписка", callback_data="act:subscription:0")])
     kb.append([InlineKeyboardButton(text="‹ Меню", callback_data="nav:root")])
-    await show_screen(cb, text, InlineKeyboardMarkup(inline_keyboard=kb))
+    await render_screen(cb, container, "connect", text, InlineKeyboardMarkup(inline_keyboard=kb))
     await cb.answer()
 
 
@@ -374,15 +363,15 @@ async def act_history(cb: CallbackQuery, container: AppContainer, db_user: User)
         txns = list(await uow.transactions.list(user_id=db_user.id))
     txns.sort(key=lambda t: t.created_at, reverse=True)
     if not txns:
-        text = "История операций пуста."
+        text = "<b>🧾 История операций</b>\n\nПока пусто — здесь появятся все пополнения и платежи."
     else:
         lines = [
             f"{_TXN_STATUS_EMOJI.get(t.status, '')} {t.created_at:%d.%m} · "
             f"{_TXN_LABEL.get(t.type, t.type.value)} · {fmt_money(t.amount_minor)}"
             for t in txns[:10]
         ]
-        text = "<b>История операций</b>\n\n" + "\n".join(lines)
-    await show_screen(cb, text, simple_keyboard([("‹ Меню", "nav:root")]))
+        text = "<b>🧾 История операций</b>\n\n" + "\n".join(lines)
+    await render_screen(cb, container, "history", text, simple_keyboard([("‹ Меню", "nav:root")]))
     await cb.answer()
 
 
@@ -391,10 +380,10 @@ async def act_balance(cb: CallbackQuery, container: AppContainer, db_user: User)
     async with container.uow() as uow:
         min_dep = int(await container.bot_config.value(uow, "MIN_DEPOSIT_AMOUNT"))
     text = (
-        "💳 <b>Баланс</b>\n\n"
-        f"Сейчас на счету: <b>{fmt_money(db_user.balance_minor)}</b>\n\n"
-        f"Пополни через Telegram Stars (от {fmt_money(min_dep)}) — "
-        "с баланса подписки оплачиваются в один тап."
+        "<b>💳 Баланс</b>\n\n"
+        f"На счету: <b>{fmt_money(db_user.balance_minor)}</b>\n\n"
+        f"Пополни через Telegram Stars — от <b>{fmt_money(min_dep)}</b>.\n"
+        "С баланса подписка оплачивается в один тап."
     )
     markup = simple_keyboard(
         [
@@ -403,7 +392,7 @@ async def act_balance(cb: CallbackQuery, container: AppContainer, db_user: User)
             ("‹ Меню", "nav:root"),
         ]
     )
-    await show_photo_screen(cb, _banner(), text, markup)
+    await render_screen(cb, container, "balance", text, markup)
     await cb.answer()
 
 
@@ -421,11 +410,11 @@ async def act_referral(cb: CallbackQuery, container: AppContainer, db_user: User
         return
     link = f"https://t.me/{bot_username}?start=ref_{db_user.referral_code}"
     text = (
-        "🎁 <b>Пригласи друга</b>\n\n"
+        "<b>🎁 Приглашай друзей</b>\n\n"
         f"За каждого друга вы <b>оба</b> получаете <b>+{bonus_days} дн.</b> подписки.\n\n"
-        "Твоя ссылка (нажми, чтобы скопировать):\n"
+        "Твоя ссылка — нажми, чтобы скопировать:\n"
         f"<code>{link}</code>\n\n"
-        f"👥 Приглашено: <b>{invited}</b>"
+        f"👥 Уже с тобой: <b>{invited}</b>"
     )
     share = f"https://t.me/share/url?url={link}"
     from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
@@ -435,11 +424,11 @@ async def act_referral(cb: CallbackQuery, container: AppContainer, db_user: User
         from src.bot.handlers.withdraw import available_minor
 
         avail = await available_minor(container, db_user.id)
-        text += f"\nЗаработано и доступно к выводу: <b>{avail / 100:.2f} ₽</b>"
+        text += f"\n\n💸 Доступно к выводу: <b>{avail / 100:.2f} ₽</b>"
         kb_rows.append([InlineKeyboardButton(text="💸 Вывести", callback_data="withdraw:start")])
     kb_rows.append([InlineKeyboardButton(text="‹ Меню", callback_data="nav:root")])
     markup = InlineKeyboardMarkup(inline_keyboard=kb_rows)
-    await show_photo_screen(cb, _banner(), text, markup)
+    await render_screen(cb, container, "referral", text, markup)
     await cb.answer()
 
 
@@ -508,13 +497,18 @@ async def act_trial(cb: CallbackQuery, container: AppContainer, db_user: User) -
 
     async with container.uow() as uow:  # owner-editable «trial_started» template (NOTIF-1)
         base = await notification_text(
-            uow, "trial_started", name=db_user.first_name or "", days=days
+            uow, "trial_started", name=hesc(db_user.first_name or ""), days=days
         )
-    text = base or f"🎁 Пробный период активирован на {days} дн."
+    text = base or (
+        "<b>⭐ Пробный период активирован</b>\n\n"
+        f"Доступ открыт на <b>{days} дн.</b> Подключайся и тестируй без ограничений."
+    )
     if url:
-        text += f"\n\nСсылка подписки:\n<code>{url}</code>"
-    await show_screen(
+        text += f"\n\n🔌 Ссылка подписки:\n<code>{url}</code>"
+    await render_screen(
         cb,
+        container,
+        "trial",
         text,
         simple_keyboard([("👤 Моя подписка", "act:subscription:0"), ("‹ Меню", "nav:root")]),
     )
@@ -531,9 +525,12 @@ async def act_support(cb: CallbackQuery, container: AppContainer, db_user: User)
         miniapp_url = str(await cfg.value(uow, "SUBSCRIPTION_MINI_APP_URL") or "")
     back = InlineKeyboardButton(text="‹ Меню", callback_data="nav:root")  # never a dead end (SUP-1)
     if mode == "bot" and support_bot:
-        await show_screen(
+        await render_screen(
             cb,
-            "🆘 <b>Поддержка</b>\n\nНапиши в наш саппорт-бот — оператор ответит прямо там:",
+            container,
+            "support",
+            "<b>🆘 Поддержка</b>\n\n"
+            "Пиши в наш саппорт-бот — оператор на связи и ответит прямо там.",
             InlineKeyboardMarkup(
                 inline_keyboard=[
                     [
@@ -549,9 +546,11 @@ async def act_support(cb: CallbackQuery, container: AppContainer, db_user: User)
         await cb.answer()
         return
     if mode == "redirect" and redirect:
-        await show_screen(
+        await render_screen(
             cb,
-            "🆘 <b>Поддержка</b>\n\nНапиши нам — ответим быстро:",
+            container,
+            "support",
+            "<b>🆘 Поддержка</b>\n\nНапиши нам напрямую — отвечаем быстро, без ботов и очередей.",
             InlineKeyboardMarkup(
                 inline_keyboard=[
                     [
@@ -566,9 +565,12 @@ async def act_support(cb: CallbackQuery, container: AppContainer, db_user: User)
         await cb.answer()
         return
     if mode == "miniapp" and miniapp_url.startswith("https://"):
-        await show_screen(
+        await render_screen(
             cb,
-            "🆘 <b>Поддержка</b>\n\nОткрой чат поддержки в приложении:",
+            container,
+            "support",
+            "<b>🆘 Поддержка</b>\n\n"
+            "Чат поддержки живёт в приложении — открывай и пиши, мы на связи.",
             InlineKeyboardMarkup(
                 inline_keyboard=[[webapp_button("💬 Открыть поддержку", miniapp_url)], [back]]
             ),
@@ -627,7 +629,7 @@ async def act_devices(cb: CallbackQuery, container: AppContainer, db_user: User)
             )
         text = "\n".join(lines)
         kb.append([InlineKeyboardButton(text="‹ Меню", callback_data="nav:root")])
-    await show_screen(cb, text, InlineKeyboardMarkup(inline_keyboard=kb))
+    await render_screen(cb, container, "devices", text, InlineKeyboardMarkup(inline_keyboard=kb))
     await safe_answer(cb)  # devdel chains here after answering
 
 
@@ -663,21 +665,21 @@ async def act_nodes(cb: CallbackQuery, container: AppContainer, db_user: User) -
             return
         nodes = sorted(await uow.server_nodes.list(), key=lambda n: n.name)
     if not nodes:
-        text = "🌍 <b>Статус серверов</b>\n\nДанные ещё не собраны."
+        text = "<b>🌍 Статус серверов</b>\n\nДанные ещё собираются — загляни чуть позже."
     else:
         glyph = {
             ServerNodeStatus.ONLINE: "🟢",
             ServerNodeStatus.OFFLINE: "🔴",
             ServerNodeStatus.MAINTENANCE: "🟠",
         }
-        lines = ["🌍 <b>Статус серверов</b>", ""]
+        lines = ["<b>🌍 Статус серверов</b>", ""]
         for n in nodes[:30]:
             flag = f"{n.country_code} " if n.country_code else ""
             lines.append(
                 f"{glyph.get(n.status, '⚪')} {flag}{hesc(n.name)} · онлайн {n.users_online}"
             )
         text = "\n".join(lines)
-    await show_screen(cb, text, simple_keyboard([("‹ Меню", "nav:root")]))
+    await render_screen(cb, container, "nodes", text, simple_keyboard([("‹ Меню", "nav:root")]))
     await cb.answer()
 
 
@@ -696,8 +698,9 @@ async def act_proxy(cb: CallbackQuery, container: AppContainer, db_user: User) -
     elif raw.startswith("t.me/"):
         raw = "https://" + raw
     text = (
-        "🔌 <b>MTProto-прокси</b>\n\nНажми кнопку — Telegram предложит подключить прокси. "
-        "Работает даже там, где Telegram ограничен."
+        "<b>🔌 MTProto-прокси</b>\n\n"
+        "Один тап — и Telegram пойдёт через наш прокси. Выручает там, где мессенджер режут.\n\n"
+        "Жми кнопку ниже 👇"
     )
     markup = InlineKeyboardMarkup(
         inline_keyboard=[
@@ -705,7 +708,7 @@ async def act_proxy(cb: CallbackQuery, container: AppContainer, db_user: User) -
             [InlineKeyboardButton(text="‹ Меню", callback_data="nav:root")],
         ]
     )
-    await show_screen(cb, text, markup)
+    await render_screen(cb, container, "proxy", text, markup)
     await cb.answer()
 
 

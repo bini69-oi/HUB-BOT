@@ -13,8 +13,8 @@ from aiogram.fsm.state import State, StatesGroup
 from aiogram.types import CallbackQuery, Message
 
 from src.application.services.promo import PromoError
+from src.bot.banners import render_screen
 from src.bot.keyboards import simple_keyboard
-from src.bot.screen import show_screen
 from src.core.enums import RewardType
 from src.infrastructure.database.models.user import User
 from src.infrastructure.di import AppContainer
@@ -41,11 +41,12 @@ async def ask_code(
     cb: CallbackQuery, container: AppContainer, db_user: User, state: FSMContext
 ) -> None:
     await state.set_state(PromoForm.waiting_code)
-    await show_screen(
+    await render_screen(
         cb,
-        "Введи промокод одним сообщением:",
+        container,
+        "promocode",
+        "<b>🎟 Промокод</b>\n\nПришли код одним сообщением — начислим бонус сразу.",
         simple_keyboard([("‹ Меню", "nav:root")]),
-        parse_mode=None,
     )
     await cb.answer()
 

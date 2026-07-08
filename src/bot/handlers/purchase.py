@@ -10,15 +10,16 @@ from __future__ import annotations
 
 import math
 from dataclasses import replace
+from html import escape as hesc
 from typing import TYPE_CHECKING
 
 from aiogram import F, Router
 from aiogram.types import CallbackQuery, LabeledPrice, Message, PreCheckoutQuery
 
 from src.application.dto.pricing import PurchaseRequest
+from src.bot.banners import render_screen
 from src.bot.gate import ensure_channel
 from src.bot.keyboards import simple_keyboard
-from src.bot.screen import show_screen
 from src.core.enums import Currency, PurchaseType, TransactionStatus, TransactionType
 from src.core.exceptions import (
     DomainError,
@@ -73,7 +74,12 @@ async def show_plans(cb: CallbackQuery, container: AppContainer, db_user: User) 
         traffic = f"{(p.traffic_limit_bytes or 0) / GIB:.0f} ГБ" if p.traffic_limit_bytes else "∞"
         rows.append((f"{p.name} · {traffic} · от {fmt_money(cheapest)}", f"plan:{p.id}"))
     rows.append(("‹ Меню", "nav:root"))
-    await show_screen(cb, "Выбери тариф:", simple_keyboard(rows), parse_mode=None)
+    caption = (
+        "<b>🛒 Выбери тариф</b>\n\n"
+        "Цена и трафик — прямо в кнопках.\n"
+        "Жми подходящий, срок выберешь на следующем шаге."
+    )
+    await render_screen(cb, container, "buy", caption, simple_keyboard(rows))
     await cb.answer()
 
 
@@ -111,9 +117,12 @@ async def show_durations(cb: CallbackQuery, container: AppContainer, db_user: Us
             continue
         rows.append((f"{_duration_label(d.days)} · {fmt_money(rub)}", f"dur:{plan.id}:{d.days}"))
     rows.append(("‹ Назад", "act:buy:0"))
-    await show_screen(
+    await render_screen(
         cb,
-        f"<b>{plan.name}</b>\n{plan.description or ''}\n\nВыбери срок:",
+        container,
+        "durations",
+        f"<b>🛒 {hesc(plan.name)}</b>\n{hesc(plan.description or '')}\n\n"
+        "Выбери срок — чем длиннее, тем дешевле месяц.",
         simple_keyboard(rows),
     )
     await cb.answer()
@@ -163,9 +172,12 @@ async def choose_payment(cb: CallbackQuery, container: AppContainer, db_user: Us
     credit = -quote.components.get("change_credit", 0)
     if credit > 0:
         discount += f"\nЗачтён остаток текущего тарифа: −{fmt_money(credit)}"
-    await show_screen(
+    await render_screen(
         cb,
-        f"К оплате: <b>{fmt_money(price)}</b>{discount}\n\nСпособ оплаты:",
+        container,
+        "payment",
+        f"<b>💳 Способ оплаты</b>\n\nК оплате: <b>{fmt_money(price)}</b>{discount}\n\n"
+        "Выбери, чем платишь.",
         simple_keyboard(rows),
     )
     await cb.answer()
@@ -285,8 +297,12 @@ async def show_constructor(cb: CallbackQuery, container: AppContainer, db_user: 
         for p in sorted(periods, key=lambda p: p.days)
     ]
     rows.append(("‹ Меню", "nav:root"))
-    await show_screen(
-        cb, "Собери свою подписку.\n\nШаг 1 — срок:", simple_keyboard(rows), parse_mode=None
+    await render_screen(
+        cb,
+        container,
+        "buy",
+        "<b>🛒 Конструктор</b>\n\nСобери свою подписку под себя.\nШаг 1 — срок:",
+        simple_keyboard(rows),
     )
     await cb.answer()
 
@@ -305,11 +321,14 @@ async def constructor_packs(cb: CallbackQuery, container: AppContainer, db_user:
         for t in sorted(packs, key=lambda t: (t.gb == 0, t.gb))
     ]
     rows.append(("‹ Назад", "act:buy:0"))
-    await show_screen(
+    await render_screen(
         cb,
-        f"Срок: {_period_label(period.days)} · {fmt_money(period.price_minor)}\n\nШаг 2 — трафик:",
+        container,
+        "durations",
+        f"<b>🛒 Твоя подписка</b>\n\n"
+        f"Срок: <b>{_period_label(period.days)} · {fmt_money(period.price_minor)}</b>\n"
+        "Шаг 2 — трафик:",
         simple_keyboard(rows),
-        parse_mode=None,
     )
     await cb.answer()
 
@@ -333,10 +352,13 @@ async def constructor_payment(cb: CallbackQuery, container: AppContainer, db_use
     if credit > 0:
         discount += f"\nЗачтён остаток текущего тарифа: −{fmt_money(credit)}"
     summary = f"{_period_label(req.duration_days)} · " + (f"{traffic_gb} ГБ" if traffic_gb else "∞")
-    await show_screen(
+    await render_screen(
         cb,
-        f"Твоя подписка: <b>{summary}</b>\n"
-        f"К оплате: <b>{fmt_money(quote.final.amount_minor)}</b>{discount}\n\nСпособ оплаты:",
+        container,
+        "payment",
+        f"<b>💳 Способ оплаты</b>\n\nТвоя подписка: <b>{summary}</b>\n"
+        f"К оплате: <b>{fmt_money(quote.final.amount_minor)}</b>{discount}\n\n"
+        "Выбери, чем платишь.",
         simple_keyboard(rows),
     )
     await cb.answer()
@@ -423,12 +445,13 @@ async def _pay_with_gateway(
             [InlineKeyboardButton(text="‹ Меню", callback_data="nav:root")],
         ]
     )
-    await show_screen(
+    await render_screen(
         cb,
-        "Счёт создан — оплати по кнопке ниже.\n"
-        "Подписка активируется автоматически сразу после оплаты ⚡",
+        container,
+        "payment",
+        "<b>💳 Счёт создан</b>\n\n"
+        "Оплати по кнопке ниже — подписка активируется автоматически сразу после оплаты ⚡",
         markup,
-        parse_mode=None,
     )
     await cb.answer()
 
@@ -443,11 +466,13 @@ async def _show_activated(cb: CallbackQuery, container: AppContainer, user_id: i
             else None
         )
         url = sub.subscription_url if sub else None
-    text = "✅ <b>Подписка активирована!</b>"
+    text = "<b>✅ Подписка активирована!</b>"
     if url:
-        text += f"\n\nСсылка подписки:\n<code>{url}</code>"
-    await show_screen(
+        text += f"\n\n🔌 Ссылка подписки:\n<code>{url}</code>"
+    await render_screen(
         cb,
+        container,
+        "subscription",
         text,
         simple_keyboard([("👤 Моя подписка", "act:subscription:0"), ("‹ Меню", "nav:root")]),
     )
@@ -484,10 +509,12 @@ async def _pay_with_balance(
             from src.infrastructure.services.cart import save_cart
 
             await save_cart(container.redis, req, ttl)
-            await show_screen(
+            await render_screen(
                 cb,
-                "На балансе не хватает средств.\n"
-                "Пополни — и подписка оформится сама сразу после зачисления ⚡",
+                container,
+                "balance",
+                "<b>💳 Не хватает средств</b>\n\n"
+                "Пополни баланс — и подписка оформится сама сразу после зачисления ⚡",
                 simple_keyboard([("⭐ Пополнить", "topup:menu"), ("‹ Меню", "nav:root")]),
             )
             await cb.answer()
@@ -522,10 +549,12 @@ async def traffic_menu(cb: CallbackQuery, container: AppContainer, db_user: User
         for p in sorted(packs, key=lambda p: p.order_index)
     ]
     rows.append(("‹ Назад", "act:subscription:0"))
-    await show_screen(
+    await render_screen(
         cb,
-        "➕ <b>Докупить трафик</b>\n\nГигабайты добавятся к лимиту текущей подписки сразу "
-        "после оплаты, срок не меняется.",
+        container,
+        "traffic",
+        "<b>📈 Докупить трафик</b>\n\n"
+        "Гигабайты добавятся к лимиту текущей подписки сразу после оплаты — срок не меняется.",
         simple_keyboard(rows),
     )
     await cb.answer()
@@ -578,9 +607,11 @@ async def traffic_pack_pay(cb: CallbackQuery, container: AppContainer, db_user: 
     for gtype, label in online_gateways:
         rows.append((f"💳 {label}", f"tpay:{pack_id}:{gtype}"))
     rows.append(("‹ Назад", "traffic:menu"))
-    await show_screen(
+    await render_screen(
         cb,
-        f"+{pack.gb} ГБ · К оплате: <b>{fmt_money(price)}</b>\n\nСпособ оплаты:",
+        container,
+        "traffic",
+        f"<b>📈 +{pack.gb} ГБ</b>\n\nК оплате: <b>{fmt_money(price)}</b>\nВыбери способ оплаты:",
         simple_keyboard(rows),
     )
     await cb.answer()
@@ -626,11 +657,13 @@ async def topup_menu(cb: CallbackQuery, container: AppContainer, db_user: User) 
         stars = max(1, math.ceil(minor / max(1, stars_rate)))
         rows.append((f"{fmt_money(minor)} · {stars} ★", f"topup:{minor}"))
     rows.append(("‹ Назад", "act:balance:0"))
-    await show_screen(
+    await render_screen(
         cb,
-        "Пополнение баланса через Telegram Stars.\nВыбери сумму:",
+        container,
+        "topup",
+        "<b>💳 Пополнение баланса</b>\n\n"
+        "Зачислим через Telegram Stars.\nВыбери сумму — звёзды указаны в кнопках.",
         simple_keyboard(rows),
-        parse_mode=None,
     )
     await cb.answer()
 
