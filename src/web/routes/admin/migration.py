@@ -14,9 +14,10 @@ from pathlib import Path
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, UploadFile
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
-from src.application.services import shopbot_import
+from src.application.services import bedolaga_import, shopbot_import
+from src.application.services.bedolaga_import import BedolagaImportService
 from src.application.services.shopbot_import import ShopbotImportService
 from src.core.logging import get_logger
 from src.infrastructure.di import AppContainer
@@ -109,4 +110,66 @@ async def run_import(
     path.unlink(missing_ok=True)
     log.info("shopbot import done", **{k: v for k, v in summary.items() if k != "skipped"})
     summary["skipped"] = summary["skipped"][:50]  # keep the response bounded
+    return {"ok": True, **summary}
+
+
+# ---------------------------------------------------------------------------
+# Bedolaga migration — the source is a live Postgres, so the admin gives us a
+# read-only DSN instead of uploading a file.
+# ---------------------------------------------------------------------------
+bedolaga_router = APIRouter(prefix="/migration/bedolaga")
+
+
+class DsnIn(BaseModel):
+    dsn: str = Field(..., min_length=12, max_length=1024)
+
+    @field_validator("dsn")
+    @classmethod
+    def _pg(cls, v: str) -> str:
+        v = v.strip()
+        if not v.startswith(("postgresql://", "postgres://")):
+            raise ValueError("нужен postgresql:// DSN к БД bedolaga")
+        return v
+
+
+@bedolaga_router.post("/probe")
+async def bedolaga_probe(
+    body: DsnIn,
+    identity: AdminIdentity = Depends(require_admin),
+    container: AppContainer = Depends(get_container),
+) -> dict[str, Any]:
+    result = await bedolaga_import.probe(body.dsn)
+    async with container.uow() as uow:
+        await audit(uow, identity, "migration.bedolaga.probe", None)
+        await uow.commit()
+    return result
+
+
+@bedolaga_router.post("/run")
+async def bedolaga_run(
+    body: DsnIn,
+    identity: AdminIdentity = Depends(require_admin),
+    container: AppContainer = Depends(get_container),
+) -> dict[str, Any]:
+    try:
+        data = await bedolaga_import.read_source(body.dsn)
+    except Exception as exc:
+        raise HTTPException(400, f"не удалось прочитать БД bedolaga: {exc}") from exc
+    if not data["users"]:
+        raise HTTPException(400, "таблица users пуста — это точно БД bedolaga?")
+
+    service = BedolagaImportService(container.referrals)
+    async with container.uow() as uow:
+        summary = await service.run(uow, data)
+        await audit(
+            uow,
+            identity,
+            "migration.bedolaga.run",
+            None,
+            users=summary["users_created"] + summary["users_updated"],
+            subscriptions=summary["subscriptions"],
+        )
+        await uow.commit()
+    log.info("bedolaga import done", **{k: v for k, v in summary.items() if k != "skipped"})
+    summary["skipped"] = summary["skipped"][:50]
     return {"ok": True, **summary}
