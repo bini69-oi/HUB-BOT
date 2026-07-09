@@ -9,6 +9,7 @@ from __future__ import annotations
 from fastapi import APIRouter, Depends
 
 from src.web.routes.admin import (
+    ai_support,
     analytics,
     auth,
     blacklist,
@@ -62,6 +63,7 @@ _protected.include_router(miniapp.router)
 _protected.include_router(maintenance.router)
 _protected.include_router(migration.router)
 _protected.include_router(migration.bedolaga_router)
+_protected.include_router(ai_support.router)
 _protected.include_router(withdrawals.router)
 _protected.include_router(uploads.router)
 router.include_router(_protected)

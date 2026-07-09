@@ -79,6 +79,7 @@ export default function Layout() {
     { icon: "📈", path: "/campaigns", label: t.campaigns },
     { group: t.gOps, icon: "💰", path: "/payments", label: t.payments },
     { icon: "🎫", path: "/tickets", label: t.tickets, badge: tickets.data?.open_count },
+    { icon: "🤖", path: "/ai-support", label: t.aiSupport },
     { group: t.gSystem, icon: "🌍", path: "/servers", label: t.servers },
     { icon: "⚙️", path: "/settings", label: t.settings },
     { icon: "🛠️", path: "/maintenance", label: t.maintenance },

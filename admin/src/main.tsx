@@ -8,6 +8,7 @@ import { getToken } from "./api/client";
 import { AppProvider } from "./state/app";
 import "./theme.css";
 
+import AiSupport from "./screens/AiSupport";
 import Broadcasts from "./screens/Broadcasts";
 import BotButtons from "./screens/BotButtons";
 import Campaigns from "./screens/Campaigns";
@@ -50,6 +51,7 @@ const router = createHashRouter([
       { path: "campaigns", element: <Campaigns /> },
       { path: "payments", element: <Payments /> },
       { path: "tickets", element: <Tickets /> },
+      { path: "ai-support", element: <AiSupport /> },
       { path: "servers", element: <Servers /> },
       { path: "settings", element: <Settings /> },
       { path: "maintenance", element: <Maintenance /> },

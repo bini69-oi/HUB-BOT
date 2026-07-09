@@ -70,6 +70,8 @@ ignore = ["B008"]  # FastAPI Depends() in defaults
 # RU display strings legitimately contain cyrillic homoglyphs.
 "src/core/config_registry.py" = ["RUF001"]
 "src/bot/**" = ["RUF001"]
+# The AI-support prompt + knowledge base are long RU text blocks by nature.
+"src/infrastructure/services/ai_support.py" = ["RUF001", "E501"]
 
 [tool.ruff.lint.isort]
 known-first-party = ["src"]

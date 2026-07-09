@@ -32,6 +32,7 @@ from src.infrastructure.redis.client import create_redis
 from src.infrastructure.remnawave.client import RemnawaveHttpClient
 from src.infrastructure.remnawave.connection import build_profile
 from src.infrastructure.remnawave.webhook import WebhookVerifier
+from src.infrastructure.services.ai_support import AiSupportService
 from src.infrastructure.services.mailer import Mailer
 from src.infrastructure.services.notification import LogNotifier, TelegramNotifier
 from src.infrastructure.services.postback import wire_postback_events
@@ -79,6 +80,9 @@ class AppContainer:
         self.panel_sync = PanelSyncService(self.remnawave_client)
         self.device_guard = DeviceGuardService(self.remnawave_client)
         self.resync = RemnawaveResyncService(self.remnawave_client, self.subscriptions)
+        self.ai_support = AiSupportService(
+            self.remnawave_client, self.notifier, self.bot_config, self.uow
+        )
 
         # Screen 14: instant report topics (payments/tickets/registrations) listen on the bus.
         wire_report_events(self)

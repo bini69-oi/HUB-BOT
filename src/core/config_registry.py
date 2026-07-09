@@ -660,6 +660,57 @@ REGISTRY: tuple[ParamSpec, ...] = (
         "Для режима «bot»: @username отдельного саппорт-бота, кнопка открывает его",
         "For «bot» mode: the separate support bot's @username",
     ),
+    # --- AI SUPPORT ---------------------------------------------------------------
+    _p(
+        "AI_SUPPORT_ENABLED",
+        C.SUPPORT,
+        BOOL,
+        False,
+        "Включить ИИ-поддержку",
+        "Enable AI support",
+        "ИИ отвечает в тикетах вместо оператора; сложные случаи (деньги, спор) эскалирует",
+        "The AI answers tickets; hard cases (money, disputes) escalate to a human",
+    ),
+    _p(
+        "AI_SUPPORT_API_KEY",
+        C.SUPPORT,
+        SECRET,
+        "",
+        "API-ключ Claude (sk-ant-…)",
+        "Claude API key (sk-ant-…)",
+        "Свой ключ с console.anthropic.com — хранится в зашифрованном виде",
+        "Your key from console.anthropic.com — stored encrypted",
+    ),
+    _p(
+        "AI_SUPPORT_MODEL",
+        C.SUPPORT,
+        STR,
+        "claude-haiku-4-5-20251001",
+        "Модель",
+        "Model",
+        "По умолчанию Claude Haiku 4.5 — дёшево и быстро для поддержки",
+        "Defaults to Claude Haiku 4.5 — cheap and fast for support",
+    ),
+    _p(
+        "AI_SUPPORT_KNOWLEDGE_BASE",
+        C.SUPPORT,
+        STR,
+        "",
+        "База знаний",
+        "Knowledge base",
+        "Факты о сервисе (тарифы, приложения, решения) — этим «обучаешь» ИИ. Пусто → базовый набор",
+        "Facts about your service (plans, apps, fixes) — this «trains» the AI. Empty → defaults",
+    ),
+    _p(
+        "AI_SUPPORT_EXTRA_PROMPT",
+        C.SUPPORT,
+        STR,
+        "",
+        "Доп. инструкции ИИ",
+        "Extra AI instructions",
+        "Тон, стиль, особые правила — добавляются к системному промпту",
+        "Tone, style, special rules — appended to the system prompt",
+    ),
     _p(
         "REPORT_DM_ADMINS",
         C.NOTIFICATIONS,
@@ -762,6 +813,7 @@ CATEGORY_ORDER: tuple[ConfigCategory, ...] = (
     C.REFERRAL,
     C.SECURITY,
     C.BACKUPS,
+    C.SUPPORT,
     C.INTERFACE,
 )
 
@@ -773,6 +825,7 @@ CATEGORY_NAMES: dict[ConfigCategory, dict[str, str]] = {
     C.REFERRAL: {"ru": "Реферальная программа", "en": "Referral"},
     C.SECURITY: {"ru": "Безопасность", "en": "Security"},
     C.BACKUPS: {"ru": "Бэкапы", "en": "Backups"},
+    C.SUPPORT: {"ru": "ИИ-поддержка", "en": "AI support"},
     C.INTERFACE: {"ru": "Интерфейс бота", "en": "Bot interface"},
 }
 

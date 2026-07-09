@@ -21,16 +21,63 @@ from src.bot.banners import render_screen
 from src.bot.keyboards import simple_keyboard
 from src.bot.screen import ack
 from src.core.enums import TicketAuthor, TicketStatus
+from src.core.logging import get_logger
 from src.infrastructure.database.base import utcnow
 from src.infrastructure.database.models.ticket import Ticket, TicketMessage
 from src.infrastructure.database.models.user import User
 from src.infrastructure.di import AppContainer
 
 router = Router(name="tickets")
+log = get_logger(__name__)
 
 
 class TicketForm(StatesGroup):
     waiting_text = State()
+
+
+async def _maybe_ai_reply(
+    message: Message, container: AppContainer, db_user: User, ticket_id: int
+) -> bool:
+    """If AI support is on and no human is in the loop, answer or escalate. Returns handled."""
+    try:
+        if not await container.ai_support.enabled():
+            return False
+        async with container.uow() as uow:
+            msgs = await uow.ticket_messages.list(ticket_id=ticket_id)
+        # A real operator already replied (an ADMIN message without the 🤖 marker) → AI steps back.
+        if any(m.author is TicketAuthor.ADMIN and not m.text.startswith("🤖 ") for m in msgs):
+            return False
+        history = [(m.author.value, m.text) for m in msgs]
+        with contextlib.suppress(Exception):
+            await message.bot.send_chat_action(message.chat.id, "typing")  # type: ignore[union-attr]
+        reply, escalate, _actions = await container.ai_support.generate_reply(db_user, history)
+        if reply and not escalate:
+            async with container.uow() as uow:
+                await uow.ticket_messages.add(
+                    TicketMessage(
+                        ticket_id=ticket_id, author=TicketAuthor.ADMIN, text=("🤖 " + reply)[:4096]
+                    )
+                )
+                t = await uow.tickets.get(ticket_id)
+                if t is not None:
+                    t.status = TicketStatus.WAITING
+                await uow.commit()
+            await message.answer(reply)
+            return True
+        # Escalation: tell the user a human is coming, alert the owner, leave the ticket OPEN.
+        await message.answer(
+            "Приняли обращение — подключаем оператора, ответим здесь в ближайшее время."
+        )
+        with contextlib.suppress(Exception):
+            await container.notifier.notify_admins(
+                f"⚠️ Тикет #{ticket_id} эскалирован ИИ — нужен оператор "
+                f"(клиент {db_user.telegram_id}).",
+                topic="alerts",
+            )
+        return True
+    except Exception as exc:
+        log.warning("ai support reply failed", ticket=ticket_id, error=str(exc))
+        return False
 
 
 async def begin_ticket(cb: CallbackQuery | Message, container: AppContainer, db_user: User) -> None:
@@ -90,9 +137,6 @@ async def user_message(
         ticket_id = active.id
 
     if created:
-        await message.answer(
-            f"🆗 Тикет <b>#{ticket_id}</b> создан — ответим здесь.", parse_mode="HTML"
-        )
         # Instant "tickets" report topic (screen 14) listens on the bus.
         await container.event_bus.publish(
             TicketOpened(
@@ -103,8 +147,15 @@ async def user_message(
                 subject=text[:64],
             )
         )
-    else:
-        await message.answer("Добавил к тикету ✍️")
+
+    # AI support: if enabled and no human is handling this ticket yet, answer or escalate.
+    if not await _maybe_ai_reply(message, container, db_user, ticket_id):
+        if created:
+            await message.answer(
+                f"🆗 Тикет <b>#{ticket_id}</b> создан — ответим здесь.", parse_mode="HTML"
+            )
+        else:
+            await message.answer("Добавил к тикету ✍️")
 
     # Mirror into the support group when configured.
     if support_chat.lstrip("-").isdigit():

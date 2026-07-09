@@ -291,6 +291,7 @@ class ConfigCategory(StrEnum):
     REFERRAL = "ref"
     SECURITY = "sec"
     BACKUPS = "backup"
+    SUPPORT = "support"
     INTERFACE = "ui"
 
 
