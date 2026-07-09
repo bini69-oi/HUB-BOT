@@ -39,6 +39,22 @@ async def test_get_version_parses_and_unwraps() -> None:
 
 
 @respx.mock
+async def test_get_version_unknown_assumes_modern_no_legacy_caps() -> None:
+    # Backend v2 doesn't expose a version at /health. An unreadable version must NOT
+    # be treated as pre-2.8 (that would add the happ_encrypt cap 2.x rejects).
+    respx.get(f"{BASE}/api/system/health").mock(
+        return_value=httpx.Response(200, json={"response": {"uptime": 123}})
+    )
+    client = _client()
+    try:
+        version = await client.get_version()
+    finally:
+        await client.aclose()
+    assert version.tuple == (0, 0, 0)
+    assert "happ_encrypt" not in version.capabilities  # unknown → modern, not legacy
+
+
+@respx.mock
 async def test_create_user_sends_both_auth_headers_and_maps_dto() -> None:
     panel_uuid = uuid.uuid4()
     route = respx.post(f"{BASE}/api/users").mock(

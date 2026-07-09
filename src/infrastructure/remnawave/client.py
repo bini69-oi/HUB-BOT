@@ -164,11 +164,16 @@ class RemnawaveHttpClient:
         if isinstance(data, dict):
             raw = str(data.get("version") or data.get("appVersion") or "")
         parts = [int(p) for p in raw.split(".")[:3] if p.isdigit()]
+        known = bool(parts)  # did we actually read a version string?
         while len(parts) < 3:
             parts.append(0)
         major, minor, patch = parts[0], parts[1], parts[2]
         caps: set[str] = set()
-        if (major, minor, patch) < MIN_REMNAWAVE_VERSION:
+        # Capability-probe, not a pin: only assume the legacy behaviour when the panel
+        # *told us* it's old. Newer backends (v2) don't expose a version here — an
+        # unreadable version must NOT be treated as pre-2.8 (that added happ_encrypt,
+        # which 2.x rejects). Unknown → assume modern.
+        if known and (major, minor, patch) < MIN_REMNAWAVE_VERSION:
             caps.add("happ_encrypt")  # removed in 2.8.0
         return PanelVersion(
             raw=raw or "0.0.0", major=major, minor=minor, patch=patch, capabilities=frozenset(caps)
@@ -179,9 +184,10 @@ class RemnawaveHttpClient:
         return _to_panel_user(dict(data))
 
     async def update_user(self, panel_uuid: uuid.UUID, spec: ProvisionSpec) -> PanelUser:
-        path = _PATHS["user"].format(uuid=panel_uuid)
+        # Backend v2 updates a user via PATCH /api/users with the uuid IN THE BODY —
+        # PATCH /api/users/{uuid} 404s. (Verified against a live 2.x panel.)
         payload = _spec_payload(spec) | {"uuid": str(panel_uuid)}
-        data = await self._request("PATCH", path, json=payload)
+        data = await self._request("PATCH", _PATHS["users"], json=payload)
         return _to_panel_user(dict(data))
 
     async def get_user_by_uuid(self, panel_uuid: uuid.UUID) -> PanelUser | None:

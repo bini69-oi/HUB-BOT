@@ -91,9 +91,11 @@ async def test_create_user_payload_uses_panel_verified_field_names() -> None:
 
 
 @respx.mock
-async def test_update_user_patches_by_uuid() -> None:
+async def test_update_user_patches_users_collection_with_uuid_in_body() -> None:
+    # Backend v2: PATCH /api/users (collection) with the uuid in the body —
+    # NOT PATCH /api/users/{uuid}, which 404s on a live 2.x panel.
     panel_uuid = uuid.uuid4()
-    route = respx.patch(f"{BASE}/api/users/{panel_uuid}").mock(
+    route = respx.patch(f"{BASE}/api/users").mock(
         return_value=httpx.Response(
             200, json={"response": {"uuid": str(panel_uuid), "shortUuid": "s"}}
         )
@@ -104,6 +106,7 @@ async def test_update_user_patches_by_uuid() -> None:
     finally:
         await client.aclose()
     assert route.called
+    assert route.calls.last.request.url.path == "/api/users"  # no uuid in the path
     body = json.loads(route.calls.last.request.content)
     assert body["uuid"] == str(panel_uuid)
 
