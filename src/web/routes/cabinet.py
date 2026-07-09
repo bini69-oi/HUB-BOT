@@ -272,7 +272,10 @@ async def public_landing(container: AppContainer = Depends(get_container)) -> di
         landing = dict((miniapp.ui or {}).get("landing") or {})
         web_enabled = bool(await cfg.value(uow, "WEB_CABINET_ENABLED"))
         bot_username = str(await cfg.value(uow, "BOT_USERNAME") or "")
-        cabinet_url = str(await cfg.value(uow, "CABINET_URL") or "") or "/web/"
+        # The web cabinet is always mounted at /web on this same origin. Use the relative
+        # path (not CABINET_URL, which may be a bare domain now fronted by this landing —
+        # that would loop the «Личный кабинет» button back here).
+        cabinet_url = "/web/"
         await uow.commit()
     # No web cabinet → the CTA can only go to the bot, whatever the admin picked.
     target = landing.get("cta_target") or "web"
