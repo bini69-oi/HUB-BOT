@@ -134,7 +134,7 @@ export default function Tickets() {
         {/* ticket list */}
         <div className="card" style={{ flex: "1 1 300px", padding: 0, overflow: "hidden" }}>
           {(tickets.data?.items ?? []).map((tk) => {
-            const [g, cls] = ST[tk.status];
+            const [g, cls] = ST[tk.status] ?? ["○", "off"];
             return (
               <div
                 key={tk.id}

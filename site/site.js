@@ -162,7 +162,10 @@
       document.body.style.setProperty("--acc", accent);
       document.querySelector(".brand-mark") && (document.querySelector(".brand-mark").style.background = accent);
     }
-    var mode = params.get("mode") || (window.matchMedia && matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
+    var stored = null;
+    try { stored = localStorage.getItem("site_mode"); } catch (e) {}
+    // ?mode= (admin preview) wins, then the visitor's saved choice, then the OS preference.
+    var mode = params.get("mode") || stored || (window.matchMedia && matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
     document.body.dataset.mode = mode === "dark" ? "dark" : "light";
   }
 

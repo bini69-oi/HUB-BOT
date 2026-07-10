@@ -549,6 +549,85 @@ async def apply_promocode(
     return {"ok": True, "reward_type": reward.value, "message": None}  # #11: consistent shape
 
 
+class SupportIn(BaseModel):
+    text: str = Field(..., min_length=1, max_length=4096)
+
+
+def _support_msg(m: Any) -> dict[str, Any]:
+    from src.core.enums import TicketAuthor
+
+    text = m.text[2:].strip() if m.text.startswith("🤖 ") else m.text
+    return {
+        "from": "you" if m.author is TicketAuthor.USER else "support",
+        "text": text,
+        "at": m.created_at.isoformat(),
+    }
+
+
+@router.get("/support")
+async def support_history(
+    user: User = Depends(cabinet_user), container: AppContainer = Depends(get_container)
+) -> dict[str, Any]:
+    """Current support conversation (for the mini-app chat + polling operator replies)."""
+    from src.core.enums import TicketStatus
+
+    async with container.uow() as uow:
+        tickets = await uow.tickets.list(user_id=user.id)
+        active = next((t for t in tickets if t.status is not TicketStatus.CLOSED), None)
+        if active is None:
+            return {"ticket_id": None, "status": None, "messages": []}
+        rows = await uow.ticket_messages.list(ticket_id=active.id)
+        msgs = sorted(rows, key=lambda m: m.id)  # base DAO list() has no ORDER BY
+        return {
+            "ticket_id": active.id,
+            "status": active.status.value,
+            "messages": [_support_msg(m) for m in msgs],
+        }
+
+
+@router.post("/support")
+async def support_send(
+    body: SupportIn,
+    user: User = Depends(cabinet_user),
+    container: AppContainer = Depends(get_container),
+) -> dict[str, Any]:
+    """Post a support message; the AI answers/escalates (same engine as the bot tickets)."""
+    from src.application.events import TicketOpened
+    from src.core.enums import TicketAuthor, TicketStatus
+    from src.infrastructure.database.base import utcnow
+    from src.infrastructure.database.models.ticket import Ticket, TicketMessage
+
+    text = (body.text or "").strip()[:4096]
+    if not text:
+        raise HTTPException(400, "empty message")
+    async with container.uow() as uow:
+        tickets = await uow.tickets.list(user_id=user.id)
+        active = next((t for t in tickets if t.status is not TicketStatus.CLOSED), None)
+        created = active is None
+        if active is None:
+            active = Ticket(user_id=user.id, subject=text[:64])
+            await uow.tickets.add(active)
+        await uow.ticket_messages.add(
+            TicketMessage(ticket_id=active.id, author=TicketAuthor.USER, text=text)
+        )
+        active.status = TicketStatus.OPEN
+        active.updated_at = utcnow()
+        await uow.commit()
+        ticket_id = active.id
+    if created:
+        await container.event_bus.publish(
+            TicketOpened(
+                ticket_id=ticket_id,
+                user_id=user.id,
+                telegram_id=user.telegram_id or 0,
+                username=user.username,
+                subject=text[:64],
+            )
+        )
+    outcome, ai_text = await container.ai_support.handle_ticket(user, ticket_id)
+    return {"ok": True, "ticket_id": ticket_id, "ai_outcome": outcome, "ai_reply": ai_text}
+
+
 @router.post("/trial")
 async def activate_trial(
     user: User = Depends(cabinet_user), container: AppContainer = Depends(get_container)

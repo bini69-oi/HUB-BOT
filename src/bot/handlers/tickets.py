@@ -38,43 +38,20 @@ class TicketForm(StatesGroup):
 async def _maybe_ai_reply(
     message: Message, container: AppContainer, db_user: User, ticket_id: int
 ) -> bool:
-    """If AI support is on and no human is in the loop, answer or escalate. Returns handled."""
+    """If AI support answered/escalated the ticket, relay it to the user. Returns handled."""
     try:
-        if not await container.ai_support.enabled():
-            return False
-        async with container.uow() as uow:
-            msgs = await uow.ticket_messages.list(ticket_id=ticket_id)
-        # A real operator already replied (an ADMIN message without the 🤖 marker) → AI steps back.
-        if any(m.author is TicketAuthor.ADMIN and not m.text.startswith("🤖 ") for m in msgs):
-            return False
-        history = [(m.author.value, m.text) for m in msgs]
         with contextlib.suppress(Exception):
             await message.bot.send_chat_action(message.chat.id, "typing")  # type: ignore[union-attr]
-        reply, escalate, _actions = await container.ai_support.generate_reply(db_user, history)
-        if reply and not escalate:
-            async with container.uow() as uow:
-                await uow.ticket_messages.add(
-                    TicketMessage(
-                        ticket_id=ticket_id, author=TicketAuthor.ADMIN, text=("🤖 " + reply)[:4096]
-                    )
-                )
-                t = await uow.tickets.get(ticket_id)
-                if t is not None:
-                    t.status = TicketStatus.WAITING
-                await uow.commit()
-            await message.answer(reply)
+        outcome, text = await container.ai_support.handle_ticket(db_user, ticket_id)
+        if outcome == "reply" and text:
+            await message.answer(text)
             return True
-        # Escalation: tell the user a human is coming, alert the owner, leave the ticket OPEN.
-        await message.answer(
-            "Приняли обращение — подключаем оператора, ответим здесь в ближайшее время."
-        )
-        with contextlib.suppress(Exception):
-            await container.notifier.notify_admins(
-                f"⚠️ Тикет #{ticket_id} эскалирован ИИ — нужен оператор "
-                f"(клиент {db_user.telegram_id}).",
-                topic="alerts",
+        if outcome == "escalate":
+            await message.answer(
+                "Приняли обращение — подключаем оператора, ответим здесь в ближайшее время."
             )
-        return True
+            return True
+        return False
     except Exception as exc:
         log.warning("ai support reply failed", ticket=ticket_id, error=str(exc))
         return False

@@ -1,6 +1,6 @@
 /* Screen — AI tech-support: train the AI (knowledge base + key) and test it live. */
 
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 
 import { api } from "../api/client";
@@ -20,8 +20,10 @@ type Config = {
 
 export default function AiSupport() {
   const { t, toast } = useApp();
+  const qc = useQueryClient();
   const [cfg, setCfg] = useState<Config | null>(null);
   const [key, setKey] = useState("");
+  const [keyEdited, setKeyEdited] = useState(false);
   const [dirty, setDirty] = useState(false);
   const [question, setQuestion] = useState("Здравствуйте, как подключиться на айфоне?");
   const [answer, setAnswer] = useState<{ reply: string | null; escalate: boolean } | null>(null);
@@ -50,9 +52,13 @@ export default function AiSupport() {
         knowledge_base: cfg.knowledge_base,
         extra_prompt: cfg.extra_prompt,
       };
-      if (key !== MASK) body.api_key = key; // only send the key when actually changed
+      // Only send the key when the admin actually typed a new one — a focus-only
+      // interaction (mask cleared, nothing typed) must NOT wipe the stored key.
+      if (keyEdited && key !== MASK) body.api_key = key;
       await api.patch("/api/admin/ai-support", body);
+      setKeyEdited(false);
       setDirty(false);
+      await qc.invalidateQueries({ queryKey: ["ai-support"] }); // refetch → no stale revert
       toast(t.saved);
     } catch (e) {
       toast((e as Error).message);
@@ -113,8 +119,10 @@ export default function AiSupport() {
                   value={key}
                   placeholder="sk-ant-…"
                   onFocus={() => key === MASK && setKey("")}
+                  onBlur={() => !key && cfg.has_key && setKey(MASK)}
                   onChange={(e) => {
                     setKey(e.target.value);
+                    setKeyEdited(true);
                     setDirty(true);
                   }}
                 />

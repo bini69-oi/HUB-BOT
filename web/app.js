@@ -31,13 +31,15 @@ function money(minor) {
   return (Number.isInteger(v) ? v : v.toFixed(2)).toLocaleString("ru-RU") + " ₽";
 }
 
-async function api(method, path, body, auth) {
+async function api(method, path, body, auth, _retried) {
   const headers = { "Content-Type": "application/json" };
   if (auth && store.access) headers.Authorization = "Bearer " + store.access;
   const res = await fetch(path, { method, headers, body: body ? JSON.stringify(body) : undefined });
-  if (res.status === 401 && auth && store.refresh) {
+  if (res.status === 401 && auth && store.refresh && !_retried) {
+    // Refresh once. Without the _retried guard a still-401 response after a "successful"
+    // refresh would loop forever (valid refresh token, but the request stays unauthorized).
     const ok = await tryRefresh();
-    if (ok) return api(method, path, body, auth);
+    if (ok) return api(method, path, body, auth, true);
   }
   const data = await res.json().catch(() => ({}));
   if (!res.ok) throw new Error(data.detail || `Ошибка ${res.status}`);
@@ -81,7 +83,12 @@ let authTab = "login";
 async function oauthGo(provider) {
   try {
     const d = await api("GET", `${A}/oauth/${provider}/authorize`);
-    if (d.authorize_url) window.location.href = d.authorize_url;
+    if (d.authorize_url) {
+      // Remember which provider we launched — the callback URL may not carry ?provider=,
+      // and defaulting to "google" would exchange the code against the wrong endpoint.
+      try { localStorage.setItem("wc_oauth_provider", provider); } catch (e) {}
+      window.location.href = d.authorize_url;
+    }
   } catch (e) { toast(e.message); }
 }
 

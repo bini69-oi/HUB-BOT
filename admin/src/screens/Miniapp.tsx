@@ -5,11 +5,26 @@
    what end users get. */
 
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import { api } from "../api/client";
 import { Field } from "../components/ui";
 import { useApp } from "../state/app";
+
+/** Value that trails `value` by `ms` of quiet — used to keep the live-preview iframe
+ *  from remounting (full reload + flicker) on every keystroke while editing UI fields. */
+function useDebounced<T>(value: T, ms: number): T {
+  const [debounced, setDebounced] = useState(value);
+  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => {
+    if (timer.current) clearTimeout(timer.current);
+    timer.current = setTimeout(() => setDebounced(value), ms);
+    return () => {
+      if (timer.current) clearTimeout(timer.current);
+    };
+  }, [value, ms]);
+  return debounced;
+}
 
 type UiButtons = Record<string, { text: string; color: string | null }>;
 type UiBlock = {
@@ -164,6 +179,9 @@ export default function Miniapp() {
   const qc = useQueryClient();
   const [cfg, setCfg] = useState<Config | null>(null);
   const [dirty, setDirty] = useState(false);
+
+  // Preview follows the config with a short delay so typing doesn't remount the iframe.
+  const uiJson = useDebounced(JSON.stringify(cfg?.ui ?? {}), 400);
 
   const data = useQuery({
     queryKey: ["miniapp"],
@@ -773,11 +791,11 @@ export default function Miniapp() {
               }}
             >
               <LivePreview
-                key={`${cfg.template}-${mode}-${accent ?? "auto"}-${JSON.stringify(cfg.ui)}`}
+                key={`${cfg.template}-${mode}-${accent ?? "auto"}-${uiJson}`}
                 variant={cfg.template}
                 mode={mode}
                 accent={accent}
-                ui={cfg.ui}
+                ui={JSON.parse(uiJson) as UiConf}
                 width={300}
                 height={620}
                 interactive

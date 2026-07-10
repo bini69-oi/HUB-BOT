@@ -28,11 +28,14 @@
     deviceRemoved: "Устройство отвязано",
     history: "История платежей", promo: "Промокод", promoPh: "Введи код",
     apply: "Применить", promoOk: "Промокод применён", support: "Поддержка",
+    send: "Отпр.", supportPh: "Опишите вопрос…", supportHint: "Напишите нам — ответим здесь.",
+    supportTyping: "печатает…", supportEscalated: "Подключаем оператора",
     balance: "Баланс", upTo: "до", noSub: "Сначала оформи подписку",
     payBalance: "С баланса", payStars: "Stars", trialBtn: "Попробовать бесплатно",
     bought: "Готово! Подписка активна", error: "Ошибка, попробуй ещё раз",
     version: "v2 · VLESS", loading: "Загрузка…",
     period: "Срок", traffic: "Трафик", unlimited: "∞ безлимит",
+    soon: "Тарифы скоро появятся", soonSub: "Мы уже готовим планы — загляните позже.",
   };
   const EN = {
     ...RU,
@@ -51,11 +54,14 @@
     deviceRemoved: "Device unlinked",
     history: "Payment history", promo: "Promo code", promoPh: "Enter code",
     apply: "Apply", promoOk: "Promo applied", support: "Support",
+    send: "Send", supportPh: "Describe your question…", supportHint: "Message us — we'll reply here.",
+    supportTyping: "typing…", supportEscalated: "Connecting an operator",
     balance: "Balance", upTo: "up to", noSub: "Get a subscription first",
     payBalance: "Balance", payStars: "Stars", trialBtn: "Try for free",
     bought: "Done! Subscription is active", error: "Error, try again",
     loading: "Loading…",
     period: "Period", traffic: "Traffic", unlimited: "∞ unlimited",
+    soon: "Plans coming soon", soonSub: "We're setting up plans — check back later.",
   };
   let T = RU;
 
@@ -317,6 +323,15 @@
               onclick: () => submitPurchase({ period_id: per.id, pack_id: pack.id }),
               text: `${btnText("renew", usable ? T.renew : T.buy)} · ${money(total)}`,
             }),
+          ]),
+        );
+      } else {
+        // Constructor mode with no periods/packs configured yet — show a clear empty state
+        // instead of a blank Home tab.
+        sections.plans.push(
+          el("div", { class: "card fade", style: "text-align:center" }, [
+            el("div", { class: "h-cap", text: T.soon }),
+            el("div", { class: "muted", style: "margin-top:6px", text: T.soonSub }),
           ]),
         );
       }
@@ -616,19 +631,68 @@
         ]),
       );
     }
+    // Support: inline chat (AI-backed via /api/cabinet/support; operator replies arrive here too).
+    if (state.support === undefined) state.support = { messages: null, sending: false };
+    if (!mock && state.support.messages === null) {
+      state.support.messages = [];
+      api("GET", "/api/cabinet/support")
+        .then((r) => { state.support.messages = r.messages || []; render(); })
+        .catch(() => {});
+    }
+    const supMsgs = state.support.messages || [];
+    const supInp = el("input", { class: "inp", placeholder: T.supportPh, maxlength: 1000 });
+    async function sendSupport() {
+      const v = supInp.value.trim();
+      if (!v || state.support.sending) return;
+      supInp.value = "";
+      state.support.messages = supMsgs.concat([{ from: "you", text: v }]);
+      state.support.sending = true;
+      haptic();
+      render();
+      try {
+        const r = await api("POST", "/api/cabinet/support", { text: v });
+        if (mock) {
+          // Standalone preview: no backend — show a canned assistant reply.
+          state.support.messages = state.support.messages.concat([
+            { from: "support", text: "Спасибо за обращение! Это демо-режим — в боевом кабинете здесь ответит ИИ-поддержка." },
+          ]);
+        } else {
+          // Live: refetch the full thread (user message + AI/operator replies) in order.
+          try { state.support.messages = (await api("GET", "/api/cabinet/support")).messages || []; } catch {}
+          if (r && r.ai_outcome === "escalate") toast(T.supportEscalated);
+        }
+      } catch (e) {
+        toast((e.message || T.error).slice(0, 120));
+      }
+      state.support.sending = false;
+      render();
+    }
     frag.push(
-      el("div", { class: "card fade row spread" }, [
-        el("b", { text: "🆘 " + T.support }),
-        el("button", {
-          class: "btn ghost sm",
-          onclick: () => {
-            const bot = me.app.bot_username;
-            const url = `https://t.me/${bot}`;
-            wa && wa.openTelegramLink ? wa.openTelegramLink(url) : window.open(url);
-          },
-          text: "→",
-        }),
-      ]),
+      el("div", { class: "card fade" }, [
+        el("div", { class: "h-cap", text: "🆘 " + T.support }),
+        ...(supMsgs.length
+          ? supMsgs.slice(-8).map((m) =>
+              el("div", { style: `margin:4px 0;text-align:${m.from === "you" ? "right" : "left"}` }, [
+                el("span", {
+                  style:
+                    "display:inline-block;max-width:85%;padding:7px 11px;border-radius:12px;" +
+                    "font-size:13.5px;white-space:pre-line;text-align:left;" +
+                    (m.from === "you"
+                      ? "background:var(--acc);color:var(--accInk)"
+                      : "background:var(--soft);color:var(--ink)"),
+                  text: m.text,
+                }),
+              ]),
+            )
+          : [el("div", { class: "sub", style: "font-size:12.5px", text: T.supportHint })]),
+        state.support.sending
+          ? el("div", { class: "sub", style: "font-size:12px;margin-top:4px", text: T.supportTyping })
+          : null,
+        el("div", { class: "row", style: "margin-top:8px" }, [
+          supInp,
+          el("button", { class: "btn primary sm", text: T.send, onclick: sendSupport }),
+        ]),
+      ].filter(Boolean)),
     );
     frag.push(el("div", { class: "sub", style: "text-align:center;font-size:11px;opacity:.7", text: T.version }));
     return frag.slice(0, -1).concat(customItems("account"), frag.slice(-1));

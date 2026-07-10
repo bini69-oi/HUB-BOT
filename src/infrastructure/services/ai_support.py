@@ -11,13 +11,16 @@ block (prompt + KB + tools) is prompt-cached, so repeat replies are ~10x cheaper
 
 from __future__ import annotations
 
+import contextlib
 import re
 import uuid as uuid_mod
 from typing import TYPE_CHECKING, Any
 
 import httpx
 
+from src.core.enums import TicketAuthor, TicketStatus
 from src.core.logging import get_logger
+from src.infrastructure.database.models.ticket import TicketMessage
 
 if TYPE_CHECKING:
     from src.application.common.notifier import Notifier
@@ -105,6 +108,9 @@ TOOLS = [
 ]
 
 _ESCALATE = "ESCALATE"
+# Bound the owner's Claude cost: after this many AI replies without a human stepping in,
+# stop auto-answering and hand the ticket to a person.
+_MAX_AI_TURNS = 8
 
 
 def _strip_md(t: str) -> str:
@@ -134,6 +140,53 @@ class AiSupportService:
             on = bool(await self._config.value(uow, "AI_SUPPORT_ENABLED"))
             key = str(await self._config.value(uow, "AI_SUPPORT_API_KEY") or "").strip()
         return on and bool(key)
+
+    async def handle_ticket(self, user: User, ticket_id: int) -> tuple[str, str | None]:
+        """Answer or escalate a ticket, persisting the AI reply. Returns (outcome, text):
+        ``("reply", text)`` — stored a 🤖-marked support message + set WAITING;
+        ``("escalate", None)`` — alerted the owner, ticket left OPEN;
+        ``("skip", None)`` — AI off, or a human is already in the loop. Single source of
+        truth shared by the bot ticket handler and the mini-app cabinet endpoint."""
+        if not await self.enabled():
+            return "skip", None
+        async with self._uow() as uow:
+            rows = await uow.ticket_messages.list(ticket_id=ticket_id)
+        msgs = sorted(rows, key=lambda m: m.id)  # base DAO list() has no ORDER BY
+        ai_turns = 0
+        for m in msgs:
+            if m.author is TicketAuthor.ADMIN:
+                if not m.text.startswith("🤖 "):
+                    return "skip", None  # a real operator is in the loop → AI steps back
+                ai_turns += 1
+        if ai_turns >= _MAX_AI_TURNS:
+            # Too many AI rounds without a human — hand off to bound the owner's Claude cost.
+            with contextlib.suppress(Exception):
+                await self._notifier.notify_admins(
+                    f"⚠️ Тикет #{ticket_id}: ИИ ответил {ai_turns} раз без оператора — "
+                    "передаю человеку.",
+                    topic="alerts",
+                )
+            return "escalate", None
+        history = [(m.author.value, m.text) for m in msgs]
+        reply, escalate, _ = await self.generate_reply(user, history)
+        if reply and not escalate:
+            async with self._uow() as uow:
+                await uow.ticket_messages.add(
+                    TicketMessage(
+                        ticket_id=ticket_id, author=TicketAuthor.ADMIN, text=("🤖 " + reply)[:4096]
+                    )
+                )
+                t = await uow.tickets.get(ticket_id)
+                if t is not None:
+                    t.status = TicketStatus.WAITING
+                await uow.commit()
+            return "reply", reply
+        with contextlib.suppress(Exception):
+            await self._notifier.notify_admins(
+                f"⚠️ Тикет #{ticket_id} эскалирован ИИ — нужен оператор (клиент {user.telegram_id}).",
+                topic="alerts",
+            )
+        return "escalate", None
 
     async def _cfg(self) -> dict[str, str]:
         async with self._uow() as uow:
@@ -171,14 +224,17 @@ class AiSupportService:
         return f"Подписка клиента: статус {sub.status.value}, действует до {exp}.{trial}{ndev}"
 
     async def _tool(
-        self, name: str, user: User, tool_input: dict[str, Any]
+        self, name: str, user: User, tool_input: dict[str, Any], *, readonly: bool = False
     ) -> tuple[str, str | None]:
-        """Return (text-for-model, short-action-note|None)."""
+        """Return (text-for-model, short-action-note|None). ``readonly`` (admin Test) suppresses
+        side effects — no real device reset or owner alert."""
         try:
             uuid, sub = await self._sub_uuid(user)
             if name == "reset_devices":
                 if uuid is None:
                     return "У клиента нет активной подписки для сброса устройств.", None
+                if readonly:
+                    return "(тест) устройства были бы сброшены.", None
                 devs = await self._rw.get_devices(uuid)
                 for d in devs:
                     await self._rw.delete_device(uuid, d.hwid)
@@ -217,13 +273,20 @@ class AiSupportService:
                     except Exception:
                         in_panel = None
                 inp = "да" if in_panel else ("нет" if in_panel is False else "неизвестно")
+                async with self._uow() as uow:
+                    hide = bool(await self._config.value(uow, "HIDE_SUBSCRIPTION_LINK"))
+                # Honour the owner's hide-link policy — don't hand the raw URL to the model.
+                link = (
+                    "скрыта настройкой, НЕ разглашать" if hide else (sub.subscription_url or "нет")
+                )
                 return (
-                    f"Подписка есть: статус {sub.status.value}, в панели={inp}, "
-                    f"ссылка={sub.subscription_url or 'нет'}",
+                    f"Подписка есть: статус {sub.status.value}, в панели={inp}, ссылка={link}",
                     None,
                 )
             if name == "report_to_owner":
                 note = str(tool_input.get("note") or "без описания")[:800]
+                if readonly:
+                    return "(тест) баг-репорт владельцу был бы отправлен.", None
                 await self._notifier.notify_admins(
                     f"🐞 Баг-репорт от ИИ-поддержки\n👤 Клиент: {user.telegram_id}\n📋 {note}",
                     topic="alerts",
@@ -237,7 +300,7 @@ class AiSupportService:
     # ---- main -------------------------------------------------------------
 
     async def generate_reply(
-        self, user: User, history: list[tuple[str, str]]
+        self, user: User, history: list[tuple[str, str]], *, readonly: bool = False
     ) -> tuple[str | None, bool, list[str]]:
         """(reply|None, escalate, actions). None+escalate → hand to a human."""
         cfg = await self._cfg()
@@ -298,7 +361,7 @@ class AiSupportService:
                         for b in content:
                             if b.get("type") == "tool_use":
                                 res, act = await self._tool(
-                                    b.get("name"), user, b.get("input") or {}
+                                    b.get("name"), user, b.get("input") or {}, readonly=readonly
                                 )
                                 if act:
                                     actions.append(act)

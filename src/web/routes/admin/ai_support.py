@@ -91,6 +91,6 @@ async def test_ai_support(
 
     probe = User(telegram_id=0, language=Locale.RU)
     reply, escalate, actions = await container.ai_support.generate_reply(
-        probe, [("user", body.question)]
+        probe, [("user", body.question)], readonly=True
     )
     return {"reply": reply, "escalate": escalate, "actions": actions}

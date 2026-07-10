@@ -156,6 +156,11 @@ class BedolagaImportService:
         self, uow: UnitOfWork, rows: list[dict[str, Any]], summary: dict[str, Any]
     ) -> dict[int, User]:
         by_bid: dict[int, User] = {}
+        # Both are UNIQUE — a collision on flush would roll back the WHOLE import. Track what
+        # we've claimed this run so intra-batch duplicates don't clash either (DB check only
+        # sees flushed rows).
+        used_codes: set[str] = set()
+        used_emails: set[str] = set()
         for row in rows:
             tid = row.get("telegram_id")
             if not tid:
@@ -163,12 +168,18 @@ class BedolagaImportService:
             tid = int(tid)
             user = await uow.users.find_one(telegram_id=tid)
             if user is None:
+                # Adopt bedolaga's referral_code when free, else generate a fresh one — never
+                # let a cross-source / intra-batch duplicate abort the migration.
+                code = str(row.get("referral_code") or "")
+                if not code or code in used_codes or await uow.users.find_one(referral_code=code):
+                    code = generate_referral_code()
+                used_codes.add(code)
                 user = User(
                     telegram_id=tid,
                     username=(row.get("username") or None),
                     first_name=(row.get("first_name") or None),
                     last_name=(row.get("last_name") or None),
-                    referral_code=str(row.get("referral_code") or "") or generate_referral_code(),
+                    referral_code=code,
                     currency=Currency.RUB,
                     balance_minor=_kopeks(row.get("balance_kopeks")),
                     language=Locale.EN
@@ -186,12 +197,20 @@ class BedolagaImportService:
             user.has_had_paid_subscription = bool(row.get("has_had_paid_subscription"))
             if str(row.get("status") or "").lower() in {"blocked", "banned", "deleted"}:
                 user.status = UserStatus.BLOCKED
-            # Web-cabinet identity travels too — bedolaga has email/OAuth accounts.
-            if row.get("email"):
-                user.email = str(row["email"]).lower()
-                user.email_verified = bool(row.get("email_verified"))
-                if row.get("password_hash"):
-                    user.password_hash = str(row["password_hash"])
+            # Web-cabinet identity travels too — but email is UNIQUE: only adopt it when no
+            # OTHER user already owns it (organic web signup, prior import, or same person's
+            # second bedolaga account). On conflict we skip the email, keeping the user.
+            email = str(row.get("email") or "").lower()
+            if email and email not in used_emails:
+                clash = await uow.users.find_one(email=email)
+                if clash is None or clash.id == user.id:
+                    used_emails.add(email)
+                    user.email = email
+                    user.email_verified = bool(row.get("email_verified"))
+                    if row.get("password_hash"):
+                        user.password_hash = str(row["password_hash"])
+                else:
+                    summary["skipped"].append(f"email {email}: уже занят другим юзером — пропущен")
             by_bid[int(row["id"])] = user
         await uow.session.flush()
         return by_bid
