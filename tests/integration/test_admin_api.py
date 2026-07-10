@@ -154,6 +154,47 @@ async def test_login_and_me(client: tuple[httpx.AsyncClient, ApiTestContainer]) 
     assert res.json()["role"] == "OWNER"
 
 
+async def test_plans_endpoint_survives_malformed_snapshot(
+    client: tuple[httpx.AsyncClient, ApiTestContainer],
+) -> None:
+    """The Tariffs screen must not 500 when a completed payment carries a plan_snapshot
+    whose plan_id isn't cleanly numeric (regression: an in-SQL CAST aborted the txn)."""
+    from src.application.services.ids import generate_referral_code
+    from src.core.enums import AuthType, Currency, TransactionStatus, TransactionType
+    from src.infrastructure.database.models.transaction import Transaction
+    from src.infrastructure.database.models.user import User
+    from tests.factories import make_plan
+
+    http, container = client
+    async with container.uow() as uow:
+        plan, _ = await make_plan(uow, code="tariff-a")
+        buyer = User(
+            telegram_id=555,
+            auth_type=AuthType.TELEGRAM,
+            referral_code=generate_referral_code(),
+        )
+        await uow.users.add(buyer)
+        await uow.flush()
+        for snap in ({"plan_id": plan.id}, {"plan_id": "oops"}, {"plan_id": None}):
+            await uow.transactions.add(
+                Transaction(
+                    user_id=buyer.id,
+                    type=TransactionType.SUBSCRIPTION_PAYMENT,
+                    status=TransactionStatus.COMPLETED,
+                    amount_minor=30000,
+                    currency=Currency.RUB,
+                    plan_snapshot=snap,
+                )
+            )
+        await uow.commit()
+
+    auth = await _login(http)
+    res = await http.get("/api/admin/plans", headers=auth)
+    assert res.status_code == 200
+    row = next(p for p in res.json()["items"] if p["id"] == plan.id)
+    assert row["sales"] == 1  # only the clean numeric plan_id is counted; poison/None skipped
+
+
 async def test_bad_password_401(client: tuple[httpx.AsyncClient, ApiTestContainer]) -> None:
     http, _ = client
     res = await http.post(

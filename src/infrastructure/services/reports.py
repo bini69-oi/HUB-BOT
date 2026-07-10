@@ -64,10 +64,13 @@ async def send_topic_report(
         except Exception:
             log.warning("report_send_failed", code=code, exc_info=True)
     # Admin DMs (independent destination — works even without a group). A backup goes as
-    # the file itself; a text report goes as a message.
-    if dm_admins:
-        import contextlib
+    # the file itself; a text report goes as a message. The backup archive additionally
+    # DMs the admins as a LAST RESORT even when dm_admins is off — an operator who never
+    # wired a report group must still get an off-host copy of their DB, or "backups" are
+    # unrecoverable if the host is lost.
+    import contextlib
 
+    if dm_admins or (code == "backups" and not delivered):
         with contextlib.suppress(Exception):
             if document is not None:
                 from aiogram.types import FSInputFile

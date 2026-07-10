@@ -17,6 +17,8 @@
 
 [📖 Документация](docs/) · [🤖 Тестовый бот](https://t.me/bot_vpn4_bot) · [🖥 Демо-стенд](https://testbot.tvss-911.com/admin/) · [💬 Чат сообщества](https://t.me/vpnhub_community)
 
+📗 Инструкция оператору: [docs/GO-LIVE.md](docs/GO-LIVE.md)
+
 </div>
 
 ---

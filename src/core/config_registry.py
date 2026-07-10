@@ -306,7 +306,7 @@ REGISTRY: tuple[ParamSpec, ...] = (
         "AUTO_MAINTENANCE_ENABLED",
         C.SECURITY,
         BOOL,
-        False,
+        True,  # safe default: stop selling what can't be provisioned; self-heals on recovery
         "Авто-техрежим при падении панели",
         "Auto-maintenance on panel outage",
         "3 неудачных пинга панели подряд включают режим техработ; восстановление снимает его",

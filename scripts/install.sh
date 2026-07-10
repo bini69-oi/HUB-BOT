@@ -164,6 +164,9 @@ else
   if [ -n "${PANEL_URL:-}" ]; then
     ask "API-токен панели: "; read -r PANEL_TOKEN
   fi
+  # Your own Telegram id → you receive failure alerts (панель упала, бэкап, споры) in DM.
+  ask "Ваш Telegram ID ${DIM}(для уведомлений; узнать — @userinfobot; Enter — пропустить)${R}: "
+  read -r OWNER_ID || true
 
   run_spin "генерирую секреты" docker pull python:3.12-slim
   gen() { docker run --rm python:3.12-slim python -c "$1"; }
@@ -178,6 +181,7 @@ APP__ENV=production
 APP__DEBUG=false
 APP__CRYPT_KEY=$CRYPT
 APP__JWT_SECRET=$JWT
+APP__OWNER_IDS=${OWNER_ID:-}
 ADMIN__USERNAME=admin
 ADMIN__PASSWORD=$ADMPW
 BOT__TOKEN=$BOT_TOKEN
@@ -239,6 +243,8 @@ IP=$(curl -fs4 ifconfig.me 2>/dev/null || hostname -I | awk '{print $1}')
 URL="http://$IP"
 [ -n "$ENV_DOMAIN" ] && [ "$ENV_DOMAIN" != ":80" ] && URL="https://$ENV_DOMAIN"
 ADMPW_OUT=$(grep '^ADMIN__PASSWORD=' .env | cut -d= -f2)
+JWT_OUT=$(grep '^APP__JWT_SECRET=' .env | cut -d= -f2)
+BACKUP_PW="${JWT_OUT:0:16}"   # the password DB backups are encrypted with (until you set one in the cabinet)
 
 printf "\n"
 hr
@@ -247,6 +253,10 @@ printf "   %sКабинет%s      %s%s/admin/%s\n"  "$DIM" "$R" "$B" "$URL" "$R
 printf "   %sЛогин%s        admin\n"           "$DIM" "$R"
 printf "   %sПароль%s       %s%s%s\n"          "$DIM" "$R" "$B" "$ADMPW_OUT" "$R"
 printf "   %sМини-аппа%s    %s/app/\n"         "$DIM" "$R" "$URL"
+printf "\n"
+printf "   %s⚠ Пароль шифрования бэкапов%s  %s%s%s\n" "$ORANGE" "$R" "$B" "$BACKUP_PW" "$R"
+printf "   %sСохраните его ОТДЕЛЬНО от сервера — без него бэкап БД не расшифровать.%s\n" "$DIM" "$R"
+printf "   %s(в кабинете → Обслуживание можно задать свой пароль бэкапов)%s\n" "$DIM" "$R"
 printf "\n"
 printf "   %sДальше всё в кабинете: тарифы, платёжки, меню бота, мини-аппа.%s\n" "$DIM" "$R"
 printf "   %sОбновление в одну команду: ./scripts/update.sh%s\n" "$DIM" "$R"

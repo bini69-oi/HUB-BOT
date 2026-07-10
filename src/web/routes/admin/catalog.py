@@ -55,26 +55,28 @@ async def list_plans(container: AppContainer = Depends(get_container)) -> dict[s
     async with container.uow() as uow:
         plans = await uow.plans.list_with_durations()
         # Sales per plan (completed subscription payments referencing the plan snapshot).
-        sales_stmt = (
-            select(
-                Transaction.plan_snapshot["plan_id"].as_integer(),
-                func.count(),
+        # Extract plan_id as TEXT (->>) and cast in Python — an in-SQL CAST(... AS INTEGER)
+        # aborts the whole PG transaction on a single non-numeric plan_id, and the recovering
+        # rollback then expires the eager-loaded plans → DetachedInstanceError → 500.
+        pid_text = Transaction.plan_snapshot["plan_id"].astext
+        rows = (
+            await uow.session.execute(
+                select(pid_text, func.count())
+                .where(
+                    Transaction.type == TransactionType.SUBSCRIPTION_PAYMENT,
+                    Transaction.status == TransactionStatus.COMPLETED,
+                    Transaction.plan_snapshot.is_not(None),
+                )
+                .group_by(pid_text)
             )
-            .where(
-                Transaction.type == TransactionType.SUBSCRIPTION_PAYMENT,
-                Transaction.status == TransactionStatus.COMPLETED,
-                Transaction.plan_snapshot.is_not(None),
-            )
-            .group_by(Transaction.plan_snapshot["plan_id"].as_integer())
-        )
+        ).all()
         sales: dict[int, int] = {}
-        try:
-            sales = dict((await uow.session.execute(sales_stmt)).all())  # type: ignore[arg-type]
-        except Exception:
-            await uow.rollback()
-            sales = {}
-        cfg = container.bot_config
-        mode = await cfg.value(uow, "SALES_MODE")
+        for raw_pid, count in rows:
+            try:
+                sales[int(raw_pid)] = count  # skip any malformed/non-numeric snapshot id
+            except (TypeError, ValueError):
+                continue
+        mode = await container.bot_config.value(uow, "SALES_MODE")
     return {"mode": mode, "items": [_plan_row(p, sales.get(p.id, 0)) for p in plans]}
 
 

@@ -6,7 +6,7 @@
 # a 2 GB swapfile before building instead. We deliberately avoid hard per-service
 # mem_limit/reservations here: on a swap-less 1 GB box too-tight limits just move the
 # OOM into runtime, and compose v2 without swap-limit support can't cap swap anyway.
-# Redis is already bounded (--maxmemory 96mb) and postgres shm_size is modest (128mb).
+# Redis is bounded (--maxmemory 256mb, volatile-lru) and postgres shm_size is modest (128mb).
 name: vpnhub
 
 x-app: &app
@@ -43,7 +43,10 @@ services:
 
   redis:
     image: redis:7-alpine
-    command: ["redis-server", "--maxmemory", "96mb", "--maxmemory-policy", "allkeys-lru"]
+    # volatile-lru: evict ONLY keys with a TTL (rate-limit / cart / dedup caches). The taskiq
+    # job queue and aiogram FSM state carry no TTL, so under memory pressure a queued
+    # broadcast/backup/reminder or a live form is never silently dropped (allkeys-lru could).
+    command: ["redis-server", "--maxmemory", "256mb", "--maxmemory-policy", "volatile-lru"]
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
