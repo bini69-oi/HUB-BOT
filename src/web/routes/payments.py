@@ -67,6 +67,14 @@ async def payment_webhook(
             return {"accepted": True, "ignored": True}
         raise HTTPException(status_code=404, detail="payment not found")
 
+    # Defence in depth: a webhook for gateway X must not complete a transaction that belongs
+    # to gateway Y (the internal payment_id is exposed in redirect URLs). Only enforced once
+    # the txn has an assigned gateway_type — a still-unrouted pending txn is left to the guard.
+    async with container.uow() as uow:
+        owner = await uow.transactions.get_by_payment_id(payment_id)
+    if owner is not None and owner.gateway_type is not None and owner.gateway_type != gt:
+        raise HTTPException(status_code=403, detail="gateway mismatch")
+
     # Persist the provider's canonical transaction id so a later refund targets it. Some
     # gateways (CloudPayments) return a create-time order id at checkout but a different
     # TransactionId in the webhook — the refund API needs the latter (#4). No-op when they match.

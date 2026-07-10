@@ -42,7 +42,11 @@ async function api(method, path, body, auth, _retried) {
     if (ok) return api(method, path, body, auth, true);
   }
   const data = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(data.detail || `Ошибка ${res.status}`);
+  if (!res.ok) {
+    const err = new Error(data.detail || `Ошибка ${res.status}`);
+    err.status = res.status;  // callers distinguish auth failures from transient 5xx
+    throw err;
+  }
   return data;
 }
 
@@ -199,7 +203,7 @@ function planPicker(plans, onPay, guest) {
       wrap.append(el("div", {
         class: `plan${i === state.plan ? " on" : ""}`,
         onclick: () => { state.plan = i; state.dur = 0; draw(); },
-      }, [el("span", { class: "name" }, p.name), el("span", { class: "muted" }, (p.durations[0] ? money(p.durations[0].price_minor) : ""))]));
+      }, [el("span", { class: "name" }, p.name), el("span", { class: "muted" }, ((p.durations || [])[0] ? money(p.durations[0].price_minor) : ""))]));
     });
     const durs = el("div", { class: "durs" });
     (plan.durations || []).forEach((d, i) => {
@@ -220,7 +224,7 @@ function planPicker(plans, onPay, guest) {
       }, m.label));
     });
     wrap.append(methods.length ? chips : el("div", { class: "hint" }, "Онлайн-оплата не настроена."));
-    const sel = plan.durations[state.dur];
+    const sel = (plan.durations || [])[state.dur];
     wrap.append(el("button", {
       class: "btn primary",
       disabled: !state.method || !sel ? "" : null,
@@ -237,7 +241,16 @@ async function cabinetView() {
   const root = el("div", {}, [brand()]);
   let me;
   try { me = await api("GET", `${C}/me`, null, true); }
-  catch { store.clear(); route("auth"); return el("div", {}); }
+  catch (e) {
+    // Only a real auth failure should destroy the session. A transient 5xx (e.g. backend
+    // restart) must NOT wipe valid tokens and force a re-login — show a retry instead.
+    if (e && (e.status === 401 || e.status === 403)) { store.clear(); route("auth"); return el("div", {}); }
+    root.append(el("div", { class: "card" }, [
+      el("div", { class: "hint" }, "Не удалось загрузить кабинет. Проверь соединение."),
+      el("button", { class: "btn", onclick: () => route("cabinet") }, "Обновить"),
+    ]));
+    return root;
+  }
   window.__pm__ = (me.app && me.app.payment_methods) || [];
 
   const sub = me.subscription;

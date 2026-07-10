@@ -168,7 +168,9 @@ PROVIDER_META: dict[PaymentGatewayType, dict[str, Any]] = {
     PaymentGatewayType.MANUAL: {
         "title": "Вручную / баланс",
         "methods": "начисление админом",
-        "fields": [],
+        # secret guards the public webhook-confirm route — without it the manual gateway
+        # rejects every webhook (fail-closed), so completions must carry X-Admin-Secret.
+        "fields": ["secret"],
         "ready": True,
         "emoji": "💼",
     },

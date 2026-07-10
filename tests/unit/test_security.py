@@ -95,5 +95,11 @@ class TestInitData:
         init = _signed_init_data({"id": 777}, auth_date=int(time.time()) - 999_999)
         assert validate_init_data(init, BOT_TOKEN) is None
 
+    def test_zero_auth_date_rejected(self) -> None:
+        # A validly-signed payload with auth_date=0 must be rejected, not have its
+        # staleness check silently skipped.
+        init = _signed_init_data({"id": 777}, auth_date=0)
+        assert validate_init_data(init, BOT_TOKEN) is None
+
     def test_missing_hash(self) -> None:
         assert validate_init_data("auth_date=1&user=%7B%7D", BOT_TOKEN) is None

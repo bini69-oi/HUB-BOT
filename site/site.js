@@ -80,8 +80,12 @@
   }
 
   function cabinetHref(cfg) {
-    if (cfg.cta_target === "bot" && cfg.bot_username) return "https://t.me/" + cfg.bot_username;
-    return cfg.cabinet_url || "/web/";
+    if (cfg.cta_target === "bot" && cfg.bot_username) {
+      return "https://t.me/" + String(cfg.bot_username).replace(/[^A-Za-z0-9_]/g, "");
+    }
+    var u = cfg.cabinet_url || "/web/";
+    // Only http(s)/relative targets — never let a tampered config yield javascript:/data:.
+    return /^(https?:\/\/|\/)/i.test(u) ? u : "/web/";
   }
   function openCabinet(href) {
     return function (e) { if (e) e.preventDefault(); window.open(href, href.charAt(0) === "/" ? "_self" : "_blank"); };

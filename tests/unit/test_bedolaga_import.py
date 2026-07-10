@@ -210,9 +210,21 @@ async def test_import_maps_and_is_idempotent(uow: UnitOfWork) -> None:
         assert free is not None
         assert free.reward_type is RewardType.DURATION and free.reward_value == 7
 
+    # A balance the user changed AFTER the first import must survive a re-run — the
+    # importer only sets balance on create, never on the update branch.
+    async with uow:
+        alice = await uow.users.find_one(telegram_id=111)
+        assert alice is not None
+        alice.balance_minor = 99_000  # simulate a post-migration top-up
+        await uow.commit()
+
     async with uow:
         again = await svc.run(uow, _source())
         await uow.commit()
     assert again["users_created"] == 0
     assert again["users_updated"] == 3
     assert again["transactions"] == 0
+
+    async with uow:
+        alice = await uow.users.find_one(telegram_id=111)
+        assert alice is not None and alice.balance_minor == 99_000  # NOT clobbered by re-run

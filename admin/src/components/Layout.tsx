@@ -1,7 +1,7 @@
 /* App shell: sidebar (14 items, groups, badges, statuses) + topbar (crumbs,
    panel badge, theme/lang segments, avatar). */
 
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
 import { NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
 
@@ -46,6 +46,7 @@ export function BrandLogo({ size = 15 }: { size?: number }) {
 
 export default function Layout() {
   const { t, theme, setTheme, lang, setLang } = useApp();
+  const qc = useQueryClient();
   const loc = useLocation();
   const nav = useNavigate();
 
@@ -217,6 +218,7 @@ export default function Layout() {
               title={t.logout}
               onClick={() => {
                 setToken(null);
+                qc.clear(); // drop the previous admin's cached data before the next login
                 nav("/login");
               }}
             >

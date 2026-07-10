@@ -41,8 +41,13 @@ class ManualGateway(BasePaymentGateway):
         return PaymentResult(kind=PaymentResultKind.PENDING, external_id=str(ctx.payment_id))
 
     async def handle_webhook(self, request: WebhookRequest) -> WebhookResult:
+        # Fail CLOSED: the webhook route is public, so an empty secret would let anyone
+        # complete any pending payment by its (guessable-from-redirect) uuid. Require the
+        # shared admin secret — set it in the cabinet before using the webhook-confirm flow.
         secret = str(self.settings.get("secret") or "")
-        if secret and not hmac.compare_digest(request.headers.get("x-admin-secret") or "", secret):
+        if not secret:
+            raise WebhookVerificationError("manual gateway: no admin secret configured")
+        if not hmac.compare_digest(request.headers.get("x-admin-secret") or "", secret):
             raise WebhookVerificationError("manual gateway: bad admin secret")
         data = self.parse_json(request.body)
         raw_id = str(data.get("payment_id") or "")

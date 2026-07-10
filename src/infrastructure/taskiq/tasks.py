@@ -45,7 +45,15 @@ async def process_payment(
         await _store_saved_method(
             container, pid, method_enc=saved_method_enc, title=saved_method_title
         )
-    if moved and status == TransactionStatus.COMPLETED.value:
+    # Gate the "paid" side-effects on the ACTUAL post-CAS state, not the inbound status:
+    # an underpaid webhook advances the txn to FAILED (moved=True) yet status stays
+    # "completed" — trusting the string would DM a false "payment received".
+    completed = False
+    if moved:
+        async with container.uow() as uow:
+            settled = await uow.transactions.get_by_payment_id(pid)
+        completed = settled is not None and settled.status is TransactionStatus.COMPLETED
+    if completed:
         await _notify_paid(container, pid)
         await _try_auto_purchase(container, pid)
     return moved
@@ -1286,7 +1294,10 @@ async def _autopay_one(container: object, subscription_id: int) -> bool:
                 return False  # insufficient balance — user keeps autopay on for next window
             # Card path below: it owns its transaction lifecycle — leave this uow first.
         else:
-            await uow.users.increment_balance(user, -price)
+            # Guarded debit (WHERE balance >= price): the check-then-act above races a
+            # concurrent checkout/withdrawal and could drive the wallet negative otherwise.
+            if not await uow.users.debit_balance_guarded(user, price):
+                return False  # balance dropped between read and debit — retry next window
             await uow.transactions.add(
                 Transaction(
                     user_id=user.id,

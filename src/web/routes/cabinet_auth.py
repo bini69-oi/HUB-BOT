@@ -14,11 +14,14 @@ import datetime as dt
 import hashlib
 import re as _re
 import secrets
-from typing import Any
+from typing import TYPE_CHECKING, Any, cast
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel, Field, field_validator
 from sqlalchemy.exc import IntegrityError
+
+if TYPE_CHECKING:
+    from sqlalchemy import CursorResult
 
 from src.application.services.ids import generate_referral_code
 from src.core.enums import AuthType, Currency, UserStatus
@@ -33,6 +36,12 @@ router = APIRouter(prefix="/api/cabinet/auth", tags=["cabinet-auth"])
 _ACCESS_TTL = 15 * 60
 _REFRESH_TTL_DAYS = 7
 _VERIFY_TTL_HOURS = 24
+
+# A REAL scrypt hash of a random secret, used as the "miss" comparand in login so an
+# unknown e-mail runs the full 16 MiB scrypt just like a hit. The old placeholder
+# "scrypt$1$1$1$x$x" made verify_password raise instantly (n=1 isn't a power of two),
+# returning in ~0 ms and turning login into an e-mail-existence timing oracle.
+_DUMMY_PASSWORD_HASH = hash_password(secrets.token_urlsafe(24))
 
 
 def _jwt_secret(container: AppContainer) -> str:
@@ -93,6 +102,32 @@ async def _require_web_enabled(container: AppContainer) -> None:
             raise HTTPException(403, "web cabinet is disabled")
 
 
+def _client_ip(request: Request) -> str:
+    # Behind our own nginx/Caddy, so the first XFF hop is the real client.
+    xff = request.headers.get("x-forwarded-for", "")
+    if xff:
+        return xff.split(",")[0].strip()
+    return request.client.host if request.client else ""
+
+
+async def _rate_limit(
+    container: AppContainer, bucket: str, ident: str, *, limit: int, window: int
+) -> None:
+    """Fixed-window per-identity limiter for the auth endpoints (brute-force / enumeration /
+    account-creation spam). Fail-OPEN: a Redis hiccup must never lock real users out."""
+    if not ident:
+        return
+    key = f"rl:auth:{bucket}:{ident}"
+    try:
+        n = int(await container.redis.incr(key))
+        if n == 1:
+            await container.redis.expire(key, window)
+    except Exception:  # availability over enforcement — never lock out on a Redis hiccup
+        return
+    if n > limit:
+        raise HTTPException(429, "too many attempts — try again later")
+
+
 class RegisterIn(BaseModel):
     email: str = Field(..., max_length=255)
     password: str = Field(..., min_length=8, max_length=128)
@@ -108,9 +143,10 @@ class RegisterIn(BaseModel):
 
 @router.post("/register")
 async def register(
-    body: RegisterIn, container: AppContainer = Depends(get_container)
+    body: RegisterIn, request: Request, container: AppContainer = Depends(get_container)
 ) -> dict[str, Any]:
     await _require_web_enabled(container)
+    await _rate_limit(container, "register", _client_ip(request), limit=10, window=3600)
     email = str(body.email).strip().lower()
     async with container.uow() as uow:
         if await uow.users.get_by_email(email) is not None:
@@ -167,6 +203,7 @@ class VerifyIn(BaseModel):
 async def verify_email(
     body: VerifyIn, request: Request, container: AppContainer = Depends(get_container)
 ) -> dict[str, Any]:
+    await _rate_limit(container, "verify", _client_ip(request), limit=30, window=3600)
     async with container.uow() as uow:
         user = await uow.users.find_by_verify_token(body.token)
         if user is None:
@@ -202,9 +239,11 @@ async def login(
     body: LoginIn, request: Request, container: AppContainer = Depends(get_container)
 ) -> dict[str, Any]:
     await _require_web_enabled(container)
+    await _rate_limit(container, "login", _client_ip(request), limit=10, window=300)
+    await _rate_limit(container, "login_email", str(body.email), limit=10, window=300)
     async with container.uow() as uow:
         user = await uow.users.get_by_email(str(body.email).strip().lower())
-        stored = user.password_hash if (user and user.password_hash) else "scrypt$1$1$1$x$x"
+        stored = user.password_hash if (user and user.password_hash) else _DUMMY_PASSWORD_HASH
         # verify even on miss (constant-ish time) to avoid user enumeration
         if not verify_password(body.password, stored):
             raise HTTPException(401, "invalid credentials")
@@ -222,16 +261,29 @@ class RefreshIn(BaseModel):
 async def refresh(
     body: RefreshIn, request: Request, container: AppContainer = Depends(get_container)
 ) -> dict[str, Any]:
+    from sqlalchemy import update
+
     token_hash = _hash(body.refresh_token)
     now = dt.datetime.now(dt.UTC)
     async with container.uow() as uow:
         row = await uow.cabinet_tokens.find_one(token_hash=token_hash)
         if row is None or row.revoked_at is not None or row.expires_at < now:
             raise HTTPException(401, "invalid refresh token")
+        # Atomic spend: WHERE revoked_at IS NULL so two concurrent requests with the same
+        # token can't both pass the read-check and both mint a session (double-spend race).
+        result = await uow.session.execute(
+            update(CabinetRefreshToken)
+            .where(
+                CabinetRefreshToken.id == row.id,
+                CabinetRefreshToken.revoked_at.is_(None),
+            )
+            .values(revoked_at=now)
+        )
+        if (cast("CursorResult[Any]", result).rowcount or 0) == 0:
+            raise HTTPException(401, "invalid refresh token")  # lost the rotation race
         user = await uow.users.get(row.user_id)
         if user is None:
             raise HTTPException(401, "user gone")
-        row.revoked_at = now  # rotate: this refresh is now spent
         await uow.commit()
     return await _auth_response(container, user, device=request.headers.get("user-agent"))
 
@@ -291,7 +343,7 @@ class GuestPurchaseIn(BaseModel):
 
 @router.post("/guest/purchase")
 async def guest_purchase(
-    body: GuestPurchaseIn, container: AppContainer = Depends(get_container)
+    body: GuestPurchaseIn, request: Request, container: AppContainer = Depends(get_container)
 ) -> dict[str, Any]:
     """Buy a subscription with only an e-mail — no registration step.
 
@@ -301,6 +353,7 @@ async def guest_purchase(
     is also e-mailed on fulfilment (see ``_notify_paid``).
     """
     await _require_web_enabled(container)
+    await _rate_limit(container, "guest", _client_ip(request), limit=10, window=3600)
     from src.application.dto.pricing import PurchaseRequest
     from src.core.enums import PurchaseType
     from src.web.routes.cabinet import _pay_with_gateway
@@ -309,6 +362,11 @@ async def guest_purchase(
         raise HTTPException(400, "guest purchases require an online payment method")
 
     async with container.uow() as uow:
+        # A guest supplies an e-mail without proving ownership. Marking it verified=True
+        # regardless (the old behaviour) let anyone pre-seed a "claimed" account for a
+        # victim's address that OAuth/password login would then merge the real owner into.
+        # Honour the owner's verification policy exactly like register() does.
+        verify = bool(await container.bot_config.value(uow, "CABINET_EMAIL_VERIFICATION"))
         user = await uow.users.get_by_email(body.email)
         created = False
         if user is None:
@@ -316,7 +374,7 @@ async def guest_purchase(
                 auth_type=AuthType.EMAIL,
                 email=body.email,
                 password_hash=hash_password(secrets.token_urlsafe(12)),
-                email_verified=True,
+                email_verified=not verify,
                 referral_code=generate_referral_code(),
                 currency=Currency.RUB,
             )

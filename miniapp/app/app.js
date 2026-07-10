@@ -169,14 +169,24 @@
     return b && b.color ? `background:${b.color}` : "";
   }
 
+  // Only these schemes may be opened — admin/`?ui=` links are attacker-influenceable, so
+  // drop javascript:/data:/blob: etc. (defence in depth alongside the server-side validator).
+  function safeUrl(u) {
+    if (typeof u !== "string" || !u) return null;
+    const s = u.trim();
+    if (/^(https?:|tg:|mailto:|\/\/|\/)/i.test(s)) return s;  // http(s)/tg/mailto/relative only
+    return null;
+  }
+
   // Open an admin-defined link — Telegram links via the native opener, the rest in a tab.
   function openUrl(u) {
-    if (!u) return;
+    const url = safeUrl(u);
+    if (!url) return;
     haptic();
-    const tg = u.startsWith("tg://") || /(?:^|\/\/)(?:t\.me|telegram\.me)\//.test(u);
-    if (tg && wa && wa.openTelegramLink) wa.openTelegramLink(u);
-    else if (wa && wa.openLink) wa.openLink(u);
-    else window.open(u, "_blank");
+    const tg = url.startsWith("tg://") || /(?:^|\/\/)(?:t\.me|telegram\.me)\//.test(url);
+    if (tg && wa && wa.openTelegramLink) wa.openTelegramLink(url);
+    else if (wa && wa.openLink) wa.openLink(url);
+    else window.open(url, "_blank");
   }
 
   // Admin custom blocks + standalone link-buttons for a given screen (home/connect/account).
@@ -469,7 +479,9 @@
                     style: btnStyle("open_app"),
                     onclick: () => {
                       haptic();
-                      location.href = conn.deep_links[plat.client] || conn.deep_links.happ;
+                      const dl = conn.deep_links || {};
+                      const target = dl[plat.client] || dl.happ || conn.subscription_url;
+                      if (target) location.href = target;
                     },
                     text: "⚡ " + btnText("open_app", T.openApp),
                   }),

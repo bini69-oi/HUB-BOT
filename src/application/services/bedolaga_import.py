@@ -17,7 +17,9 @@ users are NOT touched: we adopt the existing uuids.
 
 from __future__ import annotations
 
+import contextlib
 import datetime as dt
+import json
 import uuid as uuid_mod
 from typing import TYPE_CHECKING, Any
 
@@ -192,7 +194,8 @@ class BedolagaImportService:
                     user.created_at = created
                 summary["users_created"] += 1
             else:
-                user.balance_minor = _kopeks(row.get("balance_kopeks"))
+                # Re-run must NOT clobber a balance the user changed in the new system
+                # (top-ups/spends since the first import). Balance is set only on create.
                 summary["users_updated"] += 1
             user.has_had_paid_subscription = bool(row.get("has_had_paid_subscription"))
             if str(row.get("status") or "").lower() in {"blocked", "banned", "deleted"}:
@@ -284,6 +287,11 @@ class BedolagaImportService:
             sub.device_limit = row.get("device_limit")
             sub.autopay_enabled = bool(row.get("autopay_enabled"))
             squads = row.get("connected_squads")
+            if isinstance(squads, str):
+                # asyncpg returns json/jsonb columns as raw strings (no codec registered) —
+                # parse so a JSON-typed connected_squads isn't silently dropped.
+                with contextlib.suppress(ValueError, TypeError):
+                    squads = json.loads(squads)
             if isinstance(squads, list) and squads:
                 sub.internal_squads = [str(s) for s in squads]
             sub.plan_snapshot = {

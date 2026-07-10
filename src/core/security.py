@@ -104,7 +104,9 @@ def validate_init_data(
         auth_date = int(pairs.get("auth_date", "0"))
     except ValueError:
         return None
-    if auth_date and time.time() - auth_date > max_age_seconds:
+    # A missing/zero auth_date must be an explicit reject, not a silently-skipped staleness
+    # check — Telegram always signs a real auth_date, so its absence is anomalous.
+    if auth_date <= 0 or time.time() - auth_date > max_age_seconds:
         return None
     if "user" in pairs:
         try:

@@ -99,8 +99,13 @@ def _spec_payload(spec: ProvisionSpec) -> dict[str, Any]:
         "username": spec.username,
         "expireAt": spec.expire_at.astimezone(dt.UTC).isoformat(),
         "trafficLimitBytes": spec.traffic_limit_bytes,
-        "activeInternalSquads": list(spec.internal_squads),
     }
+    # Send squad membership ONLY when we actually have one. An empty list REPLACES the
+    # panel set with none (kicking the user off every server) — fatal on update/resync for
+    # migrated subs whose local squad list is empty while the adopted panel user has real
+    # squads. Empty ⇒ omit ⇒ "leave alone" (same rule as device_limit/external_squad below).
+    if spec.internal_squads:
+        payload["activeInternalSquads"] = list(spec.internal_squads)
     if spec.telegram_id is not None:
         payload["telegramId"] = spec.telegram_id
     if spec.device_limit is not None:
