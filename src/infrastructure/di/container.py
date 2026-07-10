@@ -22,6 +22,7 @@ from src.application.services.remnawave import RemnawaveService
 from src.application.services.resync import RemnawaveResyncService
 from src.application.services.subscription import SubscriptionService
 from src.core.config import Settings, get_settings
+from src.core.constants import APP_VERSION
 from src.core.i18n import Translator, load_translations
 from src.infrastructure.database.engine import create_engine, create_session_factory
 from src.infrastructure.database.uow import UnitOfWork
@@ -37,6 +38,7 @@ from src.infrastructure.services.mailer import Mailer
 from src.infrastructure.services.notification import LogNotifier, TelegramNotifier
 from src.infrastructure.services.postback import wire_postback_events
 from src.infrastructure.services.reports import wire_report_events
+from src.infrastructure.services.telemetry import TelemetryReporter, install_id_from_token
 from src.infrastructure.services.user_notifications import wire_user_notifications
 
 
@@ -57,6 +59,13 @@ class AppContainer:
         )
         self.event_bus = InProcessEventBus()
         self.translator: Translator = load_translations()
+        self.telemetry = TelemetryReporter(
+            enabled=settings.telemetry.enabled,
+            url=settings.telemetry.url,
+            token=settings.telemetry.token,
+            app_version=APP_VERSION,
+            install_id=install_id_from_token(settings.bot.token),
+        )
         # Real Telegram delivery when a bot token is set, otherwise a logging no-op.
         self.notifier: LogNotifier | TelegramNotifier = (
             TelegramNotifier(settings.bot.token, settings.app.owner_ids)
@@ -110,6 +119,7 @@ class AppContainer:
         return UnitOfWork(self.session_factory)
 
     async def aclose(self) -> None:
+        await self.telemetry.aclose()
         await self.notifier.aclose()
         await self.remnawave_client.aclose()
         await self.redis.aclose()

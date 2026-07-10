@@ -33,6 +33,7 @@ from src.infrastructure.database.uow import UnitOfWork
 from src.infrastructure.events import InProcessEventBus
 from src.infrastructure.payments.crypto import SecretBox
 from src.infrastructure.payments.factory import GatewayFactory
+from src.infrastructure.services.telemetry import TelemetryReporter
 from tests.fakes.panel import FakeRemnawaveClient
 
 BOT_TOKEN = "12345:TESTTOKEN"
@@ -75,6 +76,9 @@ class ApiTestContainer:
         self.promo = PromoService()
         self.bot_config = BotConfigService(self.secret_box)
         self.panel_sync = PanelSyncService(self.remnawave_client)
+        self.telemetry = TelemetryReporter(
+            enabled=False, url="", app_version="test", install_id="test"
+        )
 
     def uow(self) -> UnitOfWork:
         return UnitOfWork(self._session_factory)
@@ -949,3 +953,36 @@ async def test_migration_threexui_creates_panel_users(
         assert sub is not None
         assert sub.short_id == "mikesub123456789"[:16]
         assert sub.traffic_limit_bytes == 10737418240  # totalGB is bytes, adopted verbatim
+
+
+# --- telemetry / global error handling --------------------------------------------------
+
+
+async def test_unhandled_error_returns_500_with_error_id(
+    client: tuple[httpx.AsyncClient, ApiTestContainer],
+) -> None:
+    http, _ = client
+    app = http._transport.app  # type: ignore[attr-defined]
+
+    @app.get("/api/__telemetry_boom")
+    async def _boom() -> None:
+        raise RuntimeError("kaboom secret=topsecret")
+
+    # The public site is mounted at "/" as a catch-all; move this late route ahead of it.
+    app.router.routes.insert(0, app.router.routes.pop())
+
+    # Starlette re-raises after the 500 handler runs (for server-side logging); uvicorn
+    # swallows it and the client still gets the response. Emulate that, don't re-raise.
+    transport = httpx.ASGITransport(app=app, raise_app_exceptions=False)
+    async with httpx.AsyncClient(transport=transport, base_url="http://test") as raw:
+        res = await raw.get("/api/__telemetry_boom")
+        assert res.status_code == 500
+        body = res.json()
+        assert body["ok"] is False
+        assert body["error_id"].startswith("E")
+        # The stack / exception text must never reach the client.
+        assert "kaboom" not in res.text and "topsecret" not in res.text
+
+        # A real 4xx (HTTPException) is NOT swallowed into a 500 by the catch-all handler.
+        assert (await raw.get("/api/admin/dashboard")).status_code == 401
+        assert (await raw.get("/api/nonexistent-route-xyz")).status_code == 404

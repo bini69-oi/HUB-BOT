@@ -10,12 +10,13 @@ from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from pathlib import Path
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 
 from src.core.config import get_settings
-from src.core.logging import configure_logging
+from src.core.logging import configure_logging, get_logger
 from src.infrastructure.di import AppContainer
 from src.web.routes import admin, cabinet, cabinet_auth, health, panel, payments
 from src.web.routes.admin.auth import bootstrap_admin
@@ -34,6 +35,40 @@ _WEB_DIR = Path(__file__).resolve().parents[2] / "web"
 _SITE_DIR = Path(__file__).resolve().parents[2] / "site"
 # Admin-uploaded media (broadcasts, menu screens, covers) — created on demand.
 _UPLOADS_DIR = Path("uploads")
+
+log = get_logger(__name__)
+
+
+async def unhandled_error_handler(request: Request, exc: Exception) -> JSONResponse:
+    """Last-resort handler: report to telemetry, answer clean JSON with an error id.
+
+    HTTPException and validation errors never reach here — only genuine bugs do.
+    The stack trace stays server-side; the client gets a short id to quote to support.
+    """
+    container: AppContainer | None = getattr(request.app.state, "container", None)
+    # The route TEMPLATE (/api/users/{user_id}), never the concrete path — concrete
+    # paths embed telegram ids / user ids / HWIDs that must not leave the box.
+    route = request.scope.get("route")
+    endpoint = getattr(route, "path", None) or "unmatched"
+    error_id = ""
+    if container is not None:
+        error_id = container.telemetry.report(
+            exc, source="web", context={"endpoint": endpoint, "method": request.method}
+        )
+    log.error("unhandled web error", error_id=error_id, path=request.url.path, exc_info=exc)
+    # This handler runs above CORSMiddleware, so echo the ACAO header ourselves — else a
+    # cross-origin cabinet/mini-app can't read error_id from the 500.
+    headers: dict[str, str] = {}
+    origin = request.headers.get("origin")
+    allowed = get_settings().web.cors_origins
+    if origin and ("*" in allowed or origin in allowed):
+        headers["Access-Control-Allow-Origin"] = origin
+        headers["Access-Control-Allow-Credentials"] = "true"
+    return JSONResponse(
+        status_code=500,
+        content={"ok": False, "detail": "внутренняя ошибка сервера", "error_id": error_id},
+        headers=headers,
+    )
 
 
 @asynccontextmanager
@@ -57,6 +92,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
 def create_app() -> FastAPI:
     settings = get_settings()
     app = FastAPI(title="VPN-shop base", lifespan=lifespan)
+    app.add_exception_handler(Exception, unhandled_error_handler)
     if settings.web.cors_origins:
         app.add_middleware(
             CORSMiddleware,

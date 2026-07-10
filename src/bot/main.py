@@ -12,6 +12,7 @@ from aiogram import Bot, Dispatcher
 from aiogram.client.default import DefaultBotProperties
 from aiogram.fsm.storage.redis import RedisStorage
 
+from src.bot.errors import setup_error_handler
 from src.bot.handlers import build_router
 from src.bot.middlewares import AbortFormOnCommand, ContextMiddleware
 from src.core.config import get_settings
@@ -62,6 +63,7 @@ async def run() -> None:
     # can't be captured as promocode/withdrawal input.
     dp.message.middleware(AbortFormOnCommand())
     dp.include_router(build_router())
+    setup_error_handler(dp, container)
 
     await _apply_bot_config(bot, container)
     log.info("bot starting (long polling)")

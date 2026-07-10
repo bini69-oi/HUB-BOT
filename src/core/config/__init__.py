@@ -19,6 +19,7 @@ from src.core.config.database import DatabaseSettings
 from src.core.config.log import LogSettings
 from src.core.config.redis import RedisSettings
 from src.core.config.remnawave import RemnawaveSettings
+from src.core.config.telemetry import TelemetrySettings
 from src.core.config.validators import ensure_fernet_key, ensure_filled
 from src.core.config.web import WebSettings
 
@@ -41,6 +42,7 @@ class Settings(BaseSettings):
     remnawave: RemnawaveSettings = RemnawaveSettings()
     web: WebSettings = WebSettings()
     log: LogSettings = LogSettings()
+    telemetry: TelemetrySettings = TelemetrySettings()
 
     @model_validator(mode="after")
     def _validate_safety(self) -> Settings:

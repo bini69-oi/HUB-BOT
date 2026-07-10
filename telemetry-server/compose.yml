@@ -1,0 +1,10 @@
+services:
+  telemetry:
+    build: .
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:8088:8088"
+    volumes:
+      - ./data:/data
+    env_file:
+      - .env
