@@ -28,6 +28,11 @@ htmlcov/
 /backups/
 /data/
 
+# Docs site build
+docs-site/node_modules/
+docs-site/.vitepress/dist/
+docs-site/.vitepress/cache/
+
 # Local AI-assistant context (not part of the public repo)
 .claude/
 CLAUDE.md
