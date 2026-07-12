@@ -200,3 +200,25 @@ async def test_ingest_token_enforced(tmp_path: Path, monkeypatch: pytest.MonkeyP
         r = await client.post("/ingest", json=batch, headers={"X-Telemetry-Token": "sekret"})
         assert r.status_code == 200
         assert r.json() == {"ok": True, "accepted": 1}
+
+
+async def test_error_code_stored_shown_and_not_wiped_by_legacy_client(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    db = tmp_path / "t.db"
+    mod = _load(db, monkeypatch)
+    coded = _batch("fp-code", "inst-1", "1.0.0", 1)
+    coded["events"][0]["code"] = 4003
+    legacy = _batch("fp-code", "inst-2", "0.9.0", 1)  # старый клиент: поля code нет
+    async with _client(mod.create_app()) as client:
+        assert (await client.post("/ingest", json=coded)).status_code == 200
+        assert (await client.post("/ingest", json=legacy)).status_code == 200
+        dash = await client.get("/", auth=("admin", "pw"))
+    conn = sqlite3.connect(db)
+    try:
+        row = conn.execute("SELECT code FROM issues WHERE fingerprint = 'fp-code'").fetchone()
+    finally:
+        conn.close()
+    assert row is not None
+    assert row[0] == 4003  # code=0 от legacy-клиента не затёр известный код
+    assert "E4003" in dash.text

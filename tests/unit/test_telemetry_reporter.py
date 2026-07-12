@@ -50,8 +50,9 @@ async def test_report_flush_payload_and_dedupe() -> None:
 
     exc = _make_exc()
     error_id = reporter.report(exc, source="web", context={"path": "/x", "junk": "y" * 500})
-    # Deterministic per bug: id maps to the fingerprint, same every occurrence.
-    assert error_id == f"E{fingerprint(exc)[:8]}"
+    # Deterministic per bug: E<код класса>-<fingerprint>, same every occurrence.
+    # ValueError не классифицирован -> 9001 (см. src/core/error_codes.py).
+    assert error_id == f"E9001-{fingerprint(exc)[:8]}"
     # Same fingerprint twice more -> merged into count, not extra events.
     assert reporter.report(_make_exc(), source="web") == error_id
     reporter.report(_make_exc(), source="web")

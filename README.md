@@ -15,7 +15,7 @@
 [![Docker](https://img.shields.io/badge/Docker-Ready-2496ED?style=for-the-badge&logo=docker&logoColor=white)](docker/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green?style=for-the-badge)](LICENSE)
 
-[📖 Документация](https://bini69-oi.github.io/HUB-BOT/) · [🤖 Тестовый бот](https://t.me/bot_vpn4_bot) · [🖥 Демо-стенд](https://testbot.tvss-911.com/admin/) · [💬 Чат сообщества](https://t.me/vpnhub_community)
+[📖 Документация](https://docs.vpn-hub.pro) · [🤖 Тестовый бот](https://t.me/bot_vpn4_bot) · [🖥 Демо-стенд](https://testbot.tvss-911.com/admin/) · [💬 Чат сообщества](https://t.me/vpnhub_community)
 
 📗 Инструкция оператору: [docs/GO-LIVE.md](docs/GO-LIVE.md)
 

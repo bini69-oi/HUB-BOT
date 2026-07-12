@@ -67,6 +67,7 @@ def _load_config() -> Config:
 
 class TelemetryEvent(BaseModel):
     error_id: str = ""
+    code: int = Field(default=0, ge=0, le=9999)  # стабильный номер класса ошибки (E-код)
     fingerprint: str = Field(min_length=1, max_length=256)
     source: str = ""
     exc_type: str = ""
@@ -125,6 +126,13 @@ def _init_db(db_path: str) -> sqlite3.Connection:
         """
     )
     conn.execute("CREATE INDEX IF NOT EXISTS idx_events_fp ON events(fingerprint, id)")
+    # Миграция существующих баз: колонка E-кода появилась после первых деплоев.
+    # Явная проверка вместо suppress(OperationalError): «database is locked» должен
+    # уронить старт (и перезапуститься), а не оставить процесс без колонки —
+    # иначе каждый ingest молча теряет события через per-event savepoint.
+    cols = {row[1] for row in conn.execute("PRAGMA table_info(issues)")}
+    if "code" not in cols:
+        conn.execute("ALTER TABLE issues ADD COLUMN code INTEGER DEFAULT 0")
     conn.commit()
     return conn
 
@@ -203,14 +211,21 @@ def _render_row(issue: sqlite3.Row, events: list[sqlite3.Row], colspan: int) -> 
         f" · x{e['count']}</div>"
         for e in events
     )
+    code = 0
+    with contextlib.suppress(IndexError, KeyError, TypeError, ValueError):
+        code = int(issue["code"] or 0)
+    code_cell = f'<span class="badge">E{code}</span>' if code else "—"
     main = (
-        f"<tr><td><b>{escape(str(issue['exc_type'] or ''))}</b><br>{msg}</td>"
+        f"<tr><td>{code_cell}</td>"
+        f"<td><b>{escape(str(issue['exc_type'] or ''))}</b><br>{msg}</td>"
         f'<td><span class="badge">{escape(str(issue["source"] or ""))}</span></td>'
         f"<td>{issue['total']}</td><td>{len(installs)}</td>"
         f"<td>{escape(', '.join(str(v) for v in versions))}</td>"
         f"<td>{escape(str(issue['first_seen'] or ''))}<br>"
         f"{escape(str(issue['last_seen'] or ''))}</td>"
-        f'<td>{status}<form method="post" action="/issues/{fp}/toggle">'
+        # Относительный action: дашборд работает и на голом домене, и за префиксом
+        # (nginx location /errors/ -> proxy_pass http://127.0.0.1:8088/).
+        f'<td>{status}<form method="post" action="issues/{fp}/toggle">'
         f"<button>{action}</button></form></td></tr>"
     )
     detail = (
@@ -230,12 +245,12 @@ def _render_dashboard(
     install_count: int,
     show_all: bool,
 ) -> str:
-    cols = ["error", "source", "total", "installs", "versions", "first / last seen", "status"]
+    cols = ["code", "error", "source", "total", "installs", "versions", "first / last seen", "status"]
     head = "".join(f"<th>{c}</th>" for c in cols)
     rows = "".join(
         _render_row(i, events_by_fp.get(str(i["fingerprint"]), []), len(cols)) for i in issues
     )
-    toggle = '<a href="/">hide resolved</a>' if show_all else '<a href="/?all=1">show resolved</a>'
+    toggle = '<a href="./">hide resolved</a>' if show_all else '<a href="./?all=1">show resolved</a>'
     return (
         "<!doctype html><html><head><meta charset='utf-8'>"
         f"<title>HUB-BOT telemetry</title><style>{_CSS}</style></head><body>"
@@ -336,16 +351,17 @@ def create_app() -> FastAPI:
         ts = ev.ts or _now_iso()
         context = json.dumps(ev.context, ensure_ascii=False)[:MAX_CONTEXT_CHARS]
         row = conn.execute(
-            "SELECT total, installs, versions, resolved FROM issues WHERE fingerprint = ?",
+            "SELECT total, installs, versions, resolved, code FROM issues WHERE fingerprint = ?",
             (ev.fingerprint,),
         ).fetchone()
         if row is None:
             conn.execute(
-                "INSERT INTO issues (fingerprint, exc_type, message, source, first_seen,"
+                "INSERT INTO issues (fingerprint, code, exc_type, message, source, first_seen,"
                 " last_seen, total, installs, versions, traceback, context, resolved)"
-                " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0)",
+                " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0)",
                 (
                     ev.fingerprint,
+                    ev.code,
                     ev.exc_type,
                     message,
                     ev.source,
@@ -359,14 +375,19 @@ def create_app() -> FastAPI:
                 ),
             )
             _evict_issues()
-            _alert(f"🆕 {ev.exc_type}: {message} ({ev.source}, {version})")
+            # Без "E0" в алертах: у события от старого клиента кода нет.
+            label = f"E{ev.code} " if ev.code else ""
+            _alert(f"🆕 {label}{ev.exc_type}: {message} ({ev.source}, {version})")
         else:
             conn.execute(
-                "UPDATE issues SET total = ?, last_seen = ?, message = ?, traceback = ?,"
+                # NULLIF: событие от старого клиента (code=0) не затирает уже известный код.
+                "UPDATE issues SET total = ?, last_seen = ?,"
+                " code = COALESCE(NULLIF(?, 0), code), message = ?, traceback = ?,"
                 " context = ?, installs = ?, versions = ?, resolved = 0 WHERE fingerprint = ?",
                 (
                     row["total"] + ev.count,
                     ts,
+                    ev.code,
                     message,
                     traceback,
                     context,
@@ -376,7 +397,10 @@ def create_app() -> FastAPI:
                 ),
             )
             if row["resolved"]:
-                _alert(f"♻️ регрессия: {ev.exc_type}: {message} ({ev.source}, {version})")
+                # Регрессия от legacy-клиента (code=0) алертит сохранённым кодом issue.
+                code = ev.code or int(row["code"] or 0)
+                label = f"E{code} " if code else ""
+                _alert(f"♻️ регрессия: {label}{ev.exc_type}: {message} ({ev.source}, {version})")
         conn.execute(
             "INSERT INTO events (fingerprint, error_id, install_id, version, ts, count)"
             " VALUES (?, ?, ?, ?, ?, ?)",
@@ -457,7 +481,9 @@ def create_app() -> FastAPI:
             conn.commit()
         if cur.rowcount == 0:
             raise HTTPException(status_code=404, detail="unknown fingerprint")
-        return RedirectResponse(url="/", status_code=303)
+        # Относительный Location: /issues/x/toggle -> ../../ == корень дашборда,
+        # что верно и на голом домене, и за префиксом /errors/.
+        return RedirectResponse(url="../../", status_code=303)
 
     @app.get("/health")
     def health() -> dict[str, bool]:

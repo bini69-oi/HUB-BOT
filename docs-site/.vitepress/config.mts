@@ -1,12 +1,17 @@
 import { defineConfig } from "vitepress";
 
+// Кастомный домен (docs.vpn-hub.pro) собирается с base "/";
+// GitHub Pages задаёт DOCS_BASE=/HUB-BOT/ в workflow.
+const BASE = process.env.DOCS_BASE || "/";
+
 export default defineConfig({
   lang: "ru-RU",
   title: "VPN-HUB BOT",
   description:
     "Документация конструктора Telegram-ботов для продажи VPN на базе Remnawave",
-  base: "/HUB-BOT/",
-  head: [["link", { rel: "icon", type: "image/png", href: "/HUB-BOT/logo.png" }]],
+  base: BASE,
+  head: [["link", { rel: "icon", type: "image/png", href: `${BASE}logo.png` }]],
+  sitemap: { hostname: "https://docs.vpn-hub.pro" },
   themeConfig: {
     logo: "/logo.png",
     search: { provider: "local" },
@@ -136,6 +141,11 @@ export default defineConfig({
           { text: "Бэкапы", link: "/features/backups" },
           { text: "Телеметрия ошибок", link: "/features/telemetry" },
         ],
+      },
+      {
+        text: "Справочник",
+        collapsed: false,
+        items: [{ text: "Коды ошибок", link: "/reference/error-codes" }],
       },
       {
         text: "Разработчикам",

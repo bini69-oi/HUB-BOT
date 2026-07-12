@@ -21,6 +21,7 @@ from typing import Any
 
 import httpx
 
+from src.core.error_codes import classify, format_error_id
 from src.core.logging import get_logger
 
 log = get_logger(__name__)
@@ -116,12 +117,14 @@ class TelemetryReporter:
     ) -> str:
         """Queue one error, return a short id the user can quote to support.
 
-        The id is deterministic per bug (``E<fingerprint>``): every occurrence shows
-        the same id, and it maps to the issue on the dashboard even though repeat
-        occurrences merge into a count client-side rather than being sent again.
+        The id is deterministic per bug (``E<код класса>-<fingerprint>``): the code
+        names the error class (см. ``src/core/error_codes.py`` и справочник в доке),
+        the suffix pins the exact bug, so every occurrence shows the same id and maps
+        to the issue on the dashboard even though repeat occurrences merge into a
+        count client-side rather than being sent again.
         """
         fp = fingerprint(exc)
-        error_id = f"E{fp[:8]}"
+        error_id = format_error_id(exc, fp[:8])
         if not self._enabled or self._closing:
             return error_id
         try:
@@ -131,6 +134,7 @@ class TelemetryReporter:
             elif len(self._pending) < _MAX_PENDING_FINGERPRINTS:
                 self._pending[fp] = {
                     "error_id": error_id,
+                    "code": classify(exc).code,
                     "fingerprint": fp,
                     "source": source,
                     "exc_type": type(exc).__name__,
