@@ -65,12 +65,15 @@ async def check_worker(redis: object) -> bool:
 
 async def check_panel(container: object) -> bool:
     """Best-effort panel reachability (informational — a panel outage is handled by
-    maintenance mode, not by failing web health)."""
+    maintenance mode, not by failing web health). Hard-bounded so a slow/retrying panel
+    can't make /health/deep hang (get_version retries with backoff = up to tens of seconds)."""
+    import asyncio
+
     client = getattr(container, "remnawave_client", None)
     if client is None or not hasattr(client, "get_version"):
         return False
     try:
-        await client.get_version()
+        await asyncio.wait_for(client.get_version(), timeout=4.0)
         return True
     except Exception:
         return False
