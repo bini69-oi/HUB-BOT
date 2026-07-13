@@ -179,10 +179,12 @@ else
   if [ -n "${DOMAIN:-}" ]; then
     ask "E-mail для Let's Encrypt: "; read -r ACME_EMAIL
   fi
-  ask "URL панели Remnawave ${DIM}(Enter — встроенная мок-панель для теста)${R}: "; read -r PANEL_URL || true
+  note "Адрес бэкенда (API) Remnawave — не веб-морда, а её API."
+  note "Пример: https://panel.твой-домен  ·  или http://remnawave:3000, если панель в этой же docker-сети."
+  ask "Адрес API Remnawave ${DIM}(Enter — встроенная мок-панель для теста)${R}: "; read -r PANEL_URL || true
   PANEL_TOKEN=""
   if [ -n "${PANEL_URL:-}" ]; then
-    ask "API-токен панели: "; read -r PANEL_TOKEN
+    ask "API-токен панели ${DIM}(из настроек Remnawave)${R}: "; read -r PANEL_TOKEN
   fi
   # Your own Telegram id → you receive failure alerts (панель упала, бэкап, споры) in DM.
   ask "Ваш Telegram ID ${DIM}(для уведомлений; узнать — @userinfobot; Enter — пропустить)${R}: "
