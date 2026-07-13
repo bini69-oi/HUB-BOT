@@ -20,9 +20,13 @@ RUN --mount=type=cache,target=/root/.cache/uv \
     uv sync --frozen --no-dev
 
 FROM python:3.12-slim-bookworm AS runtime
+# Git short-SHA of the build (install.sh/update.sh pass it). The update checker compares
+# APP__BUILD_SHA to GitHub's latest commit to know if a newer version shipped.
+ARG GIT_SHA=""
 ENV PATH="/app/.venv/bin:$PATH" \
     PYTHONUNBUFFERED=1 \
-    PYTHONDONTWRITEBYTECODE=1
+    PYTHONDONTWRITEBYTECODE=1 \
+    APP__BUILD_SHA=$GIT_SHA
 WORKDIR /app
 RUN groupadd -r app && useradd -r -g app app
 COPY --from=builder /app/.venv /app/.venv

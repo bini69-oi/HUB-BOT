@@ -19,6 +19,7 @@ from src.bot.handlers.admin import (
     promos,
     settings,
     stats,
+    update,
     users,
 )
 from src.bot.handlers.admin._common import ClearStaleForm, IsAdmin
@@ -37,5 +38,6 @@ router.include_router(broadcast.router)
 router.include_router(promos.router)
 router.include_router(settings.router)
 router.include_router(branding.router)
+router.include_router(update.router)
 
 __all__ = ["router"]

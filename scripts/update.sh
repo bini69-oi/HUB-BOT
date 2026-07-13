@@ -72,8 +72,18 @@ fi
 
 # --- 3. rebuild + restart -------------------------------------------------------
 step 3 "Пересборка и перезапуск"
+# Re-bake the git SHA after the pull so the update checker reports the new revision.
+export GIT_SHA="$(git rev-parse --short HEAD 2>/dev/null || echo unknown)"
 run_spin "docker compose build" $COMPOSE build
-run_spin "docker compose up -d" $COMPOSE up -d
+if [ -n "${SKIP_UPDATER_RECREATE:-}" ]; then
+  # Triggered from inside the updater container: recreate every service EXCEPT updater,
+  # else `up -d` would kill this very process mid-update. The updater keeps the old code
+  # (it's a tiny watch loop); to update it too, run ./scripts/update.sh on the host once.
+  run_spin "docker compose up -d (без updater)" \
+    $COMPOSE up -d --no-deps postgres redis web bot worker scheduler caddy
+else
+  run_spin "docker compose up -d" $COMPOSE up -d
+fi
 
 # --- 4. health-gate -------------------------------------------------------------
 step 4 "Миграции и здоровье"

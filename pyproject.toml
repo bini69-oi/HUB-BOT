@@ -70,6 +70,8 @@ ignore = ["B008"]  # FastAPI Depends() in defaults
 # RU display strings legitimately contain cyrillic homoglyphs.
 "src/core/config_registry.py" = ["RUF001"]
 "src/bot/**" = ["RUF001"]
+# RU lifecycle/notification messages DM'd to users (autopay, updates, reports…).
+"src/infrastructure/taskiq/tasks.py" = ["RUF001"]
 # The AI-support prompt + knowledge base are long RU text blocks by nature.
 "src/infrastructure/services/ai_support.py" = ["RUF001", "E501"]
 # The E-code catalog is RU prose (docs generate from it); tests assert on RU strings.

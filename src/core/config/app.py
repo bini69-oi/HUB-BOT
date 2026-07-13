@@ -23,6 +23,9 @@ class AppSettings(BaseModel):
     crypt_key: str = ""
     # Distinct secret for signing cabinet/mini-app JWTs (added with the web cabinet).
     jwt_secret: str = ""
+    # Git short-SHA baked into the image at build time (install.sh/update.sh --build-arg),
+    # used by the update checker to compare against GitHub. Empty in dev / source runs.
+    build_sha: str = ""
     # Telegram ids granted OWNER on first contact. NoDecode: take the raw env string as-is
     # (pydantic-settings would otherwise JSON-decode APP__OWNER_IDS, so a plain `898...` becomes
     # an int and fails "not a list"). The validator below accepts "898", "898,123", "898 123".

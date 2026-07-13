@@ -1,0 +1,89 @@
+"""Self-update check: is a newer revision available on GitHub than the one we're running?
+
+The product ships via git-pull + `docker compose build` (scripts/update.sh). The bot runs
+inside a container and can't touch the host git/daemon, so it can't compute "latest" locally.
+Instead it compares the git short-SHA baked into the image at build time (``APP__BUILD_SHA``,
+set by install.sh/update.sh) against the latest commit of the tracked branch on GitHub.
+
+Everything is fail-soft: a network blip or a missing build SHA just reports "no update".
+"""
+
+from __future__ import annotations
+
+from dataclasses import dataclass
+
+import httpx
+
+from src.core.logging import get_logger
+
+log = get_logger(__name__)
+
+_GITHUB_API = "https://api.github.com"
+
+# The «Обновить» button writes this marker; the updater sidecar watches it, runs
+# scripts/update.sh, then removes it. It's a volume mounted in both the bot and the updater.
+UPDATE_REQUEST_FILE = "/app/update-signals/request"
+
+
+def request_update() -> bool:
+    """Drop the update-request marker for the updater sidecar. Returns False if the signals
+    volume isn't mounted (updater not enabled) so the caller can tell the operator."""
+    import os
+    from pathlib import Path
+
+    path = Path(UPDATE_REQUEST_FILE)
+    if not path.parent.is_dir():
+        return False
+    try:
+        path.write_text(f"requested {os.getpid()}\n")
+        return True
+    except OSError as exc:
+        log.warning("update request write failed", error=str(exc))
+        return False
+
+
+@dataclass(frozen=True, slots=True)
+class UpdateInfo:
+    current: str  # short SHA we're running (build_sha), or "" if unknown
+    latest: str  # latest short SHA on the tracked branch, or "" if unavailable
+    available: bool  # a real, different, newer-or-unknown revision exists
+    message: str  # latest commit subject (first line), for the notification
+    url: str  # compare/commit URL for the operator to inspect
+
+
+async def check_for_update(
+    repo: str, branch: str, build_sha: str, *, timeout: float = 8.0
+) -> UpdateInfo:
+    """Return whether GitHub ``repo``@``branch`` is ahead of our ``build_sha``. Never raises."""
+    current = (build_sha or "").strip()[:12]
+    empty = UpdateInfo(current=current, latest="", available=False, message="", url="")
+    if not repo or "/" not in repo:
+        return empty
+    url = f"{_GITHUB_API}/repos/{repo}/commits/{branch or 'main'}"
+    try:
+        async with httpx.AsyncClient(timeout=timeout) as client:
+            r = await client.get(url, headers={"Accept": "application/vnd.github+json"})
+        if r.status_code != 200:
+            log.info("update check non-200", status=r.status_code)
+            return empty
+        data = r.json()
+    except Exception as exc:
+        log.info("update check failed", error=str(exc))
+        return empty
+
+    latest_full = str(data.get("sha") or "")
+    latest = latest_full[:12]
+    subject = str(((data.get("commit") or {}).get("message") or "").split("\n", 1)[0])[:200]
+    if not latest:
+        return empty
+    # Unknown local SHA (image built without the build-arg) → surface the update so the operator
+    # can still act, but we can't claim it's strictly newer.
+    available = (not current) or (current != latest)
+    compare = (
+        f"https://github.com/{repo}/compare/{current}...{latest}"
+        if current
+        else f"https://github.com/{repo}/commit/{latest_full}"
+    )
+    return UpdateInfo(
+        current=current, latest=latest, available=available, message=subject, url=compare
+    )

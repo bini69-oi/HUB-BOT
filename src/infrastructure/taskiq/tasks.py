@@ -198,7 +198,7 @@ async def _notify_paid(container: object, payment_id: UUID) -> None:
     elif email:  # web / guest buyer has no Telegram — deliver by email
         body = "Спасибо за оплату!"
         if sub_url:
-            body += f"\n\nВаша ссылка-подписка:\n{sub_url}\n\nВставьте её в Happ/v2RayTun/Hiddify."  # noqa: RUF001
+            body += f"\n\nВаша ссылка-подписка:\n{sub_url}\n\nВставьте её в Happ/v2RayTun/Hiddify."
         mailer = await c.build_mailer()
         await mailer.send(email, "VPN — подписка активна", body)
 
@@ -330,6 +330,56 @@ async def reconcile_disabled_subs() -> int:
         fixed = await container.resync.reconcile_disabled(uow)
         await uow.commit()
     return fixed
+
+
+@broker.task(schedule=[{"cron": "0 */6 * * *"}])
+async def check_for_updates() -> bool:
+    """Every 6h: compare our build SHA to GitHub; DM the owners a one-tap «Обновить» button when
+    a newer version ships. Notifies at most once per new revision (Redis dedup)."""
+    import contextlib
+
+    from aiogram import Bot
+    from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
+
+    from src.infrastructure.services.updater import check_for_update
+
+    container = get_container()
+    async with container.uow() as uow:
+        if not bool(await container.bot_config.value(uow, "UPDATE_CHECK_ENABLED")):
+            return False
+        repo = str(await container.bot_config.value(uow, "UPDATE_REPO") or "")
+        branch = str(await container.bot_config.value(uow, "UPDATE_BRANCH") or "main")
+    info = await check_for_update(repo, branch, container.settings.app.build_sha)
+    if not info.available or not info.latest:
+        return False
+    owners = container.settings.app.owner_ids
+    token = container.settings.bot.token
+    if not owners or not token:
+        return False
+    # Notify once per latest revision — no daily nagging about the same update.
+    if not await container.redis.set(f"update:notified:{info.latest}", "1", nx=True, ex=30 * 86400):
+        return False
+    cur = info.current or "?"
+    text = (
+        "🆕 <b>Доступно обновление бота</b>\n\n"
+        f"Текущая версия: <code>{cur}</code>\nНовая: <code>{info.latest}</code>\n"
+        f"{info.message}\n\nНажмите «Обновить», и бот сам скачает и установит новую версию "
+        "(снимет бэкап БД, пересоберётся, перезапустится). Займёт пару минут."
+    )
+    kb = InlineKeyboardMarkup(
+        inline_keyboard=[
+            [InlineKeyboardButton(text="🔄 Обновить сейчас", callback_data="upd:apply")],
+            [InlineKeyboardButton(text="🔗 Что нового", url=info.url)],
+        ]
+    )
+    bot = Bot(token=token)
+    try:
+        for owner_id in owners:
+            with contextlib.suppress(Exception):
+                await bot.send_message(owner_id, text, reply_markup=kb, parse_mode="HTML")
+    finally:
+        await bot.session.close()
+    return True
 
 
 @broker.task(schedule=[{"cron": "17 4 * * *"}])
@@ -1019,7 +1069,7 @@ async def run_backup() -> str | None:
 
 
 _WEEKDAYS = {"mon": 0, "tue": 1, "wed": 2, "thu": 3, "fri": 4, "sat": 5, "sun": 6}
-_WEEKDAYS |= {"пн": 0, "вт": 1, "ср": 2, "чт": 3, "пт": 4, "сб": 5, "вс": 6}  # noqa: RUF001
+_WEEKDAYS |= {"пн": 0, "вт": 1, "ср": 2, "чт": 3, "пт": 4, "сб": 5, "вс": 6}
 
 
 def _parse_weekly_schedule(raw: str) -> tuple[int | None, str]:

@@ -225,7 +225,7 @@ LOG__LEVEL=INFO
 LOG__USE_JSON=true
 DOMAIN=${DOMAIN:-:80}
 ACME_EMAIL=${ACME_EMAIL:-}
-$([ -z "${PANEL_URL:-}" ] && echo "COMPOSE_PROFILES=mock")
+COMPOSE_PROFILES=updater$([ -z "${PANEL_URL:-}" ] && echo ",mock")
 ENVEOF
   chmod 600 .env
   ok ".env создан, права 600"
@@ -239,6 +239,8 @@ note "postgres · redis · web · bot · worker · scheduler · caddy"
 # interpolation (e.g. DATABASE__PASSWORD) against the compose file's dir, not the CWD, so it
 # wouldn't find our repo-root .env and the build would fail "required variable ... is missing".
 COMPOSE="docker compose --env-file .env -f docker/compose.prod.yml"
+# Bake the git SHA into the image so the in-bot update checker knows what it's running.
+export GIT_SHA="$(git rev-parse --short HEAD 2>/dev/null || echo unknown)"
 run_spin "docker compose build (первый раз — несколько минут)" $COMPOSE build
 run_spin "docker compose up -d" $COMPOSE up -d
 

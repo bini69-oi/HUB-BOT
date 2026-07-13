@@ -13,6 +13,8 @@ x-app: &app
   build:
     context: ..
     dockerfile: docker/Dockerfile
+    args:
+      GIT_SHA: ${GIT_SHA:-}
   env_file: ../.env
   depends_on:
     postgres:
@@ -23,6 +25,7 @@ x-app: &app
   volumes:
     - uploads:/app/uploads
     - backups:/app/backups
+    - update-signals:/app/update-signals
 
 services:
   postgres:
@@ -129,6 +132,24 @@ services:
     profiles: ["mock"]
     command: ["uvicorn", "scripts.mock_panel:app", "--host", "0.0.0.0", "--port", "3010"]
     expose: ["3010"]
+
+  # Self-update runner: watches for the marker the bot's «Обновить» button drops and runs
+  # scripts/update.sh (backup → git pull → rebuild → restart). Needs the host docker socket
+  # and the host repo bind-mounted so it can rebuild the OTHER services. Disable by setting
+  # COMPOSE_PROFILES without "updater" — the button then tells the operator to run update.sh.
+  updater:
+    profiles: ["updater"]  # opt-in (needs the docker socket); install.sh enables it by default
+    build:
+      context: ..
+      dockerfile: docker/updater.Dockerfile
+    restart: unless-stopped
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ..:/repo
+      - update-signals:/repo/update-signals
+    working_dir: /repo
+    environment:
+      UPDATE_REQUEST_FILE: /repo/update-signals/request
 
   # Automatic HTTPS in front of web (uses DOMAIN + ACME_EMAIL from .env).
   caddy:

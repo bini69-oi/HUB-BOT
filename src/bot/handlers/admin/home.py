@@ -30,7 +30,10 @@ def _menu(admin_url: str) -> InlineKeyboardMarkup:
             InlineKeyboardButton(text="🏷 Акции", callback_data="admin:sales"),
             InlineKeyboardButton(text="⚙️ Настройки", callback_data="admin:settings"),
         ],
-        [InlineKeyboardButton(text="🖼 Оформление", callback_data="admin:brand")],
+        [
+            InlineKeyboardButton(text="🖼 Оформление", callback_data="admin:brand"),
+            InlineKeyboardButton(text="🔄 Обновление", callback_data="admin:update"),
+        ],
     ]
     if admin_url.startswith("https://"):
         rows.append([InlineKeyboardButton(text="🌐 Веб-админка", url=admin_url)])
