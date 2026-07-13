@@ -62,6 +62,12 @@ services:
     environment:
       RUN_MIGRATIONS: "true"
     command: ["uvicorn", "src.web.app:app", "--host", "0.0.0.0", "--port", "8080"]
+    # Publish to the host so, when ports 80/443 are already taken (e.g. the panel's nginx),
+    # the stack still comes up and an existing reverse proxy can reach it. Bind to loopback by
+    # default (not internet-exposed); install.sh sets WEB_BIND and picks a free port. Harmless
+    # when Caddy is running (it fronts web over the internal network regardless).
+    ports:
+      - "${WEB_BIND:-127.0.0.1:8080}:8080"
     expose: ["8080"]
     # web owns migrations (entrypoint runs `alembic upgrade head` BEFORE exec'ing uvicorn), so a
     # 200 here means the schema is migrated and db+redis are reachable — the gate bot/worker/
@@ -152,8 +158,12 @@ services:
       UPDATE_REQUEST_FILE: /repo/update-signals/request
 
   # Automatic HTTPS in front of web (uses DOMAIN + ACME_EMAIL from .env).
+  # Profile-gated: install.sh enables "caddy" only when host ports 80/443 are free.
+  # If they're taken (another web server on the box), the stack runs without Caddy and
+  # web is reachable at 127.0.0.1:8080 for that existing proxy to front.
   caddy:
     image: caddy:2-alpine
+    profiles: ["caddy"]
     restart: unless-stopped
     ports:
       - "80:80"

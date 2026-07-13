@@ -46,6 +46,23 @@ run_spin() { # run_spin "подпись" cmd...
   fi
 }
 
+# True if something already listens on tcp port $1 (so we must not fight for it).
+port_busy() {
+  if command -v ss >/dev/null 2>&1; then
+    ss -Htln "sport = :$1" 2>/dev/null | grep -q . && return 0 || return 1
+  fi
+  if command -v lsof >/dev/null 2>&1; then
+    lsof -iTCP:"$1" -sTCP:LISTEN -n -P >/dev/null 2>&1 && return 0 || return 1
+  fi
+  (exec 3<>"/dev/tcp/127.0.0.1/$1") >/dev/null 2>&1 && { exec 3>&- 3<&-; return 0; } || return 1
+}
+
+# First free port from a small candidate list (for publishing web when behind a proxy).
+pick_web_port() {
+  for p in 8080 8090 9080 18080 28080; do port_busy "$p" || { echo "$p"; return; }; done
+  echo 8080
+}
+
 # --- bootstrap: запуск через `bash <(curl …)` вне клона — клонируем репо и перезапускаемся
 SCRIPT_DIR=$(cd "$(dirname "$0")" 2>/dev/null && pwd -P || true)
 if [ -z "$SCRIPT_DIR" ] || [ ! -f "$SCRIPT_DIR/../docker/compose.prod.yml" ]; then
@@ -198,6 +215,13 @@ else
   DBPW=$(gen "import secrets; print(secrets.token_urlsafe(18))")
   ADMPW=$(gen "import secrets; print(secrets.token_urlsafe(12))")
 
+  # Resolve the 80/443 conflict automatically so the operator never has to. If either is
+  # already taken (usually the panel's own web server), skip Caddy and publish web on a free
+  # loopback port for that existing reverse proxy to front. Otherwise Caddy handles HTTPS.
+  CADDY_ON=1
+  if port_busy 80 || port_busy 443; then CADDY_ON=0; fi
+  WEB_PORT=$(pick_web_port)
+
   cat > .env <<ENVEOF
 APP__ENV=production
 APP__DEBUG=false
@@ -227,16 +251,22 @@ LOG__LEVEL=INFO
 LOG__USE_JSON=true
 DOMAIN=${DOMAIN:-:80}
 ACME_EMAIL=${ACME_EMAIL:-}
-COMPOSE_PROFILES=updater$([ -z "${PANEL_URL:-}" ] && echo ",mock")
+WEB_BIND=127.0.0.1:${WEB_PORT}
+COMPOSE_PROFILES=updater$([ -z "${PANEL_URL:-}" ] && echo ",mock")$([ "$CADDY_ON" = 1 ] && echo ",caddy")
 ENVEOF
   chmod 600 .env
   ok ".env создан, права 600"
   [ -z "${PANEL_URL:-}" ] && note "панель не указана — включаю встроенную мок-панель (профиль mock)"
+  if [ "$CADDY_ON" = 1 ]; then
+    note "порты 80/443 свободны — HTTPS через встроенный Caddy"
+  else
+    note "порт 80/443 занят (наверное, панель) — поднимаю БЕЗ Caddy, за твоим прокси (web на 127.0.0.1:${WEB_PORT})"
+  fi
 fi
 
 # --- [4/5] build + up ------------------------------------------------------------
 step 4 "Сборка и запуск стека"
-note "postgres · redis · web · bot · worker · scheduler · caddy"
+note "postgres · redis · web · bot · worker · scheduler$([ "${CADDY_ON:-1}" = 1 ] && echo ' · caddy')"
 # --env-file .env is REQUIRED: with `-f docker/compose.prod.yml` Compose resolves ${VAR:?}
 # interpolation (e.g. DATABASE__PASSWORD) against the compose file's dir, not the CWD, so it
 # wouldn't find our repo-root .env and the build would fail "required variable ... is missing".
@@ -266,8 +296,12 @@ ok "миграции применены, /health отвечает"
 # --- summary ---------------------------------------------------------------------
 ENV_DOMAIN=$(grep '^DOMAIN=' .env | cut -d= -f2)
 IP=$(curl -fs4 ifconfig.me 2>/dev/null || hostname -I | awk '{print $1}')
+# Mode from .env so a re-run reports correctly too: caddy in profiles -> we own 80/443.
+grep '^COMPOSE_PROFILES=' .env | grep -q 'caddy' && CADDY_ACTIVE=1 || CADDY_ACTIVE=0
+WEB_PORT_OUT=$(grep '^WEB_BIND=' .env | sed 's/.*://')
 URL="http://$IP"
 [ -n "$ENV_DOMAIN" ] && [ "$ENV_DOMAIN" != ":80" ] && URL="https://$ENV_DOMAIN"
+[ "$CADDY_ACTIVE" = 0 ] && [ "$ENV_DOMAIN" = ":80" ] && URL="http://127.0.0.1:${WEB_PORT_OUT}"
 ADMPW_OUT=$(grep '^ADMIN__PASSWORD=' .env | cut -d= -f2)
 JWT_OUT=$(grep '^APP__JWT_SECRET=' .env | cut -d= -f2)
 BACKUP_PW="${JWT_OUT:0:16}"   # the password DB backups are encrypted with (until you set one in the cabinet)
@@ -280,6 +314,23 @@ printf "   %sЛогин%s        admin\n"           "$DIM" "$R"
 printf "   %sПароль%s       %s%s%s\n"          "$DIM" "$R" "$B" "$ADMPW_OUT" "$R"
 printf "   %sМини-аппа%s    %s/app/\n"         "$DIM" "$R" "$URL"
 printf "\n"
+if [ "$CADDY_ACTIVE" = 0 ]; then
+  printf "   %s🔌 Порт 80/443 был занят — стек поднят БЕЗ Caddy, web на 127.0.0.1:%s.%s\n" "$ORANGE" "$WEB_PORT_OUT" "$R"
+  printf "   %sДобавь в свой веб-сервер (nginx панели) проксирование на этот адрес:%s\n" "$DIM" "$R"
+  printf "\n"
+  printf "     server {\n"
+  printf "       server_name %s;\n" "${ENV_DOMAIN:-твой-домен}"
+  printf "       location / {\n"
+  printf "         proxy_pass http://127.0.0.1:%s;\n" "$WEB_PORT_OUT"
+  printf "         proxy_set_header Host \$host;\n"
+  printf "         proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;\n"
+  printf "         proxy_set_header X-Forwarded-Proto \$scheme;\n"
+  printf "       }\n"
+  printf "     }\n"
+  printf "\n"
+  printf "   %sПотом: certbot --nginx -d %s  (HTTPS выдаст твой nginx).%s\n" "$DIM" "${ENV_DOMAIN:-твой-домен}" "$R"
+  printf "\n"
+fi
 printf "   %s⚠ Пароль шифрования бэкапов%s  %s%s%s\n" "$ORANGE" "$R" "$B" "$BACKUP_PW" "$R"
 printf "   %sСохраните его ОТДЕЛЬНО от сервера — без него бэкап БД не расшифровать.%s\n" "$DIM" "$R"
 printf "   %s(в кабинете → Обслуживание можно задать свой пароль бэкапов)%s\n" "$DIM" "$R"
