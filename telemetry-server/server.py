@@ -20,7 +20,7 @@ from collections import deque
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from dataclasses import dataclass
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta, timezone
 from html import escape
 from typing import Annotated, Any
 
@@ -90,6 +90,25 @@ class IngestPayload(BaseModel):
 
 def _now_iso() -> str:
     return datetime.now(UTC).isoformat(timespec="seconds")
+
+
+# Timestamps are stored as UTC ISO strings; the dashboard shows them in Moscow time (UTC+3,
+# no DST) formatted for humans — «16.07.2026 20:59» instead of a raw «…T17:59:00+00:00».
+_MSK = timezone(timedelta(hours=3))
+
+
+def _msk(iso: object, *, seconds: bool = False) -> str:
+    s = str(iso or "").strip()
+    if not s:
+        return ""
+    try:
+        dt = datetime.fromisoformat(s)
+    except (ValueError, TypeError):
+        return s
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=UTC)
+    fmt = "%d.%m.%Y %H:%M:%S" if seconds else "%d.%m.%Y %H:%M"
+    return dt.astimezone(_MSK).strftime(fmt)
 
 
 def _init_db(db_path: str) -> sqlite3.Connection:
@@ -209,7 +228,7 @@ def _render_row(issue: sqlite3.Row, events: list[sqlite3.Row], colspan: int) -> 
     msg = escape(str(issue["message"] or "")[:120])
     ctx = escape(json.dumps(json.loads(issue["context"] or "{}"), ensure_ascii=False, indent=1))
     evt_lines = "".join(
-        f'<div class="evt">{escape(str(e["ts"] or ""))} · {escape(str(e["error_id"] or ""))}'
+        f'<div class="evt">{escape(_msk(e["ts"], seconds=True))} · {escape(str(e["error_id"] or ""))}'
         f" · {escape(str(e['install_id'] or ''))} · v{escape(str(e['version'] or ''))}"
         f" · x{e['count']}</div>"
         for e in events
@@ -224,8 +243,8 @@ def _render_row(issue: sqlite3.Row, events: list[sqlite3.Row], colspan: int) -> 
         f'<td><span class="badge">{escape(str(issue["source"] or ""))}</span></td>'
         f"<td>{issue['total']}</td><td>{len(installs)}</td>"
         f"<td>{escape(', '.join(str(v) for v in versions))}</td>"
-        f"<td>{escape(str(issue['first_seen'] or ''))}<br>"
-        f"{escape(str(issue['last_seen'] or ''))}</td>"
+        f"<td>{escape(_msk(issue['first_seen']))}<br>"
+        f"{escape(_msk(issue['last_seen']))}</td>"
         # Относительный action: дашборд работает и на голом домене, и за префиксом
         # (nginx location /errors/ -> proxy_pass http://127.0.0.1:8088/).
         f'<td>{status}<form method="post" action="issues/{fp}/toggle">'
@@ -259,7 +278,7 @@ def _render_dashboard(
         f"<title>HUB-BOT telemetry</title><style>{_CSS}</style></head><body>"
         "<h1>HUB-BOT telemetry</h1>"
         f'<div class="meta">open <b>{open_count}</b> · resolved <b>{resolved_count}</b>'
-        f" · installs <b>{install_count}</b> · {toggle}</div>"
+        f" · installs <b>{install_count}</b> · время МСК · {toggle}</div>"
         f"<table><tr>{head}</tr>{rows}</table></body></html>"
     )
 
