@@ -123,16 +123,13 @@ async def dispatch(
         await message.answer(payload)
 
 
-async def _open_action(
-    message: Message, container: AppContainer, db_user: User, state: FSMContext, code: str
-) -> None:
-    """Open a built-in action by its MENU_ACTIONS code, reusing the inline handlers."""
-    from src.bot.handlers import actions, promo, purchase
+def _reply_action_handlers() -> dict[str, Any]:
+    """code -> handler for bottom-bar taps. Every MENU_ACTIONS code (except ``promocode``,
+    which needs the FSM and is special-cased in ``_open_action``) must appear here, or a
+    visible reply button dead-ends. ``test_reply_dispatch_covers_all_actions`` locks the sync."""
+    from src.bot.handlers import actions, purchase
 
-    if code == "promocode":
-        await promo.ask_code(message, container, db_user, state)
-        return
-    handlers = {
+    return {
         "buy": purchase.open_buy,
         "cabinet": actions.act_cabinet,
         "subscription": actions.act_subscription,
@@ -145,8 +142,21 @@ async def _open_action(
         "nodes": actions.act_nodes,
         "proxy": actions.act_proxy,
         "support": actions.act_support,
+        "terms": actions.act_terms,
+        "privacy": actions.act_privacy,
     }
-    handler = handlers.get(code)
+
+
+async def _open_action(
+    message: Message, container: AppContainer, db_user: User, state: FSMContext, code: str
+) -> None:
+    """Open a built-in action by its MENU_ACTIONS code, reusing the inline handlers."""
+    from src.bot.handlers import promo
+
+    if code == "promocode":
+        await promo.ask_code(message, container, db_user, state)
+        return
+    handler = _reply_action_handlers().get(code)
     if handler is not None:
         await handler(message, container, db_user)
 

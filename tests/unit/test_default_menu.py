@@ -32,6 +32,17 @@ def test_legal_doc_actions_registered() -> None:
     assert {"TERMS_TEXT", "PRIVACY_TEXT"} <= keys
 
 
+def test_reply_dispatch_covers_all_actions() -> None:
+    # Every action the constructor can place on the bottom bar must be dispatchable in reply
+    # mode, or the button dead-ends. Regression: terms/privacy (added in 1.2.4) were missing.
+    from src.bot.handlers.reply_menu import _reply_action_handlers
+
+    covered = set(_reply_action_handlers()) | {"promocode"}  # promocode is FSM-special-cased
+    codes = {a.code for a in MENU_ACTIONS}
+    missing = codes - covered
+    assert not missing, f"reply-mode dispatch missing handlers for: {sorted(missing)}"
+
+
 def test_lookup_helpers() -> None:
     assert is_action("buy")
     assert not is_action("does_not_exist")

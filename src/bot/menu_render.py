@@ -40,6 +40,13 @@ async def send_main_menu(
         button_color = str(await cfg.value(uow, "BUTTON_COLOR_DEFAULT") or "") or None
         menu_mode = str(await cfg.value(uow, "MAIN_MENU_MODE") or "inline")
 
+    # A constructor-placed «Пробный период» button (action=trial) is rendered unconditionally,
+    # so once the user has used their trial (or trials are off) it lingers as a dead-end. Drop
+    # trial action nodes when the user is no longer eligible — mirrors the smart-shortcut gate
+    # below, which already only appears while the trial is available.
+    if not (trial_enabled and db_user.is_trial_available):
+        nodes = [n for n in nodes if not (n.kind.value == "action" and n.payload == "trial")]
+
     # Runtime "smart" shortcuts (trial/proxy/nodes) applicable for this shop + user — shared by
     # the inline menu and the reply bottom-bar so they never drift (default_menu.SMART_EXTRAS).
     tree_actions = {n.payload for n in nodes if n.kind.value == "action"}

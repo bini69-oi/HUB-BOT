@@ -74,7 +74,34 @@ export default function BotButtons() {
   const kids = (parent: string | null) =>
     nodes
       .filter((n) => n.parent === parent)
-      .sort((a, b) => (a.order_index ?? 0) - (b.order_index ?? 0));
+      .sort(
+        (a, b) =>
+          (a.row_index ?? 0) - (b.row_index ?? 0) || (a.order_index ?? 0) - (b.order_index ?? 0),
+      );
+
+  // Current buttons-per-row of a screen = its widest row (1 when the menu is a flat column).
+  function rowWidth(parent: string | null): number {
+    const counts = new Map<number, number>();
+    for (const n of kids(parent)) {
+      const r = n.row_index ?? 0;
+      counts.set(r, (counts.get(r) ?? 0) + 1);
+    }
+    return Math.max(1, ...counts.values());
+  }
+
+  // Re-flow a screen's buttons into rows of `perRow`, preserving their order. This stamps the
+  // row_index the bot renders by (inline honours up to 3/row; the reply bottom-bar up to 2).
+  function layoutRows(parent: string | null, perRow: number) {
+    const seq = kids(parent);
+    const pos = new Map(seq.map((n, i) => [n.id, i]));
+    setNodes((ns) =>
+      ns.map((n) => {
+        const i = pos.get(n.id);
+        if (i === undefined) return n;
+        return { ...n, row_index: Math.floor(i / perRow), order_index: i };
+      }),
+    );
+  }
 
   function patchSel(patch: Partial<Node>) {
     if (!selId) return;
@@ -122,21 +149,18 @@ export default function BotButtons() {
 
   function move(dir: -1 | 1) {
     if (!sel) return;
-    const siblings = kids(sel.parent);
-    const idx = siblings.findIndex((n) => n.id === sel.id);
+    const seq = kids(sel.parent);
+    const idx = seq.findIndex((n) => n.id === sel.id);
     const j = idx + dir;
-    if (j < 0 || j >= siblings.length) return;
-    const a = siblings[idx];
-    const b = siblings[j];
-    setNodes((ns) =>
-      ns.map((n) =>
-        n.id === a.id
-          ? { ...n, order_index: b.order_index ?? j }
-          : n.id === b.id
-            ? { ...n, order_index: a.order_index ?? idx }
-            : n,
-      ),
+    if (j < 0 || j >= seq.length) return;
+    const reordered = [...seq];
+    [reordered[idx], reordered[j]] = [reordered[j], reordered[idx]];
+    // Keep the screen's current row width so the grid re-flows instead of scrambling rows.
+    const w = rowWidth(sel.parent);
+    const patch = new Map(
+      reordered.map((n, i) => [n.id, { order_index: i, row_index: Math.floor(i / w) }]),
     );
+    setNodes((ns) => ns.map((n) => (patch.has(n.id) ? { ...n, ...patch.get(n.id)! } : n)));
   }
 
   async function save() {
@@ -174,6 +198,21 @@ export default function BotButtons() {
   }, [sel]);
   const previewScreen = nodes.find((n) => n.id === previewScreenId) ?? null;
   const previewButtons = kids(previewScreenId);
+  // Group the previewed screen's buttons into rows (by row_index) so the preview shows the
+  // exact grid the bot renders — buttons sharing a row_index sit side by side.
+  const previewRows = useMemo(() => {
+    const out: Node[][] = [];
+    let cur: number | null = null;
+    for (const b of previewButtons) {
+      const r = b.row_index ?? 0;
+      if (out.length === 0 || r !== cur) {
+        out.push([]);
+        cur = r;
+      }
+      out[out.length - 1].push(b);
+    }
+    return out;
+  }, [previewButtons]);
 
   function TreeRow({ node, depth }: { node: Node; depth: number }) {
     const children = kids(node.id);
@@ -422,8 +461,28 @@ export default function BotButtons() {
 
         {/* live preview */}
         <div className="card" style={{ flex: "1 1 300px" }}>
-          <div className="caps" style={{ marginBottom: 10 }}>
-            {t.livePreview}
+          <div
+            className="row"
+            style={{ marginBottom: 10, alignItems: "center", justifyContent: "space-between" }}
+          >
+            <span className="caps">{t.livePreview}</span>
+            {previewButtons.length > 1 && (
+              <div className="row" style={{ alignItems: "center", gap: 6 }}>
+                <span className="dim" style={{ fontSize: 12 }}>
+                  {t.perRow}:
+                </span>
+                {[1, 2, 3].map((w) => (
+                  <button
+                    key={w}
+                    className={`btn sm ${rowWidth(previewScreenId) === w ? "primary" : "secondary"}`}
+                    style={{ minWidth: 30, padding: "4px 8px" }}
+                    onClick={() => layoutRows(previewScreenId, w)}
+                  >
+                    {w}
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
           <div
             style={{
@@ -454,23 +513,33 @@ export default function BotButtons() {
               </div>
             </div>
             <div className="grid" style={{ gap: 6 }}>
-              {previewButtons.map((b) => (
-                <button
-                  key={b.id}
-                  onClick={() => setSelId(b.id)}
-                  style={{
-                    borderRadius: 6,
-                    border:
-                      b.id === selId ? "1px solid var(--text)" : "1px solid var(--border2)",
-                    background: b.color || "var(--panel)",
-                    color: b.color ? "#fff" : "var(--text)",
-                    padding: "9px 12px",
-                    fontSize: 13,
-                    cursor: "pointer",
-                  }}
-                >
-                  {b.label}
-                </button>
+              {previewRows.map((row, ri) => (
+                <div key={ri} className="row" style={{ gap: 6 }}>
+                  {row.map((b) => (
+                    <button
+                      key={b.id}
+                      onClick={() => setSelId(b.id)}
+                      title={b.label}
+                      style={{
+                        flex: "1 1 0",
+                        minWidth: 0,
+                        borderRadius: 6,
+                        border:
+                          b.id === selId ? "1px solid var(--text)" : "1px solid var(--border2)",
+                        background: b.color || "var(--panel)",
+                        color: b.color ? "#fff" : "var(--text)",
+                        padding: "9px 12px",
+                        fontSize: 13,
+                        cursor: "pointer",
+                        overflow: "hidden",
+                        textOverflow: "ellipsis",
+                        whiteSpace: "nowrap",
+                      }}
+                    >
+                      {b.label}
+                    </button>
+                  ))}
+                </div>
               ))}
               {previewButtons.length === 0 && <span className="dim">—</span>}
             </div>

@@ -324,6 +324,51 @@ async def test_menu_save_and_cycle_guard(
     assert res.status_code == 400
 
 
+async def test_menu_row_layout_and_action_validation(
+    client: tuple[httpx.AsyncClient, ApiTestContainer],
+) -> None:
+    http, _ = client
+    auth = await _login(http)
+    # The constructor's row-layout control persists row_index/order_index so the bot renders
+    # the operator's chosen grid (two buttons on row 0, one on row 1).
+    nodes = [
+        {
+            "id": "a",
+            "label": "A",
+            "kind": "action",
+            "payload": "buy",
+            "row_index": 0,
+            "order_index": 0,
+        },
+        {
+            "id": "b",
+            "label": "B",
+            "kind": "action",
+            "payload": "balance",
+            "row_index": 0,
+            "order_index": 1,
+        },
+        {
+            "id": "c",
+            "label": "C",
+            "kind": "action",
+            "payload": "support",
+            "row_index": 1,
+            "order_index": 0,
+        },
+    ]
+    res = await http.put("/api/admin/bot-menu", headers=auth, json={"nodes": nodes})
+    assert res.status_code == 200
+    saved = {n["label"]: n for n in res.json()["nodes"]}
+    assert saved["A"]["row_index"] == 0 and saved["B"]["row_index"] == 0
+    assert saved["C"]["row_index"] == 1
+
+    # An action button pointing at an unknown code is rejected — it would be a dead button.
+    bad = [{"id": "x", "label": "Опечатка", "kind": "action", "payload": "by"}]
+    res = await http.put("/api/admin/bot-menu", headers=auth, json={"nodes": bad})
+    assert res.status_code == 400
+
+
 async def test_menu_actions_catalog(
     client: tuple[httpx.AsyncClient, ApiTestContainer],
 ) -> None:

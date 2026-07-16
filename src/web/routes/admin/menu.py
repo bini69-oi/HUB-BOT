@@ -139,11 +139,17 @@ async def save_menu(
     ids = {n.id for n in body.nodes}
     if len(ids) != len(body.nodes):
         raise HTTPException(400, "duplicate node ids")
+    valid_actions = {a.code for a in MENU_ACTIONS}
     for n in body.nodes:
         if n.parent is not None and n.parent not in ids:
             raise HTTPException(400, f"node {n.id}: unknown parent {n.parent}")
         if n.parent == n.id:
             raise HTTPException(400, f"node {n.id}: self-parent")
+        # An action button must point at a real bot action, or it renders as a dead button.
+        if n.kind is MenuNodeKind.ACTION and (n.payload or "") not in valid_actions:
+            raise HTTPException(
+                400, f"кнопка «{n.label}»: неизвестное действие «{n.payload or ''}»"
+            )
 
     # Insert parents-first, mapping client ids -> DB ids.
     async with container.uow() as uow:
