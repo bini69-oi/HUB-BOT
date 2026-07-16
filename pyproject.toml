@@ -1,6 +1,6 @@
 [project]
 name = "vpn-shop-base"
-version = "1.2.11"
+version = "1.2.12"
 description = "Base/core foundation for a Telegram VPN-shop bot + mini-app on the Remnawave panel"
 readme = "README.md"
 requires-python = ">=3.12"
@@ -70,6 +70,8 @@ ignore = ["B008"]  # FastAPI Depends() in defaults
 # RU display strings legitimately contain cyrillic homoglyphs.
 "src/core/config_registry.py" = ["RUF001"]
 "src/bot/**" = ["RUF001"]
+# The /dl deep-link bounce page renders a short RU prompt to the user.
+"src/web/app.py" = ["RUF001"]
 # RU lifecycle/notification messages DM'd to users (autopay, updates, reports…).
 "src/infrastructure/taskiq/tasks.py" = ["RUF001"]
 # The AI-support prompt + knowledge base are long RU text blocks by nature.

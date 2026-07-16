@@ -116,7 +116,6 @@ def create_app() -> FastAPI:
         openLink (external browser), which then fires the scheme; the OS routes it to the app.
         The scheme is allow-listed so this can't be abused as an open redirect (javascript:, …)."""
         import html as _html
-        import json as _json
 
         allowed = (
             "happ://",
@@ -131,21 +130,27 @@ def create_app() -> FastAPI:
         )
         if not to.startswith(allowed):
             raise HTTPException(400, "scheme not allowed")
-        js = _json.dumps(to)  # safe JS string literal
         href = _html.escape(to, quote=True)
+        # Gesture-first: a browser fires a custom scheme only on a real user tap. Auto-navigating
+        # (location.href) is blocked on Android/Windows and REPLACES this page with the browser's
+        # ERR_UNKNOWN_URL_SCHEME error, hiding the button — so the primary action is a big tap
+        # button. The hidden iframe is a silent best-effort auto-launch that can't replace the page.
         return HTMLResponse(
             "<!doctype html><meta charset=utf-8>"
             "<meta name=viewport content='width=device-width,initial-scale=1'>"
-            "<title>Открываю приложение…</title>"
-            "<body style='margin:0;font-family:system-ui,-apple-system,sans-serif;"
-            "background:#0f1319;color:#e6e9ef;text-align:center;padding:64px 24px'>"
-            "<p style='font-size:17px'>Открываю приложение…</p>"
-            f"<p style='margin-top:24px'><a href=\"{href}\" style='display:inline-block;"
-            "padding:14px 24px;background:#4159c7;color:#fff;border-radius:10px;"
-            "text-decoration:none;font-weight:600'>Открыть вручную</a></p>"
-            "<p style='color:#8b96a3;font-size:13px;margin-top:20px'>Если приложение не "
-            "открылось само — нажмите кнопку выше.</p>"
-            f"<script>setTimeout(function(){{location.href={js}}},60)</script>"
+            "<title>Открыть приложение</title>"
+            "<body style='margin:0;min-height:100vh;box-sizing:border-box;display:flex;"
+            "flex-direction:column;align-items:center;justify-content:center;gap:20px;"
+            "font-family:system-ui,-apple-system,sans-serif;background:#0f1319;color:#e6e9ef;"
+            "text-align:center;padding:32px'>"
+            "<p style='font-size:16px;margin:0;max-width:300px'>Нажмите кнопку, чтобы открыть "
+            "приложение и импортировать подписку:</p>"
+            f'<a href="{href}" style=\'padding:16px 30px;background:#4159c7;color:#fff;'
+            "border-radius:12px;text-decoration:none;font-weight:700;font-size:17px'>"
+            "⚡ Открыть приложение</a>"
+            "<p style='color:#8b96a3;font-size:13px;margin:0;max-width:300px'>Не открылось? "
+            "Установите приложение и повторите — либо скопируйте ссылку и добавьте вручную.</p>"
+            f"<iframe src=\"{href}\" style='display:none' aria-hidden=true></iframe>"
         )
 
     if _ADMIN_DIST.is_dir():
