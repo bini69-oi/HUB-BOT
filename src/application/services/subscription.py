@@ -128,14 +128,20 @@ class SubscriptionService:
         *,
         days: int,
         telegram_id: int | None = None,
+        adopt_plan: Plan | None = None,
     ) -> Subscription:
         """Extend an existing subscription and push the new expiry to the panel.
 
         ``telegram_id`` is passed in explicitly (not read from ``subscription.user``) to avoid
-        an async lazy-load on the relationship.
+        an async lazy-load on the relationship. ``adopt_plan`` tags a plan-less (migrated) sub
+        with the purchased plan so it stops looking like a "no plan" row — limits are left as
+        they are (extension keeps the user's current setup; a plan switch is a CHANGE).
         """
         if subscription.remnawave_uuid is None:
             raise PurchaseError("cannot renew a subscription with no panel user")
+        if adopt_plan is not None and subscription.plan_id is None:
+            subscription.plan_id = adopt_plan.id
+            subscription.plan_snapshot = _plan_snapshot(adopt_plan)
         base = subscription.expire_at or dt.datetime.now(dt.UTC)
         subscription.expire_at = max(base, dt.datetime.now(dt.UTC)) + dt.timedelta(days=days)
         subscription.status = SubscriptionStatus.ACTIVE

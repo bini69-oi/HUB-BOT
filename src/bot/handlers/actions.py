@@ -381,7 +381,9 @@ async def act_history(cb: CallbackQuery | Message, container: AppContainer, db_u
             for t in txns
         ]
         text = "<b>🧾 История операций</b>\n\n" + "\n".join(lines)
-    await render_screen(cb, container, "history", text, simple_keyboard([("‹ Меню", "nav:root")]))
+    await render_screen(
+        cb, container, "history", text, simple_keyboard([("‹ Кабинет", "act:cabinet:0")])
+    )
     await ack(cb)
 
 
@@ -430,7 +432,7 @@ async def act_balance(cb: CallbackQuery | Message, container: AppContainer, db_u
         [
             ("⭐ Пополнить", "topup:menu"),
             ("🆘 Поддержка", "act:support:0"),
-            ("‹ Меню", "nav:root"),
+            ("‹ Кабинет", "act:cabinet:0"),
         ]
     )
     await render_screen(cb, container, "balance", text, markup)
@@ -467,7 +469,7 @@ async def act_referral(cb: CallbackQuery | Message, container: AppContainer, db_
         avail = await available_minor(container, db_user.id)
         text += f"\n\n💸 Доступно к выводу: <b>{avail / 100:.2f} ₽</b>"
         kb_rows.append([InlineKeyboardButton(text="💸 Вывести", callback_data="withdraw:start")])
-    kb_rows.append([InlineKeyboardButton(text="‹ Меню", callback_data="nav:root")])
+    kb_rows.append([InlineKeyboardButton(text="‹ Кабинет", callback_data="act:cabinet:0")])
     markup = InlineKeyboardMarkup(inline_keyboard=kb_rows)
     await render_screen(cb, container, "referral", text, markup)
     await ack(cb)
@@ -565,7 +567,9 @@ async def act_support(cb: CallbackQuery | Message, container: AppContainer, db_u
         redirect = str(await cfg.value(uow, "SUPPORT_REDIRECT_USERNAME") or "")
         support_bot = str(await cfg.value(uow, "SUPPORT_BOT_USERNAME") or "")
         miniapp_url = str(await cfg.value(uow, "SUBSCRIPTION_MINI_APP_URL") or "")
-    back = InlineKeyboardButton(text="‹ Меню", callback_data="nav:root")  # never a dead end (SUP-1)
+    back = InlineKeyboardButton(  # never a dead end (SUP-1); support lives under the cabinet
+        text="‹ Кабинет", callback_data="act:cabinet:0"
+    )
     if mode == "bot" and support_bot:
         await render_screen(
             cb,

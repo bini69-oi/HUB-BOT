@@ -47,7 +47,7 @@ async def ask_code(
         container,
         "promocode",
         "<b>🎟 Промокод</b>\n\nПришли код одним сообщением — начислим бонус сразу.",
-        simple_keyboard([("‹ Меню", "nav:root")]),
+        simple_keyboard([("‹ Кабинет", "act:cabinet:0")]),
     )
     await ack(cb)
 
@@ -82,5 +82,5 @@ async def apply_code(
 
     await message.answer(
         f"✅ Промокод применён. {_REWARD_TEXT.get(reward, '')}".strip(),
-        reply_markup=_kb([("🛒 К покупке", "act:buy:0"), ("‹ Меню", "nav:root")]),
+        reply_markup=_kb([("🛒 К покупке", "act:buy:0"), ("‹ Кабинет", "act:cabinet:0")]),
     )

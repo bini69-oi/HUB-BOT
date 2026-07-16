@@ -16,7 +16,13 @@ from src.application.events import SubscriptionPurchased
 from src.application.services.pricing import PricingService
 from src.application.services.subscription import SubscriptionService, _plan_snapshot
 from src.core.constants import BYTES_PER_GB
-from src.core.enums import Currency, PurchaseType, TransactionStatus, TransactionType
+from src.core.enums import (
+    Currency,
+    PurchaseType,
+    SubscriptionStatus,
+    TransactionStatus,
+    TransactionType,
+)
 from src.core.exceptions import InsufficientBalance, InvalidStateTransition, PurchaseError
 from src.infrastructure.database.models.plan import Plan
 from src.infrastructure.database.models.subscription import Subscription
@@ -138,11 +144,16 @@ class PurchaseService:
     async def resolve_purchase_type(
         self, uow: UnitOfWork, user_id: int, plan_id: int
     ) -> tuple[PurchaseType, int | None]:
-        """Same plan + usable sub -> RENEW; different plan + usable sub -> CHANGE; else NEW.
+        """Decide NEW / RENEW / CHANGE for a plan purchase (shared by bot + mini-app).
 
-        Shared by the bot and the mini-app so both surfaces detect the flow identically.
-        CHANGE keeps the panel user (same short_id/uuid) and prorates the unused days
-        into a credit — see PricingService.
+        A brand-new panel account is minted ONLY when the user has no existing panel-backed
+        subscription to extend. If they already have one — even EXPIRED/DISABLED, or a
+        **migrated** sub with no local plan (``plan_id`` NULL) — the purchase RENEWs/CHANGEs
+        the SAME Remnawave account instead of orphaning it with a duplicate. This was the
+        "оплатил → создался новый аккаунт, подписка не продлилась" bug: on migrated installs
+        every sub has ``plan_id = NULL``, so the old ``plan_id == plan_id``/``is not None``
+        checks fell straight through to NEW for all 273 imported users. Same-or-absent plan ->
+        RENEW (extend, keep uuid); a different KNOWN plan -> CHANGE (switch, prorated credit).
         """
         user = await uow.users.get(user_id)
         sub = (
@@ -150,11 +161,14 @@ class PurchaseService:
             if user is not None and user.current_subscription_id
             else None
         )
-        if sub is not None and sub.status.is_usable:
-            if sub.plan_id == plan_id:
-                return PurchaseType.RENEW, sub.id
-            if sub.plan_id is not None:  # constructor subs change via the constructor flow
+        if (
+            sub is not None
+            and sub.remnawave_uuid is not None  # a real panel user we can extend/revive
+            and sub.status is not SubscriptionStatus.DELETED
+        ):
+            if sub.plan_id is not None and sub.plan_id != plan_id:
                 return PurchaseType.CHANGE, sub.id
+            return PurchaseType.RENEW, sub.id  # same plan OR plan-less (migrated) -> extend
         return PurchaseType.NEW, None
 
     async def checkout_from_balance(
@@ -258,8 +272,14 @@ class PurchaseService:
                 sub.traffic_limit_bytes = req.traffic_limit_bytes
             if req.device_limit is not None:
                 sub.device_limit = req.device_limit
+            # A migrated/plan-less sub (plan_id NULL) adopts the purchased plan on renew, so it
+            # becomes a proper plan sub and future same-plan buys resolve cleanly to RENEW.
             return await self._subscriptions.renew(
-                uow, sub, days=req.duration_days, telegram_id=user.telegram_id
+                uow,
+                sub,
+                days=req.duration_days,
+                telegram_id=user.telegram_id,
+                adopt_plan=plan if sub.plan_id is None else None,
             )
         if req.purchase_type is PurchaseType.CHANGE:
             if req.subscription_id is None:
