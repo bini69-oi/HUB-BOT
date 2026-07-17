@@ -143,15 +143,47 @@
       return ok;
     }
   }
+  // Fallback download links, mirroring src/application/services/connection.py CLIENT_STORES.
+  // Used only until /connection loads (then app.stores from the API drives the button).
+  const APP_STORES = {
+    happ: {
+      ios: "https://apps.apple.com/app/happ-proxy-utility/id6504287215",
+      macos: "https://apps.apple.com/app/happ-proxy-utility/id6504287215",
+      android: "https://play.google.com/store/apps/details?id=com.happproxy",
+      windows: "https://github.com/Happ-proxy/happ-desktop/releases/latest",
+      linux: "https://github.com/Happ-proxy/happ-desktop/releases/latest",
+      default: "https://happ.su/",
+    },
+    v2raytun: {
+      ios: "https://apps.apple.com/app/v2raytun/id6476628951",
+      macos: "https://apps.apple.com/app/v2raytun/id6476628951",
+      android: "https://play.google.com/store/apps/details?id=com.v2raytun.android",
+      default: "https://v2raytun.com/",
+    },
+    hiddify: { default: "https://github.com/hiddify/hiddify-app/releases/latest" },
+    streisand: {
+      ios: "https://apps.apple.com/app/streisand/id6450534064",
+      macos: "https://apps.apple.com/app/streisand/id6450534064",
+      default: "https://apps.apple.com/app/streisand/id6450534064",
+    },
+  };
   function detectPlatform() {
     const p = (wa && wa.platform) || "";
-    if (p === "ios" || /iPhone|iPad/i.test(navigator.userAgent))
-      return { name: "iOS", store: "https://apps.apple.com/app/happ-proxy-utility/id6504287215", client: "happ" };
-    if (p === "android" || /Android/i.test(navigator.userAgent))
-      return { name: "Android", store: "https://play.google.com/store/apps/details?id=com.happproxy", client: "happ" };
-    if (/Mac/i.test(navigator.userAgent))
-      return { name: "macOS", store: "https://apps.apple.com/app/happ-proxy-utility/id6504287215", client: "happ" };
-    return { name: "Windows", store: "https://github.com/hiddify/hiddify-app/releases", client: "hiddify" };
+    const ua = navigator.userAgent || "";
+    if (p === "ios" || /iPhone|iPad/i.test(ua)) return { name: "iOS", os: "ios" };
+    if (p === "android" || /Android/i.test(ua)) return { name: "Android", os: "android" };
+    if (/Mac/i.test(ua)) return { name: "macOS", os: "macos" };
+    if (/Linux/i.test(ua)) return { name: "Linux", os: "linux" };
+    return { name: "Windows", os: "windows" };
+  }
+  // Download URL for the owner's PRIMARY app on this platform. Prefers the API-provided
+  // stores (owner config); falls back to the local registry; defaults to Happ.
+  function storeFor(os, apps) {
+    const primary = (Array.isArray(apps) && apps[0]) || null;
+    const key = (primary && primary.key) || "happ";
+    const fromApi = primary && primary.stores && (primary.stores[os] || primary.stores.default);
+    const fallback = APP_STORES[key] || APP_STORES.happ;
+    return fromApi || fallback[os] || fallback.default || APP_STORES.happ.default;
   }
 
   // ---------- state ----------
@@ -477,6 +509,7 @@
   function connectScreen() {
     const plat = detectPlatform();
     const conn = state.connection;
+    const storeUrl = storeFor(plat.os, conn && conn.apps);
     const frag = [];
     frag.push(
       el("div", { class: "card fade" }, [
@@ -485,7 +518,7 @@
           el("div", { style: "flex:1" }, [
             el("b", { text: T.step1 }),
             el("div", { class: "sub", style: "font-size:12.5px;margin:3px 0 10px", text: T.step1sub }),
-            el("button", { class: "btn ghost", onclick: () => (wa && wa.openLink ? wa.openLink(plat.store) : window.open(plat.store)), text: `${T.download} · ${plat.name}` }),
+            el("button", { class: "btn ghost", onclick: () => (wa && wa.openLink ? wa.openLink(storeUrl) : window.open(storeUrl)), text: `${T.download} · ${plat.name}` }),
           ]),
         ]),
       ]),
@@ -521,8 +554,8 @@
                           style: btnStyle("open_app"),
                           onclick: () =>
                             openApp(
-                              (conn.deep_links || {})[plat.client] ||
-                                (conn.deep_links || {}).happ ||
+                              (conn.deep_links || {}).happ ||
+                                Object.values(conn.deep_links || {})[0] ||
                                 conn.subscription_url,
                             ),
                           text: "⚡ " + btnText("open_app", T.openApp),

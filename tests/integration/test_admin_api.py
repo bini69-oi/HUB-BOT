@@ -659,10 +659,14 @@ async def test_cabinet_purchase_with_balance(
     assert me["user"]["balance_minor"] == 50000 - 19900
     assert container.remnawave_client.created_count() == 1
 
-    # connection endpoint serves the provisioned URL
+    # connection endpoint serves the provisioned URL + per-app download links
     res = await http.get("/api/cabinet/connection", headers=tma)
     assert res.status_code == 200
-    assert res.json()["subscription_url"]
+    conn = res.json()
+    assert conn["subscription_url"]
+    happ = next(a for a in conn["apps"] if a["key"] == "happ")
+    # The reported bug: the Windows download must be the owner's app, not Hiddify's repo.
+    assert "happ-desktop" in happ["stores"]["windows"]
 
 
 async def test_cabinet_purchase_insufficient_balance(

@@ -87,10 +87,10 @@ window.__MOCK__ = {
       streisand: "streisand://import/https://sub.vpn.app/u/8fk2...",
     },
     apps: [
-      { key: "happ", label: "Happ", deep_link: "happ://add/https://sub.vpn.app/u/8fk2..." },
-      { key: "v2raytun", label: "v2RayTun", deep_link: "v2raytun://import/https://sub.vpn.app/u/8fk2..." },
-      { key: "hiddify", label: "Hiddify", deep_link: "hiddify://import/https://sub.vpn.app/u/8fk2..." },
-      { key: "streisand", label: "Streisand", deep_link: "streisand://import/https://sub.vpn.app/u/8fk2..." },
+      { key: "happ", label: "Happ", deep_link: "happ://add/https://sub.vpn.app/u/8fk2...", stores: { windows: "https://github.com/Happ-proxy/happ-desktop/releases/latest", default: "https://happ.su/" } },
+      { key: "v2raytun", label: "v2RayTun", deep_link: "v2raytun://import/https://sub.vpn.app/u/8fk2...", stores: { default: "https://v2raytun.com/" } },
+      { key: "hiddify", label: "Hiddify", deep_link: "hiddify://import/https://sub.vpn.app/u/8fk2...", stores: { default: "https://github.com/hiddify/hiddify-app/releases/latest" } },
+      { key: "streisand", label: "Streisand", deep_link: "streisand://import/https://sub.vpn.app/u/8fk2...", stores: { default: "https://apps.apple.com/app/streisand/id6450534064" } },
     ],
   },
 };

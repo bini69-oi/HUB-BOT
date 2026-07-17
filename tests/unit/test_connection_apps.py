@@ -4,8 +4,10 @@ from __future__ import annotations
 
 from src.application.services.connection import (
     CLIENT_LABELS,
+    CLIENT_STORES,
     connection_apps,
     parse_enabled_apps,
+    store_links,
 )
 
 _URL = "https://sub.example/u/abc"
@@ -31,6 +33,7 @@ def test_connection_apps_only_enabled_in_order() -> None:
         "key": "hiddify",
         "label": "Hiddify",
         "deep_link": f"hiddify://import/{_URL}",
+        "stores": CLIENT_STORES["hiddify"],
     }
     assert apps[1]["deep_link"] == f"happ://add/{_URL}"
 
@@ -38,3 +41,22 @@ def test_connection_apps_only_enabled_in_order() -> None:
 def test_connection_apps_happ_prefers_crypto_link() -> None:
     apps = connection_apps(_URL, "happ://crypto-token", ["happ"])
     assert apps[0]["deep_link"] == "happ://crypto-token"
+
+
+def test_store_links_are_per_app_and_platform() -> None:
+    # The reported bug: Windows must open the OWNER'S app, not a hardcoded Hiddify GitHub.
+    happ = store_links("happ")
+    assert "happ-desktop" in happ["windows"] and "hiddify" not in happ["windows"]
+    assert happ["ios"].endswith("id6504287215")
+    assert store_links("streisand")["default"].endswith("id6450534064")
+    assert store_links("unknown-app") == {}
+    # Every configurable client carries download links.
+    assert set(CLIENT_STORES) == set(CLIENT_LABELS)
+
+
+def test_connection_apps_windows_store_follows_owner_app() -> None:
+    # Owner configured Happ first -> the download link for every platform is Happ's.
+    apps = connection_apps(_URL, None, ["happ", "hiddify"])
+    primary = apps[0]
+    assert primary["key"] == "happ"
+    assert "happ-desktop" in primary["stores"]["windows"]
