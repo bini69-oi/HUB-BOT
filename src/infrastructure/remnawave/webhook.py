@@ -33,6 +33,12 @@ class WebhookVerifier:
         return hmac.new(self._secret, body, hashlib.sha256).hexdigest()
 
     def verify(self, body: bytes, headers: dict[str, str]) -> None:
+        # Fail closed on an empty secret regardless of env: an empty-key HMAC is attacker-
+        # computable, so accepting it would let a forged /webhook/panel mutate subscription
+        # state (delete/disable/expire) for any known uuid. (Prod already refuses to boot
+        # without the secret; this protects a careless non-prod deploy too.)
+        if not self._secret:
+            raise WebhookVerificationError("panel webhook secret is not configured")
         provided = ""
         for key, value in headers.items():
             if key.lower() == self._header:

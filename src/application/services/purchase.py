@@ -218,6 +218,18 @@ class PurchaseService:
             raise PurchaseError("plan referenced by transaction snapshot no longer exists")
 
         pricing = txn.pricing
+        # Re-resolve NEW/RENEW/CHANGE under a user row-lock at *fulfilment* time. A hosted
+        # payment (or Stars) can settle long after the invoice was created, by which point the
+        # buyer may already have a subscription; a frozen NEW would mint a duplicate panel
+        # account and orphan the paid one. checkout_from_balance already re-resolves under a
+        # lock — this closes the same hole on the webhook/Stars fulfilment path.
+        purchase_type = txn.purchase_type or PurchaseType.NEW
+        subscription_id = pricing.get("subscription_id")
+        if purchase_type is not PurchaseType.TRAFFIC_TOPUP:
+            await uow.users.lock_for_update(txn.user_id)
+            purchase_type, subscription_id = await self.resolve_purchase_type(
+                uow, txn.user_id, plan.id
+            )
         req = PurchaseRequest(
             user_id=txn.user_id,
             plan_id=plan.id,
@@ -225,8 +237,8 @@ class PurchaseService:
             currency=txn.currency,
             internal_squads=tuple(pricing.get("internal_squads", [])),
             external_squad=pricing.get("external_squad"),
-            purchase_type=txn.purchase_type or PurchaseType.NEW,
-            subscription_id=pricing.get("subscription_id"),
+            purchase_type=purchase_type,
+            subscription_id=subscription_id,
             constructor_period_id=pricing.get("constructor_period_id"),
             traffic_pack_id=pricing.get("traffic_pack_id"),
             traffic_limit_bytes=pricing.get("traffic_limit_bytes"),

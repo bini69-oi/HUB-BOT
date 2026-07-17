@@ -8,7 +8,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
 from sqlalchemy import Select, String, cast, func, or_, select
 
-from src.core.enums import PaymentGatewayType, TransactionStatus, TransactionType
+from src.core.enums import Currency, PaymentGatewayType, TransactionStatus, TransactionType
 from src.infrastructure.database.models.payment_gateway import PaymentGateway
 from src.infrastructure.database.models.transaction import Transaction
 from src.infrastructure.database.models.user import User
@@ -455,6 +455,18 @@ async def refund_payment(
             and not await uow.users.debit_balance_guarded(user, txn.amount_minor)
         ):
             warnings.append("на балансе меньше суммы возврата — баланс не списан")
+        elif (
+            txn.type is TransactionType.SUBSCRIPTION_PAYMENT
+            and txn.gateway_type is None
+            and txn.currency is not Currency.XTR  # not Stars — those aren't wallet money
+            and user is not None
+            and txn.amount_minor > 0
+        ):
+            # Paid from the wallet balance (no external provider) — return it to the wallet.
+            # Without this the sub was revoked and the user DM'd «возвращено», but nothing was
+            # actually refunded anywhere.
+            await uow.users.increment_balance(user, txn.amount_minor)
+            refunded_via = "balance"
 
         revoked = False
         disable_retry_sub_id: int | None = None
