@@ -170,9 +170,9 @@ export default function Users() {
               void (async () => {
                 try {
                   const data = await api.get<{ items: Row[] }>(
-                    `/api/admin/users?q=${encodeURIComponent(qDebounced)}&status=${filter}&limit=10000`,
+                    `/api/admin/users?q=${encodeURIComponent(qDebounced)}&status=${filter}&limit=200`,
                   );
-                  const head = ["id", "telegram_id", "username", "first_name", "status", "balance_minor", "subscription", "created_at"];
+                  const head = ["id", "telegram_id", "username", "name", "status", "balance_minor", "plan_name", "created_at"];
                   const cell = (v: unknown) => `"${String(v ?? "").replace(/"/g, '""')}"`;
                   const lines = [head.join(",")].concat(
                     data.items.map((r) =>

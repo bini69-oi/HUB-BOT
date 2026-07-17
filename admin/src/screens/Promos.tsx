@@ -79,7 +79,7 @@ export default function Promos() {
       a.download = `gift-codes-${new Date().toISOString().slice(0, 10)}.csv`;
       a.click();
       URL.revokeObjectURL(a.href);
-      void qc.invalidateQueries({ queryKey: ["promos"] });
+      void qc.invalidateQueries({ queryKey: ["promocodes"] });
       toast(`${t.bulkDone}: ${r.count}`);
     } catch (e) {
       toast((e as Error).message);
@@ -104,15 +104,24 @@ export default function Promos() {
   }
 
   async function togglePromo(p: Promo, on: boolean) {
-    await api.patch(`/api/admin/promocodes/${p.id}`, { is_active: on });
-    void qc.invalidateQueries({ queryKey: ["promocodes"] });
+    try {
+      await api.patch(`/api/admin/promocodes/${p.id}`, { is_active: on });
+      void qc.invalidateQueries({ queryKey: ["promocodes"] });
+    } catch (e) {
+      toast((e as Error).message); // demo read-only / server error — don't fail silently
+    }
   }
 
   async function removePromo(p: Promo) {
     if (!(await confirm(t.deletePromoConfirm))) return;
-    await api.del(`/api/admin/promocodes/${p.id}`);
-    void qc.invalidateQueries({ queryKey: ["promocodes"] });
-    toast("✕ " + p.code);
+    try {
+      await api.del(`/api/admin/promocodes/${p.id}`);
+      void qc.invalidateQueries({ queryKey: ["promocodes"] });
+      toast("✕ " + p.code);
+    } catch (e) {
+      toast((e as Error).message);
+      return;
+    }
   }
 
   const rewardLabel: Record<string, string> = {

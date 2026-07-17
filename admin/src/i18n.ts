@@ -51,7 +51,7 @@ const ru = {
   loading: "Загрузка…",
   error: "Ошибка",
   copied: "Скопировано",
-  copy: "COPY",
+  copy: "Копировать",
   undo: "Вернуть",
   all: "Все",
   active: "Активные",
@@ -373,6 +373,7 @@ const ru = {
 
 const en: typeof ru = {
   ...ru,
+  copy: "Copy",
   dashboard: "Overview",
   users: "Users",
   tariffs: "Plans & pricing",

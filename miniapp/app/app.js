@@ -825,12 +825,15 @@
 
   async function load() {
     try {
+      // Only /me and /plans are load-critical. A failure in a secondary call (referral /
+      // payments / constructor) must NOT drop the whole app to the error screen — degrade it
+      // to null so the relevant tab just renders empty.
       const [me, plans, constructor, referral, payments] = await Promise.all([
         api("GET", "/api/cabinet/me"),
         api("GET", "/api/cabinet/plans"),
         api("GET", "/api/cabinet/constructor").catch(() => null), // pre-constructor backends
-        api("GET", "/api/cabinet/referral"),
-        api("GET", "/api/cabinet/payments"),
+        api("GET", "/api/cabinet/referral").catch(() => null),
+        api("GET", "/api/cabinet/payments").catch(() => null),
       ]);
       Object.assign(state, { me, plans, constructor, referral, payments });
       // Owner branding: title → document/tab title; greeting shown atop Home.
