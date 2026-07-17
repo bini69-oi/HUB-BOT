@@ -18,7 +18,18 @@ depends_on = None
 
 def upgrade() -> None:
     # One account per email (prevents the concurrent check-then-insert dup). Replaces the old
-    # non-unique index. Fails only if the shop already has duplicate emails — resolve those first.
+    # non-unique index. Email uniqueness was NEVER enforced before, so a live shop can already
+    # hold duplicate non-null emails — building the unique index on such a DB would raise and
+    # brick the whole `alembic upgrade head` (web crash-loops, bot down). So first de-duplicate:
+    # keep the earliest account per email, null the email on the rest (they lose only web login,
+    # not the account; can re-register). Mirrors the DELETE dedup in d4f7a1c9e2b5.
+    op.execute(
+        """
+        UPDATE users SET email = NULL, email_verified = false, password_hash = NULL
+        WHERE email IS NOT NULL
+          AND id NOT IN (SELECT MIN(id) FROM users WHERE email IS NOT NULL GROUP BY email)
+        """
+    )
     op.execute("DROP INDEX IF EXISTS ix_users_email")
     op.create_index(
         "uq_users_email",

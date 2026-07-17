@@ -25,6 +25,9 @@ while true; do
     else
       echo "updater: update FAILED — see $LOG"
     fi
+    # git ran as root here; hand the repo back to its host owner so a later manual
+    # ./scripts/update.sh (run as that user) isn't blocked by root-owned objects.
+    chown -R "$(stat -c '%u:%g' "$REPO" 2>/dev/null || echo 0:0)" "$REPO" 2>/dev/null || true
   fi
   sleep 10
 done

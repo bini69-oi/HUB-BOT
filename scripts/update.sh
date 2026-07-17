@@ -79,8 +79,13 @@ if [ -n "${SKIP_UPDATER_RECREATE:-}" ]; then
   # Triggered from inside the updater container: recreate every service EXCEPT updater,
   # else `up -d` would kill this very process mid-update. The updater keeps the old code
   # (it's a tiny watch loop); to update it too, run ./scripts/update.sh on the host once.
-  run_spin "docker compose up -d (без updater)" \
-    $COMPOSE up -d --no-deps postgres redis web bot worker scheduler caddy
+  # Naming a service on the CLI activates it even if its profile is off — on a "behind an
+  # existing proxy" install (caddy omitted from COMPOSE_PROFILES, :80/:443 already taken)
+  # that would try to start caddy, fail to bind, and abort the whole update. So include
+  # caddy only when its profile is actually enabled.
+  _svc="postgres redis web bot worker scheduler"
+  grep -qE '^COMPOSE_PROFILES=.*caddy' .env 2>/dev/null && _svc="$_svc caddy"
+  run_spin "docker compose up -d (без updater)" $COMPOSE up -d --no-deps $_svc
 else
   run_spin "docker compose up -d" $COMPOSE up -d
 fi

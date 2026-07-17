@@ -358,8 +358,11 @@ async def check_for_updates() -> bool:
     token = container.settings.bot.token
     if not owners or not token:
         return False
-    # Act once per latest revision — no repeated auto-install or daily nagging about the same one.
-    if not await container.redis.set(f"update:notified:{info.latest}", "1", nx=True, ex=30 * 86400):
+    # Act once per latest revision. Auto-installs re-arm each check cycle (6 h) so a FAILED
+    # install retries instead of going silent for 30 days (the marker is consumed with no
+    # retry of its own); a manual-button notice is shown once — the owner already saw it.
+    notify_ttl = 6 * 3600 if auto else 30 * 86400
+    if not await container.redis.set(f"update:notified:{info.latest}", "1", nx=True, ex=notify_ttl):
         return False
     cur = info.current or "?"
     # Auto-install: try to drop the marker; only fall back to the manual button if the updater
