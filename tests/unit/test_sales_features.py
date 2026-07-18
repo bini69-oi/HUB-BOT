@@ -28,7 +28,7 @@ def test_parse_channels_merges_legacy_and_dedups() -> None:
 
 
 async def test_cart_intent_round_trip() -> None:
-    # In-memory stand-in for Redis: just needs get/set/delete.
+    # In-memory stand-in for Redis: just needs get/set/getdel.
     class FakeRedis:
         def __init__(self) -> None:
             self.store: dict[str, str] = {}
@@ -38,6 +38,9 @@ async def test_cart_intent_round_trip() -> None:
 
         async def get(self, k: str) -> str | None:
             return self.store.get(k)
+
+        async def getdel(self, k: str) -> str | None:
+            return self.store.pop(k, None)
 
         async def delete(self, k: str) -> None:
             self.store.pop(k, None)
@@ -58,6 +61,8 @@ async def test_cart_intent_round_trip() -> None:
     restored = await pop_cart(redis, 7)  # type: ignore[arg-type]
     assert restored is not None
     assert restored.plan_id == 3 and restored.subscription_id == 11
+    # pop is a destructive GETDEL — a second (concurrent) consumer must get nothing.
+    assert await pop_cart(redis, 7) is None  # type: ignore[arg-type]
     assert restored.purchase_type is PurchaseType.CHANGE
     assert restored.traffic_pack_id == 2
     assert await pop_cart(redis, 7) is None  # single-use

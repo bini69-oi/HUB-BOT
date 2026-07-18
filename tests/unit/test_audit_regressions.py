@@ -188,6 +188,124 @@ async def test_process_backoff_raises_domain_errors_at_once(
     assert BrokenPayments.calls == 1
 
 
+class _RecordingNotifier:
+    def __init__(self) -> None:
+        self.user_msgs: list[tuple[int, str]] = []
+        self.admin_msgs: list[str] = []
+
+    async def notify_user(self, telegram_id: int, text: str) -> None:
+        self.user_msgs.append((telegram_id, text))
+
+    async def notify_admins(self, text: str, *, topic: str | None = None) -> None:
+        self.admin_msgs.append(text)
+
+
+async def test_underpaid_payment_notifies_user_and_alerts_admins(uow: UnitOfWork) -> None:
+    """An underpaid txn (inbound COMPLETED settled as FAILED) used to end in total
+    silence — real money taken, nobody told. Now the buyer gets a DM and admins an alert."""
+    from types import SimpleNamespace
+
+    from src.infrastructure.taskiq.tasks import _notify_payment_negative
+
+    async with uow:
+        user = await make_user(uow, telegram_id=42042)
+        txn = Transaction(
+            user_id=user.id,
+            type=TransactionType.DEPOSIT,
+            status=TransactionStatus.FAILED,
+            amount_minor=19900,
+            currency=Currency.RUB,
+            gateway_type=PaymentGatewayType.YOOMONEY,
+            external_id="ym-1",
+        )
+        uow.session.add(txn)
+        await uow.commit()
+        payment_id = txn.payment_id
+
+    notifier = _RecordingNotifier()
+    container = SimpleNamespace(uow=lambda: uow, notifier=notifier)
+    await _notify_payment_negative(
+        container,
+        payment_id,
+        settled=TransactionStatus.FAILED,
+        inbound=TransactionStatus.COMPLETED,
+        received_minor=10000,
+    )
+    assert notifier.user_msgs and notifier.user_msgs[0][0] == 42042
+    assert "не засчитана" in notifier.user_msgs[0][1]
+    assert notifier.admin_msgs and "Недоплата" in notifier.admin_msgs[0]
+
+
+async def test_auto_purchase_failure_restashes_cart_and_tells_user(uow: UnitOfWork) -> None:
+    """The old code pop'ed the cart BEFORE trying and swallowed failures — the promised
+    auto-purchase silently vanished. Now the intent is re-stashed and everyone is told."""
+    from types import SimpleNamespace
+
+    from src.application.dto.pricing import PurchaseRequest
+    from src.application.services.bot_config import BotConfigService
+    from src.core.enums import PurchaseType
+    from src.core.exceptions import RemnawaveError
+    from src.infrastructure.services.cart import save_cart
+    from src.infrastructure.taskiq.tasks import _try_auto_purchase
+
+    class FakeRedis:
+        def __init__(self) -> None:
+            self.store: dict[str, str] = {}
+
+        async def set(self, k: str, v: str, ex: int = 0, nx: bool = False) -> bool:
+            self.store[k] = v
+            return True
+
+        async def get(self, k: str) -> str | None:
+            return self.store.get(k)
+
+        async def getdel(self, k: str) -> str | None:
+            return self.store.pop(k, None)
+
+        async def delete(self, k: str) -> None:
+            self.store.pop(k, None)
+
+    async with uow:
+        user = await make_user(uow, telegram_id=55055, balance_minor=50000)
+        txn = Transaction(
+            user_id=user.id,
+            type=TransactionType.DEPOSIT,
+            status=TransactionStatus.COMPLETED,
+            amount_minor=50000,
+            currency=Currency.RUB,
+        )
+        uow.session.add(txn)
+        await uow.commit()
+        payment_id = txn.payment_id
+        user_id = user.id
+
+    class BrokenPurchase:
+        async def checkout_from_balance(self, uow: object, req: object) -> None:
+            raise RemnawaveError("panel down")
+
+    redis = FakeRedis()
+    req = PurchaseRequest(
+        user_id=user_id,
+        plan_id=1,
+        duration_days=30,
+        currency=Currency.RUB,
+        purchase_type=PurchaseType.NEW,
+    )
+    await save_cart(redis, req, ttl_seconds=3600)  # type: ignore[arg-type]
+    notifier = _RecordingNotifier()
+    container = SimpleNamespace(
+        uow=lambda: uow,
+        redis=redis,
+        bot_config=BotConfigService(),
+        purchase=BrokenPurchase(),
+        notifier=notifier,
+    )
+    await _try_auto_purchase(container, payment_id)
+    assert redis.store.get(f"cart:{user_id}") is not None  # intent survived the failure
+    assert notifier.user_msgs and notifier.user_msgs[0][0] == 55055
+    assert notifier.admin_msgs and "Автопокупка" in notifier.admin_msgs[0]
+
+
 async def test_list_stuck_pending_picks_only_gateway_pendings(uow: UnitOfWork) -> None:
     now = dt.datetime.now(dt.UTC)
     async with uow:

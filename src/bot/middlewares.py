@@ -6,7 +6,7 @@ from collections.abc import Awaitable, Callable
 from typing import Any
 
 from aiogram import BaseMiddleware
-from aiogram.types import CallbackQuery, Message, TelegramObject
+from aiogram.types import CallbackQuery, Message, PreCheckoutQuery, TelegramObject
 from aiogram.types import User as TgUser
 
 from src.application.events import UserRegistered
@@ -96,19 +96,37 @@ class ContextMiddleware(BaseMiddleware):
             or tg.id in self.container.settings.app.owner_ids
             or user.role.value >= Role.ADMIN.value
         )
-        if user.status is UserStatus.BLOCKED and not is_admin:
-            return None  # blocked users are ignored entirely
-        if blacklisted and not is_admin:
-            return None  # blacklisted id — ignored entirely (survives re-registration)
+        # Payment-settlement updates must never be silently dropped: an ignored
+        # successful_payment = charged stars with no credit, an unanswered pre_checkout
+        # breaks the payment Telegram-side after a 10s timeout. Blocked/blacklisted users
+        # are refused at pre_checkout (BEFORE money moves); their already-charged
+        # successful_payment still settles.
+        settlement_msg = isinstance(event, Message) and event.successful_payment is not None
+        is_pre_checkout = isinstance(event, PreCheckoutQuery)
+
+        if (user.status is UserStatus.BLOCKED or blacklisted) and not is_admin:
+            if isinstance(event, PreCheckoutQuery):
+                await event.answer(ok=False, error_message="Оплата недоступна.")
+            if not settlement_msg:
+                return None  # ignored entirely — except a payment that already happened
         if (
             rate_on
             and not is_admin
+            and not settlement_msg
+            and not is_pre_checkout
             and cooldown > 0
             and not await self.container.redis.set(f"rl:{tg.id}", "1", nx=True, ex=cooldown)
         ):
-            return None  # too-frequent action — drop this update (flood control)
-        if maintenance and not is_admin:
-            if isinstance(event, Message):
+            # Flood control — drop the update, but ALWAYS answer a callback: an
+            # unanswered tap leaves the button with an eternal spinner.
+            if isinstance(event, CallbackQuery):
+                await event.answer()
+            return None
+        if maintenance and not is_admin and not settlement_msg:
+            if isinstance(event, PreCheckoutQuery):
+                # Refuse BEFORE the charge — money must not enter during maintenance.
+                await event.answer(ok=False, error_message="Технические работы — попробуй позже.")
+            elif isinstance(event, Message):
                 await event.answer(maintenance_text)
             elif isinstance(event, CallbackQuery):
                 # callback alerts are capped at 200 chars — a longer admin text 400s

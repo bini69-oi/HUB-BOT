@@ -89,23 +89,41 @@ async def process_payment(
     # Gate the "paid" side-effects on the ACTUAL post-CAS state, not the inbound status:
     # an underpaid webhook advances the txn to FAILED (moved=True) yet status stays
     # "completed" — trusting the string would DM a false "payment received".
-    completed = False
+    settled_status: TransactionStatus | None = None
     if moved:
         async with container.uow() as uow:
             settled = await uow.transactions.get_by_payment_id(pid)
-        completed = settled is not None and settled.status is TransactionStatus.COMPLETED
-    if completed:
+        settled_status = settled.status if settled is not None else None
+    if settled_status is TransactionStatus.COMPLETED:
         await _notify_paid(container, pid)
         await _try_auto_purchase(container, pid)
+    elif settled_status in (TransactionStatus.FAILED, TransactionStatus.CANCELED):
+        # The txn just went terminal-negative — the buyer is otherwise never told.
+        await _notify_payment_negative(
+            container,
+            pid,
+            settled=settled_status,
+            inbound=TransactionStatus(status),
+            received_minor=amount_minor,
+        )
     return moved
 
 
 async def _try_auto_purchase(container: object, payment_id: UUID) -> None:
-    """After a top-up credits the wallet, complete a stashed «smart cart» purchase."""
+    """After a top-up credits the wallet, complete a stashed «smart cart» purchase.
+
+    Every outcome talks to the user — the stash was created with an explicit promise
+    («подписка оформится сама»), so silence here reads as a broken payment. On failure
+    the intent is re-stashed (pop_cart is a destructive GETDEL) and admins are alerted;
+    a plain shortfall keeps the cart waiting for the next top-up.
+    """
+    import contextlib
     from typing import cast
 
     from src.core.enums import TransactionType
-    from src.infrastructure.services.cart import pop_cart
+    from src.core.exceptions import InsufficientBalance
+    from src.infrastructure.services.cart import pop_cart, save_cart
+    from src.web.routes.admin.notifications import notification_text
 
     c = cast("AppContainer", container)
     async with c.uow() as uow:
@@ -115,15 +133,44 @@ async def _try_auto_purchase(container: object, payment_id: UUID) -> None:
         if not bool(await c.bot_config.value(uow, "AUTO_PURCHASE_AFTER_TOPUP")):
             return
         user_id = txn.user_id
-    req = await pop_cart(c.redis, user_id)
+        cart_ttl = int(await c.bot_config.value(uow, "CART_TTL_SECONDS"))
+    req = await pop_cart(c.redis, user_id)  # atomic: a concurrent deposit gets None
     if req is None:
         return
+
+    async def _dm(event: str, **values: object) -> None:
+        async with c.uow() as uow:
+            user = await uow.users.get(user_id)
+            telegram_id = user.telegram_id if user else None
+            text = await notification_text(uow, event, **values)
+        if telegram_id is not None and text:
+            with contextlib.suppress(Exception):  # a blocked bot must not kill the flow
+                await c.notifier.notify_user(telegram_id, text)
+
     try:
         async with c.uow() as uow:
             await c.purchase.checkout_from_balance(uow, req)
             await uow.commit()
+    except InsufficientBalance:
+        # Topped up less than the price — keep the promise alive for the next deposit.
+        with contextlib.suppress(Exception):
+            await save_cart(c.redis, req, cart_ttl)
+        log.info("auto purchase waiting for more balance", user=user_id)
+        await _dm("auto_purchase_failed")
+        return
     except Exception as exc:
-        log.info("auto purchase deferred", user=user_id, error=str(exc))
+        # Panel/DB failure — the money IS on the balance; tell the user how to finish
+        # and give admins the context, instead of destroying the intent silently.
+        with contextlib.suppress(Exception):
+            await save_cart(c.redis, req, cart_ttl)
+        log.warning("auto purchase failed", user=user_id, error=str(exc))
+        await _dm("auto_purchase_failed")
+        with contextlib.suppress(Exception):
+            await c.notifier.notify_admins(
+                f"⚠️ Автопокупка после пополнения не удалась (user_id={user_id}, "
+                f"plan_id={req.plan_id}): {exc}",
+                topic="payments",
+            )
         return
     async with c.uow() as uow:
         user = await uow.users.get(user_id)
@@ -134,11 +181,14 @@ async def _try_auto_purchase(container: object, payment_id: UUID) -> None:
         )
         telegram_id = user.telegram_id if user else None
         url = sub.subscription_url if sub else None
-    if telegram_id is not None:
-        text = "✅ Подписка оформлена автоматически после пополнения!"
+        plan_name = str((sub.plan_snapshot or {}).get("name") or "") if sub else ""
+        expire = sub.expire_at.strftime("%d.%m.%Y") if sub and sub.expire_at else ""
+        text = await notification_text(uow, "auto_purchase", plan=plan_name, expire=expire)
+    if telegram_id is not None and text:
         if url:
             text += f"\n{url}"
-        await c.notifier.notify_user(telegram_id, text)
+        with contextlib.suppress(Exception):
+            await c.notifier.notify_user(telegram_id, text)
 
 
 async def _lifecycle_dm(c: object, telegram_id: int | None, event: str, **values: object) -> None:
@@ -178,6 +228,60 @@ async def _store_saved_method(
         user.saved_payment_method_title = title
         await uow.commit()
         log.info("saved payment method stored", user_id=user.id, title=title)
+
+
+async def _notify_payment_negative(
+    container: object,
+    payment_id: UUID,
+    *,
+    settled: TransactionStatus,
+    inbound: TransactionStatus,
+    received_minor: int | None,
+) -> None:
+    """DM the buyer that a payment ended FAILED/CANCELED. Best-effort, post-commit.
+
+    An inbound COMPLETED that settled as FAILED is the underpayment gate firing — real
+    money was taken, so that one also always alerts the admins with both amounts.
+    """
+    import contextlib
+    from typing import cast
+
+    from src.infrastructure.di import AppContainer
+    from src.infrastructure.services.reports import fmt_amount
+    from src.web.routes.admin.notifications import notification_text
+
+    c = cast(AppContainer, container)
+    underpaid = settled is TransactionStatus.FAILED and inbound is TransactionStatus.COMPLETED
+    async with c.uow() as uow:
+        txn = await uow.transactions.get_by_payment_id(payment_id)
+        if txn is None:
+            return
+        user = await uow.users.get(txn.user_id)
+        amount = fmt_amount(txn.amount_minor, txn.currency.value)
+        if underpaid:
+            paid = (
+                fmt_amount(received_minor, txn.currency.value)
+                if received_minor is not None
+                else "меньше счёта"
+            )
+            text = await notification_text(uow, "payment_underpaid", paid=paid, expected=amount)
+        elif settled is TransactionStatus.CANCELED:
+            text = await notification_text(uow, "payment_canceled", amount=amount)
+        else:
+            text = await notification_text(uow, "payment_failed", amount=amount)
+        telegram_id = user.telegram_id if user else None
+    if telegram_id is not None and text:
+        with contextlib.suppress(Exception):
+            await c.notifier.notify_user(telegram_id, text)
+    if underpaid:
+        # Money was actually received — a human must reconcile/refund it.
+        with contextlib.suppress(Exception):
+            await c.notifier.notify_admins(
+                f"⚠️ Недоплата по счёту {payment_id}: ожидалось {amount}, "
+                f"получено {received_minor if received_minor is not None else '?'} "
+                f"(minor units). Транзакция переведена в FAILED — нужен возврат/разбор.",
+                topic="payments",
+            )
 
 
 async def _notify_paid(container: object, payment_id: UUID) -> None:
@@ -404,11 +508,24 @@ async def _reconcile_pending(
                 payment_id=str(txn.payment_id),
                 status=result.status.value,
             )
-            if result.status is TransactionStatus.COMPLETED:
+            # Gate side-effects on the SETTLED status, not the polled one: the underpayment
+            # gate can flip an inbound COMPLETED to FAILED (same rule as process_payment).
+            async with container.uow() as uow:
+                settled_row = await uow.transactions.get_by_payment_id(txn.payment_id)
+            settled_status = settled_row.status if settled_row is not None else None
+            if settled_status is TransactionStatus.COMPLETED:
                 await _notify_paid(container, txn.payment_id)
                 # Same post-completion side effects as the live webhook path (tasks.py:48-50):
                 # a recovered top-up must still complete its stashed smart-cart purchase (#5).
                 await _try_auto_purchase(container, txn.payment_id)
+            elif settled_status in (TransactionStatus.FAILED, TransactionStatus.CANCELED):
+                await _notify_payment_negative(
+                    container,
+                    txn.payment_id,
+                    settled=settled_status,
+                    inbound=result.status,
+                    received_minor=recovered_minor,
+                )
     return recovered
 
 

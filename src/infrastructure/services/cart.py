@@ -59,11 +59,12 @@ async def save_cart(redis: Redis, req: PurchaseRequest, ttl_seconds: int) -> Non
 
 
 async def pop_cart(redis: Redis, user_id: int) -> PurchaseRequest | None:
-    key = _KEY.format(user_id)
-    raw = await redis.get(key)
+    """Atomically take the stashed intent (GETDEL): of two concurrent deposits only one
+    gets the cart, so the auto-purchase can't run twice. A caller whose attempt then fails
+    must re-``save_cart`` — the intent belongs to the user until the purchase succeeds."""
+    raw = await redis.getdel(_KEY.format(user_id))
     if raw is None:
         return None
-    await redis.delete(key)
     try:
         data = json.loads(raw)
     except (ValueError, TypeError):

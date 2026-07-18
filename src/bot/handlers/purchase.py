@@ -776,12 +776,34 @@ async def topup_amount(cb: CallbackQuery, container: AppContainer, db_user: User
 
 
 @router.pre_checkout_query()
-async def pre_checkout(query: PreCheckoutQuery) -> None:
+async def pre_checkout(query: PreCheckoutQuery, container: AppContainer) -> None:
+    """Last gate before Telegram charges the stars: refuse invoices whose transaction is
+    missing or already terminal — otherwise an old invoice message stays payable forever
+    and a second payment burns real stars against a completed txn."""
+    from uuid import UUID
+
+    try:
+        payment_id = UUID(query.invoice_payload)
+    except ValueError:
+        await query.answer(ok=False, error_message="Счёт устарел — открой оплату заново.")
+        return
+    async with container.uow() as uow:
+        txn = await uow.transactions.get_by_payment_id(payment_id)
+    if txn is None:
+        await query.answer(ok=False, error_message="Счёт не найден — открой оплату заново.")
+        return
+    if txn.status is not TransactionStatus.PENDING:
+        await query.answer(
+            ok=False,
+            error_message="Этот счёт уже обработан. Если оплата не зачислена — напиши в поддержку.",
+        )
+        return
     await query.answer(ok=True)
 
 
 @router.message(F.successful_payment)
 async def successful_payment(message: Message, container: AppContainer, db_user: User) -> None:
+    import contextlib
     from uuid import UUID
 
     sp = message.successful_payment
@@ -789,18 +811,61 @@ async def successful_payment(message: Message, container: AppContainer, db_user:
     try:
         payment_id = UUID(sp.invoice_payload)
     except ValueError:
+        # Stars were charged against a payload we can't map — a human must sort it out.
         log.error("bad invoice payload", payload=sp.invoice_payload)
+        await message.answer(
+            "Оплата получена, но счёт не распознан — напиши в поддержку, мы разберёмся."
+        )
+        with contextlib.suppress(Exception):
+            await container.notifier.notify_admins(
+                f"⚠️ Stars-платёж с нечитаемым payload {sp.invoice_payload!r} "
+                f"(charge_id={sp.telegram_payment_charge_id}, tg_id={db_user.telegram_id})",
+                topic="payments",
+            )
         return
-    async with container.uow() as uow:
-        try:
-            await container.payments.process(
+
+    # Keep the provider charge reference BEFORE fulfilment: if everything below dies, the
+    # txn still carries the id support needs for a stars refund (refundStarPayment).
+    with contextlib.suppress(Exception):
+        async with container.uow() as uow:
+            ref = await uow.transactions.get_by_payment_id(payment_id)
+            if ref is not None and not ref.external_id and sp.telegram_payment_charge_id:
+                ref.external_id = sp.telegram_payment_charge_id
+                await uow.commit()
+
+    moved = False
+    try:
+        async with container.uow() as uow:
+            moved = await container.payments.process(
                 uow, payment_id=payment_id, status=TransactionStatus.COMPLETED
             )
             await uow.commit()
-        except (DomainError, RemnawaveError) as exc:
-            log.error("stars fulfilment failed", error=str(exc))
-            await message.answer("Оплата получена, но выдача задерживается — мы уже разбираемся.")
-            return
+    except (DomainError, RemnawaveError) as exc:
+        log.error("stars fulfilment failed", error=str(exc))
+        # Durable fallback: the worker task retries with in-task backoff and is CAS-idempotent,
+        # so «разбираемся» is true — the payment settles without a human as soon as the
+        # panel/DB blip passes.
+        deferred = False
+        with contextlib.suppress(Exception):
+            from src.infrastructure.taskiq.tasks import process_payment
+
+            await process_payment.kiq(str(payment_id), TransactionStatus.COMPLETED.value)
+            deferred = True
+        with contextlib.suppress(Exception):
+            await container.notifier.notify_admins(
+                f"⚠️ Stars-платёж {payment_id}: выдача упала ({exc}), "
+                + ("повтор поставлен в очередь." if deferred else "поставить повтор НЕ удалось!"),
+                topic="payments",
+            )
+        await message.answer(
+            "Оплата получена, зачисление завершится автоматически в течение пары минут. "
+            "Если ничего не изменится — напиши в поддержку."
+            if deferred
+            else "Оплата получена, но выдача задерживается — мы уже разбираемся."
+        )
+        return
+
+    async with container.uow() as uow:
         txn = await uow.transactions.get_by_payment_id(payment_id)
         user = await uow.users.get(db_user.id)
         sub = (
@@ -809,10 +874,39 @@ async def successful_payment(message: Message, container: AppContainer, db_user:
             else None
         )
 
-    if txn is not None and txn.type is TransactionType.DEPOSIT:
-        balance = fmt_money(user.balance_minor) if user else "—"
+    if not moved:
+        # pre_checkout guards this, but two near-simultaneous checkouts can both pass it:
+        # the stars WERE charged while the txn was already terminal — never claim success.
+        log.warning("stars payment against terminal txn", payment_id=str(payment_id))
         await message.answer(
-            f"✅ <b>Баланс пополнен.</b>\nТекущий баланс: {balance}", parse_mode="HTML"
+            "Этот счёт уже был обработан ранее. Если звёзды списались повторно — "
+            "напиши в поддержку, мы вернём платёж."
+        )
+        with contextlib.suppress(Exception):
+            await container.notifier.notify_admins(
+                f"⚠️ Повторная Stars-оплата счёта {payment_id} "
+                f"(charge_id={sp.telegram_payment_charge_id}, tg_id={db_user.telegram_id}) — "
+                "нужен возврат звёзд.",
+                topic="payments",
+            )
+        return
+
+    if txn is not None and txn.type is TransactionType.DEPOSIT:
+        # Owner-editable template (its toggle only swaps the text — an in-chat payment
+        # always gets SOME acknowledgement, silence here looks like lost money).
+        from src.web.routes.admin.notifications import notification_text
+
+        balance = fmt_money(user.balance_minor) if user else "—"
+        async with container.uow() as uow:
+            text = await notification_text(
+                uow,
+                "balance_topup",
+                name=(user.first_name if user else "") or "",
+                amount=fmt_money(txn.amount_minor),
+                balance=balance,
+            )
+        await message.answer(
+            text or f"✅ <b>Баланс пополнен.</b>\nТекущий баланс: {balance}", parse_mode="HTML"
         )
         # Stars is the in-bot top-up path too, so it must complete a stashed «smart cart»
         # purchase just like the out-of-band webhook path does (PAY-1). No-ops without a cart.

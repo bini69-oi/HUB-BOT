@@ -62,6 +62,9 @@ async def run() -> None:
     context = ContextMiddleware(container)
     dp.message.outer_middleware(context)
     dp.callback_query.outer_middleware(context)
+    # pre_checkout validates the invoice's transaction against the DB, so it needs the
+    # container too (PreCheckoutQuery carries from_user, same resolution path).
+    dp.pre_checkout_query.outer_middleware(context)
     # Inner (post-FSM-resolution): a command aborts a pending form so a later stray message
     # can't be captured as promocode/withdrawal input.
     dp.message.middleware(AbortFormOnCommand())
