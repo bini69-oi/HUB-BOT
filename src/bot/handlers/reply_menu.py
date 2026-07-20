@@ -151,14 +151,28 @@ async def _open_action(
     message: Message, container: AppContainer, db_user: User, state: FSMContext, code: str
 ) -> None:
     """Open a built-in action by its MENU_ACTIONS code, reusing the inline handlers."""
-    from src.bot.handlers import promo
+    from src.bot.handlers import actions, promo
+    from src.bot.menu_render import send_main_menu
 
+    # cabinet + promocode need the FSM state (they clear/arm a form); the rest take 3 args.
+    if code == "cabinet":
+        await actions.act_cabinet(message, container, db_user, state)
+        return
     if code == "promocode":
         await promo.ask_code(message, container, db_user, state)
         return
     handler = _reply_action_handlers().get(code)
     if handler is not None:
         await handler(message, container, db_user)
+        return
+    # Unknown/custom code — mirror the inline act_unknown fallback so a bottom-bar button never
+    # silently dead-ends: buy/shop/plans open the buy flow, anything else returns to the menu.
+    if code in ("buy", "shop", "plans"):
+        from src.bot.handlers.purchase import open_buy
+
+        await open_buy(message, container, db_user)
+        return
+    await send_main_menu(message, container, db_user)
 
 
 async def _open_screen(message: Message, container: AppContainer, node_id: int) -> None:

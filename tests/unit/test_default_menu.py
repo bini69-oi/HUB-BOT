@@ -43,6 +43,33 @@ def test_reply_dispatch_covers_all_actions() -> None:
     assert not missing, f"reply-mode dispatch missing handlers for: {sorted(missing)}"
 
 
+def test_reply_dispatch_handler_signatures_match_call() -> None:
+    # Regression: `act_cabinet` needs a 4th `state` arg but `_open_action` called the mapped
+    # handlers with only 3 → every reply-mode "Личный кабинет" tap crashed. Lock the contract:
+    # dict handlers are called with (message, container, db_user); cabinet/promocode are
+    # special-cased WITH state. Verify each is callable with the args the dispatcher passes.
+    import inspect
+
+    from src.bot.handlers import actions, promo
+    from src.bot.handlers.reply_menu import _reply_action_handlers
+
+    def required_positional(fn: object) -> int:
+        return sum(
+            1
+            for p in inspect.signature(fn).parameters.values()
+            if p.kind in (p.POSITIONAL_ONLY, p.POSITIONAL_OR_KEYWORD) and p.default is p.empty
+        )
+
+    # cabinet + promocode are invoked with 4 positional args (they take FSM state).
+    assert required_positional(actions.act_cabinet) == 4
+    assert required_positional(promo.ask_code) == 4
+    # Every other mapped handler is invoked with exactly 3 (message, container, db_user).
+    for code, handler in _reply_action_handlers().items():
+        if code == "cabinet":
+            continue  # special-cased in _open_action with state
+        assert required_positional(handler) == 3, f"{code}: {handler} not callable with 3 args"
+
+
 def test_lookup_helpers() -> None:
     assert is_action("buy")
     assert not is_action("does_not_exist")

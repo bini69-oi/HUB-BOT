@@ -103,10 +103,16 @@ async def _require_web_enabled(container: AppContainer) -> None:
 
 
 def _client_ip(request: Request) -> str:
-    # Behind our own nginx/Caddy, so the first XFF hop is the real client.
+    # The LEFTMOST X-Forwarded-For hop is attacker-controllable (nginx/Caddy APPEND the real peer
+    # rather than overwrite), so keying rate-limits on it lets a client rotate a fake header per
+    # request and defeat every limiter. Prefer X-Real-IP (our proxy sets it to the direct peer),
+    # else the RIGHTMOST XFF hop (the value the proxy itself appended), else the socket peer.
+    real = request.headers.get("x-real-ip", "").strip()
+    if real:
+        return real
     xff = request.headers.get("x-forwarded-for", "")
     if xff:
-        return xff.split(",")[0].strip()
+        return xff.split(",")[-1].strip()
     return request.client.host if request.client else ""
 
 

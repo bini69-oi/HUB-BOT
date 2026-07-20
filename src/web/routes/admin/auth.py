@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from pydantic import BaseModel, Field
 
 from src.core.enums import AuthType, Role, UserStatus
@@ -11,6 +11,7 @@ from src.infrastructure.database.models.user import User
 from src.infrastructure.di import AppContainer
 from src.web.deps import get_container
 from src.web.routes.admin.deps import AdminIdentity, require_admin
+from src.web.routes.cabinet_auth import _client_ip, _rate_limit
 
 router = APIRouter(prefix="/auth")
 
@@ -27,7 +28,15 @@ class LoginOut(BaseModel):
 
 
 @router.post("/login", response_model=LoginOut)
-async def login(body: LoginIn, container: AppContainer = Depends(get_container)) -> LoginOut:
+async def login(
+    body: LoginIn, request: Request, container: AppContainer = Depends(get_container)
+) -> LoginOut:
+    # Throttle brute-force against the credential that controls all money/PII/self-update. Both a
+    # per-IP and a per-username window (the cabinet login has the same; admin's had none).
+    await _rate_limit(container, "admin_login_ip", _client_ip(request), limit=10, window=300)
+    await _rate_limit(
+        container, "admin_login_user", body.username.lstrip("@").lower(), limit=8, window=300
+    )
     async with container.uow() as uow:
         user = await uow.users.find_one(username=body.username.lstrip("@"))
     if (

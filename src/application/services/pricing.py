@@ -13,7 +13,7 @@ from sqlalchemy import select
 
 from src.application.dto.pricing import PriceQuote, PurchaseRequest
 from src.core.constants import MAX_DISCOUNT_PERCENT
-from src.core.enums import PurchaseType, TransactionStatus, TransactionType
+from src.core.enums import Currency, PurchaseType
 from src.core.exceptions import PurchaseError
 from src.core.money import Money
 from src.infrastructure.database.models.plan import Plan, PlanDuration, PlanPrice
@@ -98,64 +98,58 @@ class PricingService:
         )
 
     async def change_bonus_days(self, uow: UnitOfWork, req: PurchaseRequest) -> int:
-        """Plan-change proration: the current period's unused value expressed as whole DAYS of
-        the NEW plan (0 when there's nothing to carry over). ``value / new_period_daily_rate``,
-        so a remainder worth V roubles buys ``V / (price_per_day)`` days on the target plan —
-        fair across differently priced plans, and the user keeps their money's worth as time."""
+        """Plan-change proration: the remaining days of the CURRENT plan converted to whole days
+        of the NEW plan at their LIST daily rates.
+
+        Computed from the subscription's own expiry and the two plans' catalogue prices — NOT from
+        payment history. So it can't over-credit by extrapolating one short top-up across a long
+        remainder, and can't silently drop the remainder when the provisioning payment scrolls out
+        of a recent-transactions window. A remainder on a plan worth Ra/day carries as
+        ``remaining * Ra / R_new`` days on the target plan. If either list rate is unknown we keep
+        the raw remaining days (behaves like a renewal - the user never loses paid time).
+        """
         if req.subscription_id is None:
             return 0
-        value = await self._change_credit(uow, req.subscription_id)
-        if value <= 0:
+        sub = await uow.subscriptions.get(req.subscription_id)
+        if sub is None or sub.expire_at is None or sub.is_trial or sub.plan_id is None:
             return 0
-        # New period's list price sets the conversion rate (plan price, or constructor period+pack).
-        if req.constructor_period_id is not None:
-            period, pack = await self.resolve_constructor(uow, req)
-            base = period.price_minor + pack.price_minor
-        else:
-            plan = await uow.plans.get(req.plan_id)
-            base = await self._base_price_minor(uow, plan, req) if plan is not None else 0
-        if base <= 0 or req.duration_days <= 0:
-            return 0
-        return round(value * req.duration_days / base)
-
-    async def _change_credit(self, uow: UnitOfWork, subscription_id: int) -> int:
-        """Remaining value of the current period in minor units (0 when unknown).
-
-        remaining_days x (paid_amount / paid_days) from the LAST completed subscription
-        payment that provisioned this subscription. Trials/imports without a matching
-        payment yield no credit.
-        """
-        sub = await uow.subscriptions.get(subscription_id)
-        if sub is None or sub.expire_at is None or sub.is_trial:
-            return 0
-        now = dt.datetime.now(dt.UTC)
-        remaining = (sub.expire_at - now).total_seconds() / 86400
+        remaining = (sub.expire_at - dt.datetime.now(dt.UTC)).total_seconds() / 86400
         if remaining <= 0:
             return 0
-        txns = await uow.transactions.list_recent(sub.user_id, limit=50)
-        for txn in txns:
-            pricing = txn.pricing or {}
-            # Value the remainder from the last payment for the CURRENT (pre-change) plan — its
-            # plan_id must match the subscription's. This also excludes the in-flight CHANGE
-            # payment (already COMPLETED and linked to this sub, but for the NEW plan), which
-            # would otherwise be picked as the "remaining value" and inflate the carry-over.
-            linked = pricing.get("plan_id") == sub.plan_id and pricing.get("subscription_id") in (
-                subscription_id,
-                None,  # historical/imported payments predate the subscription_id link
+        # Value the remainder at the CURRENT plan's CHEAPEST per-day rate (its longest-duration
+        # price): the user paid at least that, so this never over-credits — even when the plan
+        # also lists a pricier short duration and the remainder came from an annual purchase.
+        current_daily = await self._plan_min_daily_minor(uow, sub.plan_id, req.currency)
+        new_daily = await self._new_period_daily_minor(uow, req)
+        if current_daily <= 0 or new_daily <= 0:
+            return round(remaining)  # pricing unknown → preserve remaining days (renewal-safe)
+        return round(remaining * current_daily / new_daily)
+
+    async def _plan_min_daily_minor(
+        self, uow: UnitOfWork, plan_id: int, currency: Currency
+    ) -> float:
+        """A plan's CHEAPEST list price per day across all its durations (0 if it has no prices)."""
+        rows = (
+            await uow.session.execute(
+                select(PlanDuration.days, PlanPrice.price_minor)
+                .join(PlanPrice, PlanPrice.plan_duration_id == PlanDuration.id)
+                .where(PlanDuration.plan_id == plan_id, PlanPrice.currency == currency)
             )
-            if (
-                txn.type is TransactionType.SUBSCRIPTION_PAYMENT
-                and txn.status is TransactionStatus.COMPLETED
-                and txn.amount_minor > 0
-                and linked
-            ):
-                paid_days = int(pricing.get("duration_days") or 0)
-                if paid_days > 0:
-                    # Value ALL remaining days at the paid daily rate — a fair carry-over that
-                    # doesn't cap the remainder at a single period (a user who renewed to 60 days
-                    # keeps the value of all 60, not just the last 30).
-                    return round(txn.amount_minor * remaining / paid_days)
-        return 0
+        ).all()
+        rates = [int(p) / int(d) for d, p in rows if d and int(d) > 0]
+        return min(rates) if rates else 0.0
+
+    async def _new_period_daily_minor(self, uow: UnitOfWork, req: PurchaseRequest) -> float:
+        """Per-day list price of the NEW period being bought (the plan's price for the purchased
+        duration, or the constructor period+pack)."""
+        if req.constructor_period_id is not None:
+            period, pack = await self.resolve_constructor(uow, req)
+            return (period.price_minor + pack.price_minor) / period.days if period.days else 0.0
+        plan = await uow.plans.get(req.plan_id)
+        if plan is None:
+            return 0.0
+        base = await self._base_price_minor(uow, plan, req)
+        return base / req.duration_days if req.duration_days > 0 else 0.0
 
     async def resolve_constructor(
         self, uow: UnitOfWork, req: PurchaseRequest
