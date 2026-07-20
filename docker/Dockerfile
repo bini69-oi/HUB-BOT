@@ -46,7 +46,11 @@ COPY --from=builder /app/.venv /app/.venv
 COPY . .
 # The cabinet SPA is built in the image — a fresh git clone has no admin/dist.
 COPY --from=spa /spa/dist /app/admin/dist
-RUN chmod +x docker/entrypoint.sh && chown -R app:app /app
+# Create the persistent dirs in the image so their app:app ownership is inherited by the named
+# volumes mounted over them (a fresh volume copies the image dir's owner; a dir that doesn't
+# exist here would be created root-owned, and the non-root app user couldn't write uploads).
+RUN mkdir -p /app/uploads /app/backups /app/update-signals \
+    && chmod +x docker/entrypoint.sh && chown -R app:app /app
 USER app
 ENTRYPOINT ["docker/entrypoint.sh"]
 # Default: the web seam (payment + panel webhooks, health). Override for worker/scheduler.

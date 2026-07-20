@@ -13,6 +13,7 @@ from typing import TYPE_CHECKING, Any
 from aiogram.exceptions import (
     TelegramBadRequest,
     TelegramForbiddenError,
+    TelegramNetworkError,
     TelegramRetryAfter,
 )
 from aiogram.types.error_event import ErrorEvent
@@ -49,8 +50,8 @@ def _is_transient(exc: BaseException) -> bool:
     telemetry/admins nor scare the user with an error id — the offending handler already
     did its job or never could.
     """
-    if isinstance(exc, TelegramRetryAfter | TelegramForbiddenError):
-        return True
+    if isinstance(exc, TelegramRetryAfter | TelegramForbiddenError | TelegramNetworkError):
+        return True  # flood-wait, user blocked the bot, or a transport timeout to Telegram
     if isinstance(exc, TelegramBadRequest):
         msg = str(exc).lower()
         return any(s in msg for s in _BENIGN_BAD_REQUEST)
