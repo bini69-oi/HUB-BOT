@@ -20,26 +20,40 @@ log = get_logger(__name__)
 
 _GITHUB_API = "https://api.github.com"
 
-# The «Обновить» button writes this marker; the updater sidecar watches it, runs
-# scripts/update.sh, then removes it. It's a volume mounted in both the bot and the updater.
+# The «Обновить» / restart buttons write this marker; the updater sidecar watches it, acts on
+# the first line, then removes it. It's a volume mounted in both the app and the updater.
 UPDATE_REQUEST_FILE = "/app/update-signals/request"
 
+_RESTARTABLE = ("bot", "web", "worker", "scheduler", "all")
 
-def request_update() -> bool:
-    """Drop the update-request marker for the updater sidecar. Returns False if the signals
-    volume isn't mounted (updater not enabled) so the caller can tell the operator."""
-    import os
+
+def _write_marker(content: str) -> bool:
+    """Drop a request marker for the updater sidecar. Returns False when the signals volume isn't
+    mounted (updater not enabled) so the caller can tell the operator to act by hand."""
     from pathlib import Path
 
     path = Path(UPDATE_REQUEST_FILE)
     if not path.parent.is_dir():
         return False
     try:
-        path.write_text(f"requested {os.getpid()}\n")
+        path.write_text(content + "\n")
         return True
     except OSError as exc:
-        log.warning("update request write failed", error=str(exc))
+        log.warning("updater request write failed", error=str(exc), request=content)
         return False
+
+
+def request_update() -> bool:
+    """Ask the updater sidecar to pull + rebuild + restart (scripts/update.sh)."""
+    return _write_marker("update")
+
+
+def request_restart(service: str) -> bool:
+    """Ask the updater sidecar to `docker compose restart <service>` (bot/web/worker/scheduler,
+    or 'all'). Returns False if the volume isn't mounted or the service name isn't allowed."""
+    if service not in _RESTARTABLE:
+        return False
+    return _write_marker(f"restart {service}")
 
 
 def _is_same_commit(a: str, b: str) -> bool:

@@ -92,8 +92,13 @@ export default function Maintenance() {
   async function action(name: string, label: string) {
     if (!(await confirm(`${t.confirmAction} · ${label}`))) return;
     try {
-      await api.post(`/api/admin/maintenance/${name}`);
-      toast(`${label} ✓`);
+      const r = await api.post<{ status?: string; hint?: string }>(
+        `/api/admin/maintenance/${name}`,
+      );
+      // Report the TRUE outcome, not a blanket ✓ (update/restart are wired to the updater;
+      // when it isn't connected — or the action is host-only — say so).
+      if (r.status === "started") toast(`${label}: запущено`);
+      else toast(r.hint || `${label}: ${r.status ?? "ok"}`);
     } catch (e) {
       toast((e as Error).message);
     }

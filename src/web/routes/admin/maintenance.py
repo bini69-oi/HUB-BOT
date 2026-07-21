@@ -182,8 +182,33 @@ async def maintenance_action(
     async with container.uow() as uow:
         await audit(uow, identity, f"maintenance.{action}", None)
         await uow.commit()
-    # Host-level execution is wired at deploy time (systemd/compose control socket).
-    return {"ok": True, "status": "scheduled", "action": action}
+
+    from src.infrastructure.services.updater import request_restart, request_update
+
+    # Actually act via the updater sidecar (same marker the bot's «Обновить» button uses), and
+    # report the TRUE outcome — no fake "scheduled ✓" when nothing happened.
+    if action == "update":
+        started = request_update()
+    elif action == "restart-bot":
+        started = request_restart("bot")
+    elif action == "restart-panel":
+        started = request_restart("web")
+    else:  # reboot-server — rebooting the host can't be done safely from a container
+        return {
+            "ok": False,
+            "status": "manual",
+            "action": action,
+            "hint": "Перезагрузка сервера выполняется вручную по SSH (`reboot`).",
+        }
+    if started:
+        return {"ok": True, "status": "started", "action": action}
+    return {
+        "ok": False,
+        "status": "no-updater",
+        "action": action,
+        "hint": "Модуль обновлений (updater) не подключён. Выполни на сервере "
+        "`./scripts/update.sh` (или включи профиль updater в docker compose).",
+    }
 
 
 # Bot migration moved to routes/admin/migration.py (shopbot/bedolaga/remnashop/3x-ui).

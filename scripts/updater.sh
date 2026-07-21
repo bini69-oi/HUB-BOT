@@ -15,19 +15,41 @@ mkdir -p "$(dirname "$MARKER")"
 # The bind-mounted repo is owned by the host user; git refuses to run in a "dubious" dir as root.
 git config --global --add safe.directory "$REPO" 2>/dev/null || true
 
+COMPOSE="docker compose --env-file $REPO/.env -f $REPO/docker/compose.prod.yml"
+_RESTARTABLE="bot web worker scheduler"
+
 echo "updater: watching $MARKER"
 while true; do
   if [ -f "$MARKER" ]; then
-    echo "updater: request at $(date -u +%FT%TZ) — running update.sh"
+    req="$(head -n1 "$MARKER" 2>/dev/null)"
     rm -f "$MARKER"
-    if (cd "$REPO" && SKIP_UPDATER_RECREATE=1 bash scripts/update.sh) >>"$LOG" 2>&1; then
-      echo "updater: update OK"
-    else
-      echo "updater: update FAILED — see $LOG"
-    fi
-    # git ran as root here; hand the repo back to its host owner so a later manual
-    # ./scripts/update.sh (run as that user) isn't blocked by root-owned objects.
-    chown -R "$(stat -c '%u:%g' "$REPO" 2>/dev/null || echo 0:0)" "$REPO" 2>/dev/null || true
+    case "$req" in
+      "restart "*)
+        # Restart one service (or all) via the host daemon — no rebuild, no git pull.
+        svc="${req#restart }"
+        echo "updater: restart '$svc' at $(date -u +%FT%TZ)"
+        if [ "$svc" = "all" ]; then
+          (cd "$REPO" && $COMPOSE restart bot web worker scheduler) >>"$LOG" 2>&1 \
+            && echo "updater: restart OK" || echo "updater: restart FAILED — see $LOG"
+        elif printf '%s\n' $_RESTARTABLE | grep -qx "$svc"; then
+          (cd "$REPO" && $COMPOSE restart "$svc") >>"$LOG" 2>&1 \
+            && echo "updater: restart OK" || echo "updater: restart FAILED — see $LOG"
+        else
+          echo "updater: refused restart of unknown service '$svc'"
+        fi
+        ;;
+      *)
+        echo "updater: update at $(date -u +%FT%TZ) — running update.sh"
+        if (cd "$REPO" && SKIP_UPDATER_RECREATE=1 bash scripts/update.sh) >>"$LOG" 2>&1; then
+          echo "updater: update OK"
+        else
+          echo "updater: update FAILED — see $LOG"
+        fi
+        # git ran as root here; hand the repo back to its host owner so a later manual
+        # ./scripts/update.sh (run as that user) isn't blocked by root-owned objects.
+        chown -R "$(stat -c '%u:%g' "$REPO" 2>/dev/null || echo 0:0)" "$REPO" 2>/dev/null || true
+        ;;
+    esac
   fi
   sleep 10
 done
