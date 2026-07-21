@@ -752,6 +752,9 @@ async def reset_link(
     try:
         revoked = await container.remnawave_client.revoke_subscription(sub.remnawave_uuid)
     except Exception as exc:
+        # Release the throttle so a transient panel hiccup doesn't lock the user out of retrying
+        # for 10 minutes while their leaked link is still live.
+        await container.redis.delete(f"resetlink:{user.id}")
         raise HTTPException(502, "panel temporarily unavailable") from exc
     new_url = revoked.subscription_url or sub.subscription_url
     async with container.uow() as uow:

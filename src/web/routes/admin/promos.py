@@ -158,7 +158,7 @@ async def bulk_promocodes(
 
 class PromoPatch(BaseModel):
     is_active: bool | None = None
-    max_activations: int | None = None
+    max_activations: int | None = Field(None, ge=0)  # match create — no negative caps
     expires_at: dt.datetime | None = None
 
 

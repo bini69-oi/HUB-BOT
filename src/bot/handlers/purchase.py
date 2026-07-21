@@ -278,7 +278,10 @@ async def _start_payment(
     would double-debit the wallet or spawn duplicate invoices. Released on completion,
     expires by TTL if the handler dies mid-flight.
     """
-    if not await container.redis.set(f"paylock:{req.user_id}", "1", nx=True, ex=15):
+    # TTL must exceed worst-case provisioning (panel retries: PANEL_RETRY_ATTEMPTS x timeout, up
+    # to ~60s) - else a slow first tap releases the lock before it commits and a second tap
+    # re-enters and double-debits the wallet. The `finally` releases it on the normal path.
+    if not await container.redis.set(f"paylock:{req.user_id}", "1", nx=True, ex=90):
         await cb.answer("Платёж уже обрабатывается — секунду…", show_alert=True)
         return
     try:

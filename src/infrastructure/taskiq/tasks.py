@@ -1293,6 +1293,7 @@ async def run_backup() -> str | None:
     «backups» report topic is enabled, the archive is delivered into the report group.
     """
     import asyncio
+    import os
     from pathlib import Path
 
     from src.infrastructure.services.backup import create_encrypted_zip, prune_old_backups
@@ -1305,12 +1306,21 @@ async def run_backup() -> str | None:
     dump_path = backups / f"db_{stamp}.sql"
 
     try:
+        # Pass the password via PGPASSWORD env, NOT on argv (argv is world-readable via
+        # /proc/<pid>/cmdline and `ps` to anything sharing the container's PID namespace).
         proc = await asyncio.create_subprocess_exec(
             "pg_dump",
             "--no-owner",
             "--format=plain",
             f"--file={dump_path}",
-            f"--dbname=postgresql://{db.user}:{db.password}@{db.host}:{db.port}/{db.name}",
+            "--host",
+            db.host,
+            "--port",
+            str(db.port),
+            "--username",
+            db.user,
+            db.name,
+            env={**os.environ, "PGPASSWORD": db.password},
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.PIPE,
         )
@@ -1330,11 +1340,21 @@ async def run_backup() -> str | None:
         password = str(await container.bot_config.value(uow, "BACKUP_ENCRYPTION_PASSWORD") or "")
         keep = int(await container.bot_config.value(uow, "BACKUP_KEEP_LAST"))
     out = backups / f"backup_{stamp}.zip"
+    # Local disk copy always exists (fall back to a derived key for at-rest encryption).
     create_encrypted_zip([dump_path], out, password or container.settings.app.jwt_secret[:16])
     dump_path.unlink(missing_ok=True)
     prune_old_backups(backups, keep)
     log.info("run_backup done", path=str(out))
 
+    # Shipping the FULL database (emails, password hashes, saved-card tokens, balances) into a
+    # Telegram group is only safe under a DEDICATED strong key — never the reused JWT signing
+    # secret. Without BACKUP_ENCRYPTION_PASSWORD we keep the local copy but don't send it off-box.
+    if not password:
+        log.warning(
+            "run_backup: BACKUP_ENCRYPTION_PASSWORD unset — local backup kept, DB dump NOT sent "
+            "to Telegram (set a dedicated backup password to enable off-box delivery)"
+        )
+        return str(out)
     from src.infrastructure.services.reports import send_topic_report
 
     await send_topic_report(container, "backups", f"💾 Бэкап БД · {stamp}", document=out)
