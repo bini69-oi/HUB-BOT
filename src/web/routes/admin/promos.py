@@ -12,7 +12,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy import func, select
 
 from src.core.enums import RewardType
-from src.infrastructure.database.models.promo_group import UserPromoGroup
+from src.infrastructure.database.models.promo_group import PromoGroup, UserPromoGroup
 from src.infrastructure.database.models.promocode import Promocode, PromocodeActivation
 from src.infrastructure.database.models.referral import ReferralEarning
 from src.infrastructure.database.models.user import User
@@ -203,32 +203,166 @@ async def delete_promocode(
     return OkOut()
 
 
+def _serialize_group(g: PromoGroup, members: int) -> dict[str, Any]:
+    return {
+        "id": g.id,
+        "name": g.name,
+        "priority": g.priority,
+        "is_default": g.is_default,
+        "server_discount_pct": g.server_discount_pct,
+        "traffic_discount_pct": g.traffic_discount_pct,
+        "device_discount_pct": g.device_discount_pct,
+        "period_discounts": g.period_discounts or {},
+        "auto_assign_total_spent_minor": g.auto_assign_total_spent_minor,
+        "apply_discounts_to_addons": g.apply_discounts_to_addons,
+        "members": members,
+    }
+
+
+def _clean_periods(raw: dict[str, int] | None) -> dict[str, int]:
+    """Keep only positive integer day keys mapped to a 0..100 percent."""
+    out: dict[str, int] = {}
+    for k, v in (raw or {}).items():
+        try:
+            days = int(str(k).strip())
+        except (TypeError, ValueError):
+            continue
+        if days <= 0:
+            continue
+        out[str(days)] = max(0, min(100, int(v)))
+    return out
+
+
+class PromoGroupIn(BaseModel):
+    name: str = Field(min_length=1, max_length=64)
+    priority: int = Field(0, ge=0, le=1000)
+    is_default: bool = False
+    server_discount_pct: int = Field(0, ge=0, le=100)
+    traffic_discount_pct: int = Field(0, ge=0, le=100)
+    device_discount_pct: int = Field(0, ge=0, le=100)
+    period_discounts: dict[str, int] = Field(default_factory=dict)
+    auto_assign_total_spent_minor: int | None = Field(None, ge=0)
+    apply_discounts_to_addons: bool = False
+
+
+class PromoGroupPatch(BaseModel):
+    name: str | None = Field(None, min_length=1, max_length=64)
+    priority: int | None = Field(None, ge=0, le=1000)
+    is_default: bool | None = None
+    server_discount_pct: int | None = Field(None, ge=0, le=100)
+    traffic_discount_pct: int | None = Field(None, ge=0, le=100)
+    device_discount_pct: int | None = Field(None, ge=0, le=100)
+    period_discounts: dict[str, int] | None = None
+    auto_assign_total_spent_minor: int | None = Field(None, ge=0)
+    apply_discounts_to_addons: bool | None = None
+
+
+async def _clear_other_defaults(uow: Any, keep_id: int | None) -> None:
+    """Exactly one group may be the default; unset it on every other row."""
+    for other in await uow.promo_groups.list():
+        if other.is_default and other.id != keep_id:
+            other.is_default = False
+
+
+async def _member_counts(uow: Any) -> dict[int, int]:
+    return dict(
+        (
+            await uow.session.execute(
+                select(UserPromoGroup.promo_group_id, func.count()).group_by(
+                    UserPromoGroup.promo_group_id
+                )
+            )
+        ).all()
+    )
+
+
 @router.get("/promogroups")
 async def list_promogroups(container: AppContainer = Depends(get_container)) -> dict[str, Any]:
     async with container.uow() as uow:
         groups = await uow.promo_groups.list()
-        member_counts: dict[int, int] = dict(
-            (
-                await uow.session.execute(
-                    select(UserPromoGroup.promo_group_id, func.count()).group_by(
-                        UserPromoGroup.promo_group_id
-                    )
-                )
-            ).all()  # type: ignore[arg-type]
-        )
+        counts = await _member_counts(uow)
         rows = [
-            {
-                "id": g.id,
-                "name": g.name,
-                "priority": g.priority,
-                "is_default": g.is_default,
-                "server_discount_pct": g.server_discount_pct,
-                "auto_assign_total_spent_minor": g.auto_assign_total_spent_minor,
-                "members": member_counts.get(g.id, 0),
-            }
+            _serialize_group(g, counts.get(g.id, 0))
             for g in sorted(groups, key=lambda g: g.priority, reverse=True)
         ]
     return {"items": rows}
+
+
+@router.post("/promogroups")
+async def create_promogroup(
+    body: PromoGroupIn,
+    identity: AdminIdentity = Depends(require_admin),
+    container: AppContainer = Depends(get_container),
+) -> dict[str, Any]:
+    name = body.name.strip()
+    async with container.uow() as uow:
+        if await uow.promo_groups.find_one(name=name):
+            raise HTTPException(409, "a group with this name already exists")
+        group = PromoGroup(
+            name=name,
+            priority=body.priority,
+            is_default=body.is_default,
+            server_discount_pct=body.server_discount_pct,
+            traffic_discount_pct=body.traffic_discount_pct,
+            device_discount_pct=body.device_discount_pct,
+            period_discounts=_clean_periods(body.period_discounts),
+            auto_assign_total_spent_minor=body.auto_assign_total_spent_minor,
+            apply_discounts_to_addons=body.apply_discounts_to_addons,
+        )
+        await uow.promo_groups.add(group)
+        await uow.session.flush()  # assign group.id before clearing other defaults
+        if body.is_default:
+            await _clear_other_defaults(uow, group.id)
+        await audit(uow, identity, "promogroup.create", f"group:{name}")
+        await uow.commit()
+        return _serialize_group(group, 0)
+
+
+@router.patch("/promogroups/{group_id}")
+async def patch_promogroup(
+    group_id: int,
+    body: PromoGroupPatch,
+    identity: AdminIdentity = Depends(require_admin),
+    container: AppContainer = Depends(get_container),
+) -> dict[str, Any]:
+    data = body.model_dump(exclude_unset=True)
+    async with container.uow() as uow:
+        group = await uow.promo_groups.get(group_id)
+        if group is None:
+            raise HTTPException(404, "group not found")
+        if "name" in data:
+            new_name = str(data["name"]).strip()
+            clash = await uow.promo_groups.find_one(name=new_name)
+            if clash and clash.id != group.id:
+                raise HTTPException(409, "a group with this name already exists")
+            data["name"] = new_name
+        if "period_discounts" in data:
+            data["period_discounts"] = _clean_periods(data["period_discounts"])
+        for k, v in data.items():
+            setattr(group, k, v)
+        if data.get("is_default"):
+            await _clear_other_defaults(uow, group.id)
+        counts = await _member_counts(uow)
+        await audit(uow, identity, "promogroup.patch", f"group:{group.name}")
+        await uow.commit()
+        return _serialize_group(group, counts.get(group.id, 0))
+
+
+@router.delete("/promogroups/{group_id}")
+async def delete_promogroup(
+    group_id: int,
+    identity: AdminIdentity = Depends(require_admin),
+    container: AppContainer = Depends(get_container),
+) -> OkOut:
+    async with container.uow() as uow:
+        group = await uow.promo_groups.get(group_id)
+        if group is None:
+            raise HTTPException(404, "group not found")
+        # Referencing promocodes/campaigns are ON DELETE SET NULL; memberships CASCADE.
+        await uow.promo_groups.delete(group)
+        await audit(uow, identity, "promogroup.delete", f"group:{group.name}")
+        await uow.commit()
+    return OkOut()
 
 
 @router.get("/referral")

@@ -9,6 +9,7 @@ import { AppProvider } from "./state/app";
 import "./theme.css";
 
 import AiSupport from "./screens/AiSupport";
+import Blacklist from "./screens/Blacklist";
 import Broadcasts from "./screens/Broadcasts";
 import BotButtons from "./screens/BotButtons";
 import Campaigns from "./screens/Campaigns";
@@ -16,8 +17,13 @@ import Dashboard from "./screens/Dashboard";
 import Login from "./screens/Login";
 import Maintenance from "./screens/Maintenance";
 import Miniapp from "./screens/Miniapp";
+import Notifications from "./screens/Notifications";
+import Partners from "./screens/Partners";
 import Payments from "./screens/Payments";
+import Promogroups from "./screens/Promogroups";
 import Promos from "./screens/Promos";
+import Reminders from "./screens/Reminders";
+import Sales from "./screens/Sales";
 import Servers from "./screens/Servers";
 import Settings from "./screens/Settings";
 import Smart from "./screens/Smart";
@@ -48,10 +54,16 @@ const router = createHashRouter([
       { path: "miniapp", element: <Miniapp /> },
       { path: "broadcasts", element: <Broadcasts /> },
       { path: "smart", element: <Smart /> },
+      { path: "notifications", element: <Notifications /> },
+      { path: "reminders", element: <Reminders /> },
       { path: "campaigns", element: <Campaigns /> },
+      { path: "partners", element: <Partners /> },
+      { path: "sales", element: <Sales /> },
+      { path: "promo-groups", element: <Promogroups /> },
       { path: "payments", element: <Payments /> },
       { path: "tickets", element: <Tickets /> },
       { path: "ai-support", element: <AiSupport /> },
+      { path: "blacklist", element: <Blacklist /> },
       { path: "servers", element: <Servers /> },
       { path: "settings", element: <Settings /> },
       { path: "maintenance", element: <Maintenance /> },

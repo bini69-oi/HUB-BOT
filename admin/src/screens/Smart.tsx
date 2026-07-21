@@ -1,19 +1,12 @@
-/* Screen 08 — Умные рассылки: renewal reminder + RF holiday promo calendar. */
+/* Screen 08. Умные рассылки: win-back funnel + RF holiday promo calendar.
+   (Expiry reminders moved to their own hour-based screen, «Напоминания».) */
 
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useEffect, useState } from "react";
 
 import { api } from "../api/client";
 import { Field, Seg, Toggle } from "../components/ui";
 import { useApp } from "../state/app";
 
-type Reminder = {
-  enabled: boolean;
-  days_before: string;
-  send_time: string;
-  text: string;
-  button_enabled: boolean;
-};
 type Holiday = {
   id: number;
   date: string;
@@ -36,13 +29,7 @@ type WinbackStep = {
 export default function Smart() {
   const { t, toast } = useApp();
   const qc = useQueryClient();
-  const [rem, setRem] = useState<Reminder | null>(null);
-  const [dirty, setDirty] = useState(false);
 
-  const reminder = useQuery({
-    queryKey: ["smart-reminder"],
-    queryFn: () => api.get<Reminder>("/api/admin/smart-reminder"),
-  });
   const holidays = useQuery({
     queryKey: ["holidays"],
     queryFn: () => api.get<{ items: Holiday[] }>("/api/admin/holidays"),
@@ -51,27 +38,6 @@ export default function Smart() {
     queryKey: ["winback"],
     queryFn: () => api.get<{ items: WinbackStep[] }>("/api/admin/winback"),
   });
-
-  useEffect(() => {
-    if (reminder.data && !dirty) setRem(reminder.data);
-  }, [reminder.data, dirty]);
-
-  function patch(p: Partial<Reminder>) {
-    setRem((r) => (r ? { ...r, ...p } : r));
-    setDirty(true);
-  }
-
-  async function saveReminder() {
-    if (!rem) return;
-    try {
-      await api.patch("/api/admin/smart-reminder", rem);
-      setDirty(false);
-      void qc.invalidateQueries({ queryKey: ["smart-reminder"] });
-      toast(t.applied);
-    } catch (e) {
-      toast((e as Error).message);
-    }
-  }
 
   async function patchHoliday(h: Holiday, p: Partial<Holiday>) {
     try {
@@ -127,97 +93,28 @@ export default function Smart() {
     })
     .sort((a, b) => a.dt.getTime() - b.dt.getTime())[0];
 
-  const previewText = rem?.text.replace("{days}", "3") ?? "";
-
   return (
     <>
       <div className="page-head">
         <h1 className="h1">{t.smart}</h1>
       </div>
 
-      <div className="cols" style={{ marginBottom: 14 }}>
-        <div className="card main-col">
-          <div className="row" style={{ justifyContent: "space-between", marginBottom: 14 }}>
-            <span className="caps">{t.renewalReminder}</span>
-            <div className="row">
-              <span className={`st ${rem?.enabled ? "on" : "off"}`}>
-                {rem?.enabled ? t.on : t.off}
-              </span>
-              <Toggle on={rem?.enabled ?? false} onChange={(v) => patch({ enabled: v })} />
-            </div>
-          </div>
-          {rem && (
-            <div className="grid" style={{ gap: 12 }}>
-              <div className="row">
-                <Field label={t.daysBefore}>
-                  <input
-                    className="input mono"
-                    style={{ width: 110 }}
-                    value={rem.days_before}
-                    onChange={(e) => patch({ days_before: e.target.value })}
-                  />
-                </Field>
-                <Field label={t.timeMsk}>
-                  <input
-                    className="input mono"
-                    style={{ width: 90 }}
-                    value={rem.send_time}
-                    onChange={(e) => patch({ send_time: e.target.value })}
-                  />
-                </Field>
-              </div>
-              <Field label={`${t.msgText} · {days}`}>
-                <textarea
-                  className="input"
-                  rows={3}
-                  value={rem.text}
-                  onChange={(e) => patch({ text: e.target.value })}
-                />
-              </Field>
-              <label className="row" style={{ cursor: "pointer" }}>
-                <Toggle on={rem.button_enabled} onChange={(v) => patch({ button_enabled: v })} />
-                <span style={{ fontSize: 13 }}>{t.miniappBtn}</span>
-              </label>
-              {dirty && (
-                <button className="btn primary" onClick={saveReminder}>
-                  {t.saveApply}
-                </button>
-              )}
-            </div>
-          )}
-        </div>
-
-        <div className="card side-col" style={{ maxWidth: 420 }}>
-          <div className="caps" style={{ marginBottom: 10 }}>
-            {t.preview}
-          </div>
-          <div
-            style={{
-              background: "var(--panel2)",
-              border: "1px solid var(--border)",
-              borderRadius: 8,
-              padding: 12,
-              fontSize: 13.5,
-              whiteSpace: "pre-wrap",
-            }}
-          >
-            {previewText || <span className="dim">…</span>}
-            {rem?.button_enabled && (
-              <div
-                style={{
-                  marginTop: 10,
-                  border: "1px solid var(--border2)",
-                  borderRadius: 6,
-                  textAlign: "center",
-                  padding: "8px 0",
-                }}
-              >
-                Продлить
-              </div>
-            )}
-          </div>
-        </div>
-      </div>
+      <a
+        href="#/reminders"
+        className="card"
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: 12,
+          marginBottom: 14,
+          textDecoration: "none",
+          color: "var(--text)",
+        }}
+      >
+        <span style={{ fontSize: 22 }}>⏳</span>
+        <span style={{ flex: 1, fontSize: 13.5 }}>{t.remindersMoved}</span>
+        <span className="btn secondary sm">{t.openReminders} →</span>
+      </a>
 
       <div className="card" style={{ marginBottom: 14 }}>
         <div className="row" style={{ justifyContent: "space-between", marginBottom: 12 }}>

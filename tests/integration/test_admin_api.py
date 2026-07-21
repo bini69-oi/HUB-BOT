@@ -1266,3 +1266,56 @@ async def test_webhook_enqueue_failure_503_when_txn_outside_reconciler_window(
         client, monkeypatch, pollable=True, txn_age=dt.timedelta(hours=25)
     )
     assert res.status_code == 503
+
+
+async def test_promogroup_crud_and_single_default(
+    client: tuple[httpx.AsyncClient, ApiTestContainer],
+) -> None:
+    http, _ = client
+    auth = await _login(http)
+
+    # create two groups, both flagged default
+    a = await http.post(
+        "/api/admin/promogroups",
+        headers=auth,
+        json={"name": "Silver", "priority": 10, "is_default": True, "server_discount_pct": 5},
+    )
+    assert a.status_code == 200, a.text
+    assert a.json()["is_default"] is True
+
+    b = await http.post(
+        "/api/admin/promogroups",
+        headers=auth,
+        json={"name": "Gold", "priority": 20, "is_default": True, "server_discount_pct": 15},
+    )
+    assert b.status_code == 200, b.text
+    gold_id = b.json()["id"]
+
+    # only the most recent default survives -> exactly one is_default across the list
+    rows = (await http.get("/api/admin/promogroups", headers=auth)).json()["items"]
+    defaults = [g for g in rows if g["is_default"]]
+    assert [g["name"] for g in defaults] == ["Gold"]
+    # sorted by priority desc
+    assert [g["name"] for g in rows] == ["Gold", "Silver"]
+
+    # duplicate name -> 409
+    dup = await http.post("/api/admin/promogroups", headers=auth, json={"name": "Gold"})
+    assert dup.status_code == 409
+
+    # patch discounts + period map cleaning (bad keys dropped, pct clamped)
+    patched = await http.patch(
+        f"/api/admin/promogroups/{gold_id}",
+        headers=auth,
+        json={"server_discount_pct": 25, "period_discounts": {"30": 200, "x": 5, "0": 9}},
+    )
+    assert patched.status_code == 200, patched.text
+    body = patched.json()
+    assert body["server_discount_pct"] == 25
+    assert body["period_discounts"] == {"30": 100}  # clamped to 100, "x"/"0" dropped
+
+    # delete
+    assert (await http.delete(f"/api/admin/promogroups/{gold_id}", headers=auth)).status_code == 200
+    names = [
+        g["name"] for g in (await http.get("/api/admin/promogroups", headers=auth)).json()["items"]
+    ]
+    assert names == ["Silver"]
