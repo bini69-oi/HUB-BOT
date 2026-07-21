@@ -1715,7 +1715,12 @@ async def _autopay_one(container: object, subscription_id: int, horizon: dt.date
                 and attempt_due
             ):
                 return False  # insufficient balance — user keeps autopay on for next window
-            # Card path below: it owns its transaction lifecycle — leave this uow first.
+            # Claim the daily card attempt INSIDE the row lock and commit before releasing it, so a
+            # concurrent process_autopay run sees attempted_at set and bails — otherwise both pass
+            # the `attempted_at IS NULL` check and charge the saved card twice for one renewal.
+            sub.autopay_card_attempted_at = utcnow()
+            await uow.commit()
+            # Card path below (outside this uow): it owns its transaction lifecycle.
         else:
             # Guarded debit (WHERE balance >= price): the check-then-act above races a
             # concurrent checkout/withdrawal and could drive the wallet negative otherwise.
