@@ -15,7 +15,8 @@ from src.web.routes.admin.deps import AdminIdentity, require_admin
 
 router = APIRouter(prefix="/miniapp")
 
-# Template ids must match miniapp/templates.json (extended with the 8 design themes).
+# Template ids the mini-app understands (8 original design themes + the strict set).
+# Each id maps to a CSS variant letter in miniapp/app/app.js NAMES.
 KNOWN_TEMPLATES = (
     "minimal",
     "private",
@@ -25,6 +26,16 @@ KNOWN_TEMPLATES = (
     "magazine",
     "neon",
     "pop",
+    "onyx",
+    "swiss",
+    "ledger",
+    "graphite",
+    "atlas",
+    "noir",
+    "steel",
+    "ivory",
+    "sable",
+    "quartz",
 )
 
 

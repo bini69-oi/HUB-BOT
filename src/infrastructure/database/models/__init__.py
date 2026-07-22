@@ -13,6 +13,7 @@ from src.infrastructure.database.models.cabinet_token import CabinetRefreshToken
 from src.infrastructure.database.models.campaign import Campaign
 from src.infrastructure.database.models.constructor import ConstructorPeriod, TrafficPack
 from src.infrastructure.database.models.holiday import Holiday
+from src.infrastructure.database.models.linked_account import LinkedAccount
 from src.infrastructure.database.models.menu_node import MenuNode
 from src.infrastructure.database.models.miniapp_config import MiniappConfig
 from src.infrastructure.database.models.notification_template import NotificationTemplate
@@ -47,6 +48,7 @@ __all__ = [
     "Campaign",
     "ConstructorPeriod",
     "Holiday",
+    "LinkedAccount",
     "MenuNode",
     "MiniappConfig",
     "NotificationTemplate",

@@ -18,7 +18,7 @@ from fastapi.staticfiles import StaticFiles
 from src.core.config import get_settings
 from src.core.logging import configure_logging, get_logger
 from src.infrastructure.di import AppContainer
-from src.web.routes import admin, cabinet, cabinet_auth, health, panel, payments
+from src.web.routes import admin, cabinet, cabinet_auth, cabinet_link, health, panel, payments
 from src.web.routes.admin.auth import bootstrap_admin
 from src.web.routes.admin.maintenance import bootstrap_public_urls, bootstrap_report_topics
 from src.web.routes.admin.menu import bootstrap_menu
@@ -107,6 +107,7 @@ def create_app() -> FastAPI:
     app.include_router(admin.router)
     app.include_router(cabinet.router)
     app.include_router(cabinet_auth.router)
+    app.include_router(cabinet_link.router)
 
     @app.get("/dl", response_class=HTMLResponse)
     async def _deep_link_redirect(to: str, request: Request) -> HTMLResponse:

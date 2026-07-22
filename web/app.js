@@ -84,23 +84,30 @@ function brand() {
 
 let authTab = "login";
 
-async function oauthGo(provider) {
+async function oauthGo(provider, link) {
   try {
-    const d = await api("GET", `${A}/oauth/${provider}/authorize`);
+    const d = await api("GET", `${A}/oauth/${provider}/authorize${link ? "?link=1" : ""}`, null, !!link);
     if (d.authorize_url) {
-      // Remember which provider we launched — the callback URL may not carry ?provider=,
-      // and defaulting to "google" would exchange the code against the wrong endpoint.
-      try { localStorage.setItem("wc_oauth_provider", provider); } catch (e) {}
+      // Remember which provider (and mode) we launched — the callback URL may not carry
+      // ?provider=, and defaulting to "google" would exchange the code against the wrong endpoint.
+      try {
+        localStorage.setItem("wc_oauth_provider", provider);
+        if (link) localStorage.setItem("wc_oauth_link", "1");
+        else localStorage.removeItem("wc_oauth_link");
+      } catch (e) {}
       window.location.href = d.authorize_url;
     }
   } catch (e) { toast(e.message); }
 }
 
+const OAUTH_LABELS = { google: "Google", yandex: "Яндекс", vk: "ВКонтакте" };
+
 function oauthButtons() {
   return el("div", {}, [
     el("div", { class: "divider" }, "или"),
+    el("button", { class: "btn oauth", onclick: () => oauthGo("vk") }, "Войти через ВКонтакте"),
+    el("button", { class: "btn oauth", onclick: () => oauthGo("yandex") }, "Войти через Яндекс"),
     el("button", { class: "btn oauth", onclick: () => oauthGo("google") }, "Войти через Google"),
-    el("button", { class: "btn oauth", onclick: () => oauthGo("yandex") }, "Войти через Yandex"),
   ]);
 }
 
@@ -285,10 +292,93 @@ async function cabinetView() {
     ]));
   }
 
+  root.append(await linkedCard());
+
   root.append(el("div", { class: "center" }, [
     el("span", { class: "link", onclick: async () => { try { await api("POST", `${A}/logout`, { refresh_token: store.refresh }); } catch {} store.clear(); route("auth"); } }, "Выйти"),
   ]));
   return root;
+}
+
+/* ---------- account & sign-in methods (linking) ---------- */
+
+async function linkedCard() {
+  let d;
+  try { d = await api("GET", `${C}/linked`, null, true); }
+  catch { return el("div", {}); }
+
+  const card = el("div", { class: "card" }, [el("h2", {}, "Аккаунт и входы")]);
+
+  // e-mail
+  card.append(el("div", { class: "li" }, [
+    el("span", { class: "muted" }, "Почта"),
+    d.email
+      ? el("b", {}, d.email + (d.email_verified ? "" : " (не подтверждена)"))
+      : el("span", { class: "link", onclick: () => linkEmailForm(card) }, "Привязать"),
+  ]));
+
+  // telegram
+  card.append(el("div", { class: "li" }, [
+    el("span", { class: "muted" }, "Telegram"),
+    d.telegram
+      ? el("b", {}, d.telegram.username ? "@" + d.telegram.username : "привязан")
+      : el("span", { class: "link", onclick: async () => {
+          try {
+            const r = await api("POST", `${C}/link/telegram`, null, true);
+            card.append(el("div", { class: "hint" }, "Открой бота — аккаунты свяжутся автоматически. Ссылка одноразовая, живёт 15 минут."));
+            card.append(el("a", { class: "btn primary", href: r.url, target: "_blank" }, "Открыть бота и привязать"));
+          } catch (e) { toast(e.message); }
+        } }, "Привязать"),
+  ]));
+
+  // oauth providers
+  const linkedSet = new Set((d.oauth || []).map((o) => o.provider));
+  (d.oauth || []).forEach((o) => {
+    card.append(el("div", { class: "li" }, [
+      el("span", { class: "muted" }, OAUTH_LABELS[o.provider] || o.provider),
+      el("span", {}, [
+        el("b", {}, o.display_name || o.email || "привязан"),
+        el("span", { class: "link", style: "margin-left:10px", onclick: async () => {
+          try { await api("DELETE", `${C}/link/oauth/${o.provider}`, null, true); toast("Отвязано"); route("cabinet"); }
+          catch (e) { toast(e.message); }
+        } }, "отвязать"),
+      ]),
+    ]));
+  });
+  (d.available_providers || []).filter((p) => !linkedSet.has(p)).forEach((p) => {
+    card.append(el("div", { class: "li" }, [
+      el("span", { class: "muted" }, OAUTH_LABELS[p] || p),
+      el("span", { class: "link", onclick: () => oauthGo(p, true) }, "Привязать"),
+    ]));
+  });
+
+  return card;
+}
+
+function linkEmailForm(card) {
+  const email = el("input", { type: "email", placeholder: "you@example.com", autocomplete: "email" });
+  const pass = el("input", { type: "password", placeholder: "Пароль для входа на сайте", autocomplete: "new-password" });
+  const box = el("div", {}, [
+    el("label", {}, "E-mail"), email,
+    el("label", {}, "Пароль"), pass,
+  ]);
+  const send = el("button", { class: "btn primary", onclick: async () => {
+    if (pass.value.length < 8) return toast("Пароль от 8 символов");
+    try {
+      await api("POST", `${C}/link/email`, { email: email.value.trim(), password: pass.value }, true);
+      box.innerHTML = "";
+      const code = el("input", { type: "text", inputmode: "numeric", placeholder: "Код из письма" });
+      box.append(el("div", { class: "hint" }, `Отправили код на ${email.value.trim()}`), code,
+        el("button", { class: "btn primary", onclick: async () => {
+          try {
+            await api("POST", `${C}/link/email/confirm`, { code: code.value.trim() }, true);
+            toast("Почта привязана"); route("cabinet");
+          } catch (e) { toast(e.message); }
+        } }, "Подтвердить"));
+    } catch (e) { toast(e.message); }
+  } }, "Получить код");
+  box.append(send);
+  card.append(box);
 }
 
 /* ---------- router ---------- */
@@ -309,13 +399,21 @@ async function render() {
 
 async function boot() {
   const params = new URLSearchParams(location.search);
-  // OAuth callback: /web?code=...&state=...
+  // OAuth callback: /web?code=...&state=... (VK ID also appends &device_id=...)
   if (params.get("code") && params.get("state")) {
     const provider = params.get("provider") || localStorage.getItem("wc_oauth_provider") || "google";
+    const linking = localStorage.getItem("wc_oauth_link") === "1";
     try {
-      const d = await api("POST", `${A}/oauth/callback`, { provider, code: params.get("code"), state: params.get("state") });
-      store.set(d.access_token, d.refresh_token);
+      const d = await api("POST", `${A}/oauth/callback`, {
+        provider,
+        code: params.get("code"),
+        state: params.get("state"),
+        device_id: params.get("device_id") || null,
+      });
+      if (d.access_token) store.set(d.access_token, d.refresh_token);
+      if (linking && d.ok) toast(`${OAUTH_LABELS[d.linked] || d.linked} привязан`);
     } catch (e) { toast(e.message); }
+    localStorage.removeItem("wc_oauth_link");
     history.replaceState({}, "", location.pathname);
   }
   // guest success returns with an auto-login token stashed before redirect

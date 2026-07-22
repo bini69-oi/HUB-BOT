@@ -36,6 +36,12 @@
     version: "v2 · VLESS", loading: "Загрузка…",
     period: "Срок", traffic: "Трафик", unlimited: "∞ безлимит",
     soon: "Тарифы скоро появятся", soonSub: "Мы уже готовим планы — загляните позже.",
+    siteLogin: "Вход на сайте", siteLinked: (m) => `Почта ${m} привязана — на сайте входи по ней`,
+    siteHint: "Привяжи почту и пароль — сможешь заходить в кабинет с любого браузера, даже когда Telegram недоступен.",
+    linkEmailBtn: "Привязать почту", emailPh: "you@example.com", passPh: "Пароль (мин. 8 символов)",
+    sendCode: "Получить код", codePh: "Код из письма", confirm: "Подтвердить",
+    codeSent: (m) => `Код отправлен на ${m}`, emailLinked: "Почта привязана",
+    passShort: "Пароль от 8 символов",
   };
   const EN = {
     ...RU,
@@ -62,6 +68,12 @@
     loading: "Loading…",
     period: "Period", traffic: "Traffic", unlimited: "∞ unlimited",
     soon: "Plans coming soon", soonSub: "We're setting up plans — check back later.",
+    siteLogin: "Website login", siteLinked: (m) => `E-mail ${m} is linked — use it to sign in on the website`,
+    siteHint: "Link an e-mail and password to open your cabinet from any browser, even when Telegram is down.",
+    linkEmailBtn: "Link e-mail", emailPh: "you@example.com", passPh: "Password (8+ chars)",
+    sendCode: "Send code", codePh: "Code from the e-mail", confirm: "Confirm",
+    codeSent: (m) => `Code sent to ${m}`, emailLinked: "E-mail linked",
+    passShort: "Password must be 8+ chars",
   };
   let T = RU;
 
@@ -699,6 +711,72 @@
         ]),
       );
     }
+    // Website access: link an e-mail + password so the same account opens in a browser
+    // (the client-requested «связка» — one account everywhere).
+    if (!mock) {
+      if (state.linked === undefined) {
+        state.linked = null;
+        api("GET", "/api/cabinet/linked")
+          .then((r) => { state.linked = r; render(); })
+          .catch(() => { state.linked = false; });
+      }
+      if (state.linked) {
+        const siteCard = el("div", { class: "card fade" }, [
+          el("div", { class: "h-cap", text: T.siteLogin }),
+        ]);
+        if (state.linked.email && state.linked.email_verified) {
+          siteCard.append(el("div", { class: "sub", style: "font-size:12.5px", text: T.siteLinked(state.linked.email) }));
+        } else if (state.linkEmail && state.linkEmail.step === "code") {
+          const codeInp = el("input", { class: "inp", inputmode: "numeric", placeholder: T.codePh, maxlength: 8 });
+          siteCard.append(
+            el("div", { class: "sub", style: "font-size:12.5px;margin-bottom:6px", text: T.codeSent(state.linkEmail.email) }),
+            el("div", { class: "row" }, [
+              codeInp,
+              el("button", {
+                class: "btn primary sm", text: T.confirm,
+                onclick: async () => {
+                  if (!codeInp.value.trim()) return;
+                  try {
+                    await api("POST", "/api/cabinet/link/email/confirm", { code: codeInp.value.trim() });
+                    state.linked = undefined; state.linkEmail = null;
+                    toast(T.emailLinked); haptic("ok"); render();
+                  } catch (e) { toast(String(e.message || e)); }
+                },
+              }),
+            ]),
+          );
+        } else if (state.linkEmail && state.linkEmail.step === "form") {
+          const emailInp = el("input", { class: "inp", type: "email", placeholder: T.emailPh, maxlength: 255 });
+          const passInp = el("input", { class: "inp", type: "password", placeholder: T.passPh, maxlength: 128 });
+          siteCard.append(
+            emailInp,
+            el("div", { style: "height:6px" }),
+            passInp,
+            el("div", { style: "height:8px" }),
+            el("button", {
+              class: "btn primary sm", text: T.sendCode,
+              onclick: async () => {
+                if (passInp.value.length < 8) return toast(T.passShort);
+                try {
+                  await api("POST", "/api/cabinet/link/email", { email: emailInp.value.trim(), password: passInp.value });
+                  state.linkEmail = { step: "code", email: emailInp.value.trim() };
+                  render();
+                } catch (e) { toast(String(e.message || e)); }
+              },
+            }),
+          );
+        } else {
+          siteCard.append(
+            el("div", { class: "sub", style: "font-size:12.5px;margin-bottom:8px", text: T.siteHint }),
+            el("button", {
+              class: "btn ghost sm", text: T.linkEmailBtn,
+              onclick: () => { state.linkEmail = { step: "form" }; render(); },
+            }),
+          );
+        }
+        frag.push(siteCard);
+      }
+    }
     if (me.app.mtproto_proxy) {
       frag.push(
         el("div", { class: "card fade row spread" }, [
@@ -876,10 +954,12 @@
       if (params.get("greeting") != null) me.app.greeting = params.get("greeting");
       // theme from admin config (?variant= wins for preview)
       const NAMES = { minimal: "a", private: "b", buddy: "c", native: "d",
-                      terminal: "e", magazine: "f", neon: "g", pop: "h" };
+                      terminal: "e", magazine: "f", neon: "g", pop: "h",
+                      onyx: "i", swiss: "j", ledger: "k", graphite: "l", atlas: "m",
+                      noir: "n", steel: "o", ivory: "p", sable: "q", quartz: "r" };
       let variant = params.get("variant") || me.app.template || "a";
       variant = NAMES[variant] || variant;
-      document.body.dataset.variant = /^[a-h]$/.test(variant) ? variant : "a";
+      document.body.dataset.variant = /^[a-r]$/.test(variant) ? variant : "a";
       const accent = params.get("accent") || (!params.get("variant") ? me.app.accent_color : null);
       if (accent && /^#[0-9a-fA-F]{3,8}$/.test(accent)) {
         document.body.style.setProperty("--acc", accent);

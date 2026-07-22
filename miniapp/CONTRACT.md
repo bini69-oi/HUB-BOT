@@ -222,6 +222,36 @@ The «Кабинет» tab renders these as «Мои устройства» with
 
 ### `POST /api/cabinet/subscription/reset-devices`  → `{ "ok": true }`
 
+### `GET /api/cabinet/linked` — sign-in methods of the account
+
+```jsonc
+{
+  "email": "user@mail.ru",        // null until linked
+  "email_verified": true,
+  "has_password": true,
+  "telegram": { "id": 1, "username": "ivan" },  // null for web-only accounts
+  "oauth": [ { "provider": "vk", "email": null, "display_name": "Иван Петров" } ],
+  "available_providers": ["vk", "yandex"],      // configured by the owner
+  "bot_username": "my_bot"
+}
+```
+
+### `POST /api/cabinet/link/email` — `{ "email": "…", "password": "…" }`
+
+Sends a 6-digit code to the address; confirm with
+`POST /api/cabinet/link/email/confirm` — `{ "code": "123456" }`. After that the same
+account opens on the website with e-mail + password. The «Кабинет» tab renders this
+as the «Вход на сайте» card.
+
+### `POST /api/cabinet/link/telegram` → `{ "url": "https://t.me/bot?start=link_…" }`
+
+Web-cabinet users only: a single-use deep link (15 min) that merges the web account
+into the Telegram account when the bot is opened with it.
+
+### `DELETE /api/cabinet/link/oauth/{provider}` → `{ "ok": true }`
+
+Refused (409) when it would remove the account's last remaining sign-in method.
+
 ### (optional, later) `POST /api/cabinet/topup` — `{ "amount_minor": 50000, "gateway": "telegram_stars" }`
 Returns `{ "payment_url": "..." }`.
 

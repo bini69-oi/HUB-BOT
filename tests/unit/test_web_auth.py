@@ -123,19 +123,80 @@ async def test_oauth_state_single_use() -> None:
             return self.store.pop(k, None)
 
     redis = FakeRedis()
-    state = await save_state(redis, "google")
-    assert await consume_state(redis, state) == "google"
+    state = await save_state(redis, {"provider": "google", "verifier": "v1"})
+    assert await consume_state(redis, state) == {"provider": "google", "verifier": "v1"}
     assert await consume_state(redis, state) is None  # single-use
 
 
 def test_oauth_provider_registry_and_urls() -> None:
-    from src.infrastructure.services.oauth import build_provider
+    from src.infrastructure.services.oauth import build_provider, make_pkce_pair
 
     assert build_provider("google", "", "") is None  # unconfigured -> None
     assert build_provider("unknown", "id", "sec") is None  # unknown provider
     g = build_provider("google", "cid", "sec")
     assert g is not None
-    url = g.authorize_url("https://cab.example/auth/oauth/callback", "st8")
+    url = g.authorize_url("https://cab.example/auth/oauth/callback", "st8", None)
     assert "accounts.google.com" in url and "state=st8" in url and "client_id=cid" in url
     y = build_provider("yandex", "cid", "sec")
-    assert y is not None and "oauth.yandex.ru" in y.authorize_url("https://c/cb", "s")
+    assert y is not None and "oauth.yandex.ru" in y.authorize_url("https://c/cb", "s", None)
+    # VK ID: OAuth 2.1 with mandatory PKCE — the challenge must land in the URL
+    vk = build_provider("vk", "cid", "sec")
+    assert vk is not None and vk.needs_pkce
+    verifier, challenge = make_pkce_pair()
+    assert verifier != challenge and len(verifier) >= 43
+    vk_url = vk.authorize_url("https://c/cb", "s", challenge)
+    assert "id.vk.com/authorize" in vk_url
+    assert f"code_challenge={challenge}" in vk_url and "code_challenge_method=S256" in vk_url
+
+
+async def test_vk_fetch_user_identity_first() -> None:
+    """VK exchange: token + user_info; an account WITHOUT e-mail still yields a stable
+    provider_id (identity-first login), with e-mail when the scope was granted."""
+    import respx
+    from httpx import Response
+
+    from src.infrastructure.services.oauth import build_provider
+
+    vk = build_provider("vk", "cid", "sec")
+    assert vk is not None
+    with respx.mock:
+        respx.post("https://id.vk.com/oauth2/auth").mock(
+            return_value=Response(200, json={"access_token": "at", "user_id": 987})
+        )
+        respx.post("https://id.vk.com/oauth2/user_info").mock(
+            return_value=Response(
+                200, json={"user": {"user_id": 987, "first_name": "Иван", "last_name": "Петров"}}
+            )
+        )
+        info = await vk.fetch_user("code1", "https://c/cb", code_verifier="v", device_id="d1")
+    assert info.provider_id == "987"
+    assert info.email is None and info.email_verified is False
+    assert info.name == "Иван Петров"
+
+    with respx.mock:
+        respx.post("https://id.vk.com/oauth2/auth").mock(
+            return_value=Response(200, json={"access_token": "at2"})
+        )
+        respx.post("https://id.vk.com/oauth2/user_info").mock(
+            return_value=Response(
+                200,
+                json={"user": {"user_id": 987, "email": "Ivan@Mail.ru", "first_name": "Иван"}},
+            )
+        )
+        info2 = await vk.fetch_user("code2", "https://c/cb", code_verifier="v", device_id="d1")
+    assert info2.email == "ivan@mail.ru" and info2.email_verified is True
+
+
+async def test_linked_account_identity_lookup(uow: UnitOfWork) -> None:
+    from src.infrastructure.database.models.linked_account import LinkedAccount
+
+    async with uow:
+        user = await _make_email_user(uow, "vkuser@example.com", "password1")
+        await uow.flush()
+        uow.session.add(LinkedAccount(user_id=user.id, provider="vk", external_id="987"))
+        await uow.commit()
+        ident = await uow.linked_accounts.get_identity("vk", "987")
+        assert ident is not None and ident.user_id == user.id
+        assert await uow.linked_accounts.get_identity("vk", "000") is None
+        rows = await uow.linked_accounts.list_for_user(user.id)
+        assert [r.provider for r in rows] == ["vk"]

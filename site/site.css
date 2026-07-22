@@ -1,5 +1,5 @@
 /* Public marketing site — one layout, 8 themes (same palettes as the mini-app).
-   body[data-variant=a..h] picks the theme, body[data-mode=light|dark] the scheme.
+   body[data-variant=a..r] picks the theme, body[data-mode=light|dark] the scheme.
    a Минимал · b Прайват · c Бадди · d Нативный · e Терминал · f Журнал · g Неон · h Поп */
 
 * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
@@ -31,6 +31,28 @@ body[data-variant="g"][data-mode="dark"]  { --bg:linear-gradient(160deg,#150E33,
 body[data-variant="h"][data-mode="light"] { --bg:#F6F4EC; --card:#FFFFFF; --ink:#101010; --sub:#62625A; --line:#101010; --acc:#C8F04B; --accInk:#101010; --soft:#ECF7C8; --chip:#EFEDE0; --ok:#1F9D55; --warn:#E0442E; }
 body[data-variant="h"][data-mode="dark"]  { --bg:#141410; --card:#1D1D16; --ink:#F2F1E6; --sub:#9A9A8C; --line:#EDEBDC; --acc:#D3F55C; --accInk:#131308; --soft:#2C301A; --chip:#24241B; --ok:#7FD86B; --warn:#FF6B5E; }
 
+/* strict set i..r (mirrors the mini-app palettes) */
+body[data-variant="i"][data-mode="light"] { --bg:#EFEFEF; --card:#FAFAFA; --ink:#1A1B1D; --sub:#77797E; --line:#DCDDE0; --acc:#3A3D45; --accInk:#F5F5F5; --soft:#E4E5E8; --chip:#E9EAEC; --ok:#2E7D5B; --warn:#B5483C; }
+body[data-variant="i"][data-mode="dark"]  { --bg:#0F1012; --card:#17181B; --ink:#E8E9EB; --sub:#8B8E95; --line:#26282C; --acc:#C3C6CE; --accInk:#141518; --soft:#202225; --chip:#1D1F22; --ok:#4CAF82; --warn:#D96B5C; }
+body[data-variant="j"][data-mode="light"] { --bg:#FFFFFF; --card:#FFFFFF; --ink:#111111; --sub:#6E6E6E; --line:#111111; --acc:#D91F26; --accInk:#FFFFFF; --soft:#F2F2F2; --chip:#F5F5F5; --ok:#1F7A46; --warn:#D91F26; }
+body[data-variant="j"][data-mode="dark"]  { --bg:#161616; --card:#161616; --ink:#F2F2F2; --sub:#9B9B9B; --line:#F2F2F2; --acc:#FF4B4B; --accInk:#161616; --soft:#242424; --chip:#202020; --ok:#57B87F; --warn:#FF4B4B; }
+body[data-variant="k"][data-mode="light"] { --bg:#F4F1E8; --card:#FCFAF3; --ink:#20261F; --sub:#7C8073; --line:#DED9C8; --acc:#1F4D36; --accInk:#F4F1E6; --soft:#E8E4D4; --chip:#EDE9DB; --ok:#1F4D36; --warn:#9E3B2C; }
+body[data-variant="k"][data-mode="dark"]  { --bg:#141712; --card:#1B1F19; --ink:#E7E4D6; --sub:#8F937F; --line:#2C312A; --acc:#7FAE93; --accInk:#121710; --soft:#232921; --chip:#20251E; --ok:#7FAE93; --warn:#CE7257; }
+body[data-variant="l"][data-mode="light"] { --bg:#ECEDEF; --card:#F7F8F9; --ink:#22262B; --sub:#7A8087; --line:#D8DBDF; --acc:#44576B; --accInk:#F5F7F9; --soft:#E1E5E9; --chip:#E6E9EC; --ok:#33795E; --warn:#AF4E3E; }
+body[data-variant="l"][data-mode="dark"]  { --bg:#131518; --card:#1A1D21; --ink:#E4E7EA; --sub:#878D95; --line:#282C31; --acc:#8CA6BE; --accInk:#12161A; --soft:#212529; --chip:#1E2226; --ok:#4FA57F; --warn:#D2705C; }
+body[data-variant="m"][data-mode="light"] { --bg:#EEF0F4; --card:#FBFCFD; --ink:#18243A; --sub:#6E7A8E; --line:#D9DEE7; --acc:#1B3358; --accInk:#F3F5F9; --soft:#E2E7EF; --chip:#E7EBF1; --ok:#276A4C; --warn:#A94A38; }
+body[data-variant="m"][data-mode="dark"]  { --bg:#0E1420; --card:#151C2B; --ink:#E3E8F0; --sub:#8391A6; --line:#232C3E; --acc:#C2A566; --accInk:#131A28; --soft:#1D2534; --chip:#1A2230; --ok:#4FA57F; --warn:#D2705C; }
+body[data-variant="n"][data-mode="light"] { --bg:#F5F5F5; --card:#FFFFFF; --ink:#0A0A0A; --sub:#707070; --line:#E0E0E0; --acc:#0A0A0A; --accInk:#FFFFFF; --soft:#ECECEC; --chip:#F0F0F0; --ok:#2E2E2E; --warn:#6E6E6E; }
+body[data-variant="n"][data-mode="dark"]  { --bg:#0A0A0A; --card:#141414; --ink:#F5F5F5; --sub:#8F8F8F; --line:#262626; --acc:#F5F5F5; --accInk:#0A0A0A; --soft:#1E1E1E; --chip:#1A1A1A; --ok:#D6D6D6; --warn:#8F8F8F; }
+body[data-variant="o"][data-mode="light"] { --bg:#E9ECEF; --card:#F6F8FA; --ink:#1D2530; --sub:#71808F; --line:#D2D9E0; --acc:#245A8D; --accInk:#F2F6FA; --soft:#DDE5EC; --chip:#E2E8EE; --ok:#2D7A55; --warn:#AE4B3B; }
+body[data-variant="o"][data-mode="dark"]  { --bg:#11151A; --card:#181E25; --ink:#DFE5EB; --sub:#7E8B99; --line:#252D36; --acc:#6FA3D0; --accInk:#10161C; --soft:#1F262E; --chip:#1C232B; --ok:#4CA47C; --warn:#D06F5B; }
+body[data-variant="p"][data-mode="light"] { --bg:#F7F3EC; --card:#FDFBF6; --ink:#2C2419; --sub:#8C8272; --line:#E5DECF; --acc:#4A3826; --accInk:#F7F3EA; --soft:#EFE9DC; --chip:#F1ECDF; --ok:#4E6E4C; --warn:#A2543C; }
+body[data-variant="p"][data-mode="dark"]  { --bg:#171310; --card:#1E1915; --ink:#EAE3D6; --sub:#96897A; --line:#2E2820; --acc:#C9B18C; --accInk:#191410; --soft:#272119; --chip:#241E17; --ok:#7FA478; --warn:#CB7A5B; }
+body[data-variant="q"][data-mode="light"] { --bg:#EFEDEA; --card:#F9F8F5; --ink:#211E1A; --sub:#7E786E; --line:#DDD8CF; --acc:#7A5C34; --accInk:#F7F4EE; --soft:#E7E2D8; --chip:#EBE7DE; --ok:#3E6B4F; --warn:#A44E37; }
+body[data-variant="q"][data-mode="dark"]  { --bg:#0E0D0B; --card:#161411; --ink:#E6E1D8; --sub:#8C8578; --line:#262219; --acc:#B08D57; --accInk:#141008; --soft:#1F1B15; --chip:#1C1813; --ok:#6E9B77; --warn:#C77455; }
+body[data-variant="r"][data-mode="light"] { --bg:#F1F1F3; --card:#FBFBFC; --ink:#212227; --sub:#797B84; --line:#DFDFE4; --acc:#4A4E69; --accInk:#F4F4F8; --soft:#E5E5EA; --chip:#E9E9ED; --ok:#31795A; --warn:#AC4D40; }
+body[data-variant="r"][data-mode="dark"]  { --bg:#121317; --card:#1A1B20; --ink:#E5E5E9; --sub:#888A93; --line:#27282F; --acc:#9FA3C1; --accInk:#14151B; --soft:#212228; --chip:#1E1F25; --ok:#4EA37D; --warn:#D0705E; }
+
 /* ---------- per-theme type & shape (mirrors the mini-app) ---------- */
 body { --radius: 16px; }
 body[data-variant="b"] { --font: Georgia, "Times New Roman", serif; --radius: 10px; }
@@ -40,6 +62,17 @@ body[data-variant="e"] { --font: "JetBrains Mono", ui-monospace, monospace; --ra
 body[data-variant="f"] { --font: Georgia, serif; --radius: 2px; }
 body[data-variant="g"] { --radius: 22px; }
 body[data-variant="h"] { --font: "Unbounded", "Archivo Black", system-ui, sans-serif; --radius: 14px; }
+body[data-variant="i"] { --radius: 8px; }
+body[data-variant="j"] { --font: "Helvetica Neue", Helvetica, Arial, sans-serif; --radius: 0px; }
+body[data-variant="j"] .card { border-width: 0 0 1px; box-shadow: none; }
+body[data-variant="k"] { --radius: 6px; }
+body[data-variant="l"] { --radius: 10px; }
+body[data-variant="m"] { --radius: 8px; }
+body[data-variant="n"] { --radius: 4px; }
+body[data-variant="o"] { --radius: 6px; }
+body[data-variant="p"] { --font: Georgia, "Times New Roman", serif; --radius: 10px; }
+body[data-variant="q"] { --radius: 8px; }
+body[data-variant="r"] { --radius: 12px; }
 body[data-variant="b"] .hero-title, body[data-variant="f"] .hero-title { font-family: "Instrument Serif", Georgia, serif; font-weight: 400; }
 
 /* ---------- shell ---------- */

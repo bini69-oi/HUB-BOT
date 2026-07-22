@@ -9,6 +9,7 @@ from sqlalchemy import CursorResult, func, select, update
 from sqlalchemy.exc import IntegrityError
 
 from src.infrastructure.database.dao.base import BaseDAO
+from src.infrastructure.database.models.linked_account import LinkedAccount
 from src.infrastructure.database.models.user import User
 
 
@@ -91,3 +92,16 @@ class UserDAO(BaseDAO[User]):
             .values(balance_minor=User.balance_minor + delta_minor)
         )
         await self.session.refresh(user, attribute_names=["balance_minor"])
+
+
+class LinkedAccountDAO(BaseDAO[LinkedAccount]):
+    model = LinkedAccount
+
+    async def get_identity(self, provider: str, external_id: str) -> LinkedAccount | None:
+        return await self.find_one(provider=provider, external_id=external_id)
+
+    async def list_for_user(self, user_id: int) -> list[LinkedAccount]:
+        stmt = (
+            select(LinkedAccount).where(LinkedAccount.user_id == user_id).order_by(LinkedAccount.id)
+        )
+        return list((await self.session.scalars(stmt)).all())

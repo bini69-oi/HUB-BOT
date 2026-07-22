@@ -8,7 +8,7 @@
   "use strict";
 
   var params = new URLSearchParams(location.search);
-  var NAMES = { minimal: "a", private: "b", buddy: "c", native: "d", terminal: "e", magazine: "f", neon: "g", pop: "h" };
+  var NAMES = { minimal: "a", private: "b", buddy: "c", native: "d", terminal: "e", magazine: "f", neon: "g", pop: "h", onyx: "i", swiss: "j", ledger: "k", graphite: "l", atlas: "m", noir: "n", steel: "o", ivory: "p", sable: "q", quartz: "r" };
 
   var RU = {
     navPlans: "Тарифы", navFeatures: "Возможности", navFaq: "Вопросы", cabinet: "Личный кабинет",
@@ -160,7 +160,7 @@
   function theme(cfg) {
     var v = params.get("variant") || cfg.template || "a";
     v = NAMES[v] || v;
-    document.body.dataset.variant = /^[a-h]$/.test(v) ? v : "a";
+    document.body.dataset.variant = /^[a-r]$/.test(v) ? v : "a";
     var accent = params.get("accent") || (!params.get("variant") ? cfg.accent_color : null);
     if (accent && /^#[0-9a-fA-F]{3,8}$/.test(accent)) {
       document.body.style.setProperty("--acc", accent);

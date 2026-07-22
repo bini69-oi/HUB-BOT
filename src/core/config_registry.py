@@ -485,6 +485,22 @@ REGISTRY: tuple[ParamSpec, ...] = (
         "Yandex OAuth secret",
     ),
     _p(
+        "OAUTH_VK_CLIENT_ID",
+        C.INTERFACE,
+        STR,
+        "",
+        "VK ID client id (id.vk.com)",
+        "VK ID client id (id.vk.com)",
+    ),
+    _p(
+        "OAUTH_VK_CLIENT_SECRET",
+        C.INTERFACE,
+        SECRET,
+        "",
+        "VK ID защищённый ключ",
+        "VK ID client secret",
+    ),
+    _p(
         "NALOGO_ENABLED",
         C.PAYMENTS,
         BOOL,

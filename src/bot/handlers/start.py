@@ -28,11 +28,52 @@ async def cmd_start(
     gift_note: str | None = None
     if param.startswith("gift_"):
         gift_note = await _claim_gift(container, db_user, param.removeprefix("gift_"))
+    elif param.startswith("link_"):
+        gift_note = await _link_web_account(container, db_user, param.removeprefix("link_"))
     elif param:
         await _attribute(container, db_user, param, created=db_user_created)
     if gift_note:
         await message.answer(gift_note, parse_mode="HTML")
     await send_main_menu(message, container, db_user)
+
+
+async def _link_web_account(container: AppContainer, db_user: User, code: str) -> str:
+    """t.me/<bot>?start=link_<CODE> — merge the web-cabinet account into this one.
+
+    The code was minted by the cabinet's «Привязать Telegram» button (single-use,
+    15 min). Everything the web account owns — подписка, баланс, история — moves to
+    the Telegram account; the site then opens the same, single account.
+    """
+    from src.application.services.account_link import (
+        TG_LINK_PREFIX,
+        AccountLinkError,
+        merge_web_into_telegram,
+    )
+
+    raw = await container.redis.getdel(f"{TG_LINK_PREFIX}{code.strip()}")  # single-use
+    try:
+        web_user_id = int(raw) if raw is not None else None
+    except (TypeError, ValueError):
+        web_user_id = None
+    if web_user_id is None:
+        return (
+            "🔗 Ссылка привязки устарела. Открой кабинет на сайте и нажми "
+            "«Привязать Telegram» ещё раз."
+        )
+    async with container.uow() as uow:
+        user = await uow.users.get(db_user.id)
+        if user is None:
+            return "Ошибка, попробуй ещё раз."
+        try:
+            await merge_web_into_telegram(uow, user, web_user_id)
+        except AccountLinkError as exc:
+            return f"🔗 Не получилось привязать: {exc}"
+        await uow.commit()
+    log.info("web account linked", user=db_user.id, web_user=web_user_id)
+    return (
+        "🔗 <b>Аккаунты связаны!</b> Подписка, баланс и история с сайта теперь здесь, "
+        "а на сайте ты видишь этот же аккаунт."
+    )
 
 
 async def _claim_gift(container: AppContainer, db_user: User, code: str) -> str:

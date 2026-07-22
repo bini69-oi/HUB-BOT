@@ -435,7 +435,7 @@ async def login_auto(
     return await _auth_response(container, user, device=request.headers.get("user-agent"))
 
 
-# --- OAuth (Google / Yandex) ------------------------------------------------
+# --- OAuth (Google / Yandex / VK ID) ----------------------------------------
 
 
 def _redirect_uri(cabinet_url: str) -> str:
@@ -456,22 +456,135 @@ async def _oauth_provider(container: AppContainer, name: str):  # type: ignore[n
 
 @router.get("/oauth/{provider}/authorize")
 async def oauth_authorize(
-    provider: str, container: AppContainer = Depends(get_container)
+    provider: str,
+    request: Request,
+    link: bool = False,
+    container: AppContainer = Depends(get_container),
 ) -> dict[str, Any]:
+    """Start an OAuth flow. With ``?link=1`` + an authenticated session the callback
+    ATTACHES the provider account to the current user instead of logging in."""
     await _require_web_enabled(container)
-    from src.infrastructure.services.oauth import save_state
+    from src.infrastructure.services.oauth import make_pkce_pair, save_state
 
     prov, cabinet_url = await _oauth_provider(container, provider)
     if prov is None or not cabinet_url:
         raise HTTPException(400, "provider not configured")
-    state = await save_state(container.redis, provider)
-    return {"authorize_url": prov.authorize_url(_redirect_uri(cabinet_url), state), "state": state}
+    payload: dict[str, Any] = {"provider": provider}
+    if link:
+        from src.web.routes.cabinet import cabinet_user
+
+        user = await cabinet_user(request, container)
+        payload["link_user_id"] = user.id
+    challenge = None
+    if prov.needs_pkce:
+        verifier, challenge = make_pkce_pair()
+        payload["verifier"] = verifier
+    state = await save_state(container.redis, payload)
+    return {
+        "authorize_url": prov.authorize_url(_redirect_uri(cabinet_url), state, challenge),
+        "state": state,
+    }
 
 
 class OAuthCallbackIn(BaseModel):
     provider: str = Field(..., min_length=2, max_length=32)
     code: str = Field(..., min_length=4, max_length=2048)
     state: str = Field(..., min_length=8, max_length=128)
+    device_id: str | None = Field(None, max_length=256)  # VK ID appends it to the callback
+
+
+async def _oauth_login(container: AppContainer, provider: str, info: Any) -> User:
+    """Resolve an OAuth identity to a local user: identity row first, verified e-mail
+    second, a brand-new account last (VK often has no e-mail — identity is the key)."""
+    from src.infrastructure.database.models.linked_account import LinkedAccount
+
+    async with container.uow() as uow:
+        ident = await uow.linked_accounts.get_identity(provider, info.provider_id)
+        if ident is not None:
+            user = await uow.users.get(ident.user_id)
+            if user is None:
+                raise HTTPException(401, "user gone")
+            if info.email and ident.email != info.email:
+                ident.email = info.email
+                await uow.commit()
+            return user
+
+        user = None
+        if info.email and info.email_verified:
+            user = await uow.users.get_by_email(info.email)
+            if user is not None and not user.email_verified:
+                # a never-confirmed local account must not be taken over via OAuth
+                raise HTTPException(409, "email exists but is unverified — log in and link instead")
+        if user is None:
+            user = User(
+                auth_type=AuthType.OAUTH,
+                email=info.email if (info.email and info.email_verified) else None,
+                email_verified=bool(info.email and info.email_verified),
+                first_name=(info.name or "")[:128] or None,
+                referral_code=generate_referral_code(),
+                currency=Currency.RUB,
+            )
+            await uow.users.add(user)
+            await uow.session.flush()
+        uow.session.add(
+            LinkedAccount(
+                user_id=user.id,
+                provider=provider,
+                external_id=info.provider_id,
+                email=info.email,
+                display_name=(info.name or "")[:128] or None,
+            )
+        )
+        try:
+            await uow.commit()
+        except IntegrityError as exc:  # lost a concurrent-login race for the same identity
+            raise HTTPException(409, "try again") from exc
+        user_id = user.id
+    async with container.uow() as uow:
+        fresh = await uow.users.get(user_id)
+    if fresh is None:
+        raise HTTPException(500, "oauth login failed")
+    return fresh
+
+
+async def _oauth_link(
+    container: AppContainer, provider: str, info: Any, user_id: int
+) -> dict[str, Any]:
+    """Attach the provider identity to an already-authenticated account."""
+    from src.infrastructure.database.models.linked_account import LinkedAccount
+
+    async with container.uow() as uow:
+        user = await uow.users.get(user_id)
+        if user is None:
+            raise HTTPException(401, "user gone")
+        ident = await uow.linked_accounts.get_identity(provider, info.provider_id)
+        if ident is not None:
+            if ident.user_id != user.id:
+                raise HTTPException(409, "этот аккаунт уже привязан к другому пользователю")
+            return {"ok": True, "linked": provider, "already": True}
+        uow.session.add(
+            LinkedAccount(
+                user_id=user.id,
+                provider=provider,
+                external_id=info.provider_id,
+                email=info.email,
+                display_name=(info.name or "")[:128] or None,
+            )
+        )
+        # Bonus: an account without an e-mail inherits the provider's verified one.
+        if (
+            not user.email
+            and info.email
+            and info.email_verified
+            and await uow.users.get_by_email(info.email) is None
+        ):
+            user.email = info.email
+            user.email_verified = True
+        try:
+            await uow.commit()
+        except IntegrityError as exc:
+            raise HTTPException(409, "этот аккаунт уже привязан к другому пользователю") from exc
+    return {"ok": True, "linked": provider}
 
 
 @router.post("/oauth/callback")
@@ -482,36 +595,23 @@ async def oauth_callback(
     from src.infrastructure.services.oauth import consume_state
 
     saved = await consume_state(container.redis, body.state)  # single-use (anti-replay)
-    if saved != body.provider:
+    if saved is None or saved.get("provider") != body.provider:
         raise HTTPException(401, "invalid or expired state")
     prov, cabinet_url = await _oauth_provider(container, body.provider)
     if prov is None or not cabinet_url:
         raise HTTPException(400, "provider not configured")
     try:
-        info = await prov.fetch_user(body.code, _redirect_uri(cabinet_url))
+        info = await prov.fetch_user(
+            body.code,
+            _redirect_uri(cabinet_url),
+            code_verifier=saved.get("verifier"),
+            device_id=body.device_id,
+        )
     except Exception as exc:
         raise HTTPException(400, f"oauth exchange failed: {exc}") from exc
-    if not info.email_verified:
-        raise HTTPException(403, "email not verified by the provider")
 
-    async with container.uow() as uow:
-        user = await uow.users.get_by_email(info.email)
-        if user is None:
-            user = User(
-                auth_type=AuthType.OAUTH,
-                email=info.email,
-                email_verified=True,
-                first_name=(info.name or "")[:128] or None,
-                referral_code=generate_referral_code(),
-                currency=Currency.RUB,
-            )
-            await uow.users.add(user)
-            await uow.commit()
-        elif not user.email_verified:
-            # a never-confirmed local account must not be taken over via OAuth
-            raise HTTPException(409, "email exists but is unverified — log in and link instead")
-        user_id = user.id
-        fresh = await uow.users.get(user_id)
-    if fresh is None:
-        raise HTTPException(500, "oauth login failed")
-    return await _auth_response(container, fresh, device=request.headers.get("user-agent"))
+    link_user_id = saved.get("link_user_id")
+    if link_user_id:
+        return await _oauth_link(container, body.provider, info, int(link_user_id))
+    user = await _oauth_login(container, body.provider, info)
+    return await _auth_response(container, user, device=request.headers.get("user-agent"))

@@ -56,7 +56,7 @@ from src.infrastructure.database.dao.promocode import (
 from src.infrastructure.database.dao.referral import ReferralDAO, ReferralEarningDAO
 from src.infrastructure.database.dao.subscription import SubscriptionDAO
 from src.infrastructure.database.dao.transaction import TransactionDAO
-from src.infrastructure.database.dao.user import UserDAO
+from src.infrastructure.database.dao.user import LinkedAccountDAO, UserDAO
 
 
 class UnitOfWork:
@@ -101,6 +101,7 @@ class UnitOfWork:
         self.report_topics = ReportTopicDAO(session)
         self.withdrawals = WithdrawalDAO(session)
         self.cabinet_tokens = CabinetRefreshTokenDAO(session)
+        self.linked_accounts = LinkedAccountDAO(session)
         self.server_nodes = ServerNodeDAO(session)
         self.audit = AuditLogDAO(session)
         self.constructor_periods = ConstructorPeriodDAO(session)

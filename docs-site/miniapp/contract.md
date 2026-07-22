@@ -44,6 +44,10 @@ Authorization: tma <initData>
 | `POST /api/cabinet/promocode` | tma | Активация промокода |
 | `POST /api/cabinet/trial` | tma | Активация пробного периода |
 | `POST /api/cabinet/subscription/reset-devices` (алиас `reset-link`) | tma | Ротация ссылки подписки + сброс сессий |
+| `GET /api/cabinet/linked` | tma/JWT | Способы входа аккаунта: почта, Telegram, OAuth-привязки |
+| `POST /api/cabinet/link/email` → `…/confirm` | tma/JWT | Привязка почты+пароля: код письмом → подтверждение |
+| `POST /api/cabinet/link/telegram` | JWT | Одноразовая deep-link-ссылка в бота для слияния аккаунтов |
+| `DELETE /api/cabinet/link/oauth/{provider}` | tma/JWT | Отвязать ВК/Яндекс/Google (последний способ входа не отвязывается) |
 | `GET /api/cabinet/config` | нет | Публичный конфиг темы (шелл красится до проверки initData) |
 | `GET /api/cabinet/public/plans` | нет | Тарифы для гостя (только при `WEB_CABINET_ENABLED`) |
 | `GET /api/cabinet/public/landing` | нет | Данные публичного сайта на `/` |

@@ -121,6 +121,16 @@ const TEMPLATE_NAMES: Record<string, string> = {
   magazine: "Журнал",
   neon: "Неон",
   pop: "Поп",
+  onyx: "Оникс",
+  swiss: "Швейцарский",
+  ledger: "Гроссбух",
+  graphite: "Графит",
+  atlas: "Атлас",
+  noir: "Нуар",
+  steel: "Сталь",
+  ivory: "Слоновая кость",
+  sable: "Соболь",
+  quartz: "Кварц",
 };
 
 /** Live mini-app preview: real /app/ in an iframe, scaled down, non-interactive. */
