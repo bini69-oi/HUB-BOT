@@ -180,13 +180,24 @@ async def _payment_methods(
         entries.append((f"{ok} {bal_label} ({fmt_money(db_user.balance_minor)})", "bal", "balance"))
     stars = max(1, math.ceil(price_minor / max(1, stars_rate)))
     entries.append((f"⭐ {stars_label} · {stars} ★", "stars", "stars"))
+    from src.application.services.pay_forms import gateway_form_options
+
     for g in await uow.payment_gateways.list():
         if (
             g.is_active
             and g.type in container.gateway_factory.supported()
             and g.type.value not in ("manual", "telegram_stars")
         ):
-            entries.append((f"💳 {g.display_name or g.type.value}", g.type.value, g.type.value))
+            name = g.display_name or g.type.value
+            # A form-routable gateway with several enabled methods (e.g. Platega СБП + Карта)
+            # becomes one button per method; everything else stays a single gateway button.
+            options = gateway_form_options(g.type, (g.settings or {}).get("enabled_forms"))
+            if options:
+                for form, flabel in options:
+                    code = f"{g.type.value}@{form}"
+                    entries.append((f"💳 {name} · {flabel}", code, g.type.value))
+            else:
+                entries.append((f"💳 {name}", g.type.value, g.type.value))
     entries.sort(key=lambda e: rank(e[2]))  # stable — unlisted methods keep default order
     return [(label, code) for label, code, _order_id in entries]
 
@@ -482,12 +493,14 @@ async def _pay_with_gateway(
     The provider webhook drives fulfilment through the standard pipeline.
     """
     from src.application.common.payments import PaymentContext, PaymentResultKind
+    from src.application.services.pay_forms import split_method
     from src.core.enums import PaymentGatewayType
     from src.core.money import Money
     from src.infrastructure.payments.crypto import decrypt_gateway_settings
 
+    gateway_value, form = split_method(method)  # "platega@sbp" -> ("platega", "sbp")
     try:
-        gtype = PaymentGatewayType(method)
+        gtype = PaymentGatewayType(gateway_value)
     except ValueError:
         await cb.answer("Неизвестный способ оплаты", show_alert=True)
         return
@@ -518,6 +531,7 @@ async def _pay_with_gateway(
                     description=f"{title} · {req.duration_days} дн.",
                     user_id=req.user_id,
                     telegram_id=cb.from_user.id if cb.from_user else None,
+                    metadata={"form": form} if form else {},
                 )
             )
         except Exception as exc:

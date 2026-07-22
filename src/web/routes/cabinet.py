@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import contextlib
 import math
+from collections.abc import Iterable
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Request
@@ -45,6 +46,29 @@ log = get_logger(__name__)
 router = APIRouter(prefix="/api/cabinet", tags=["cabinet"])
 
 GIB = 1024**3
+
+
+def _gateway_methods(gateways: Iterable[Any], supported: Iterable[Any]) -> list[dict[str, str]]:
+    """Online payment methods for the cabinet, expanding a form-routable gateway (Platega)
+    into one entry per enabled method — id ``"platega@sbp"``, label ``"Platega · СБП"``."""
+    from src.application.services.pay_forms import gateway_form_options
+
+    out: list[dict[str, str]] = []
+    for g in gateways:
+        if not (
+            g.is_active and g.type in supported and g.type.value not in ("manual", "telegram_stars")
+        ):
+            continue
+        name = g.display_name or g.type.value
+        options = gateway_form_options(g.type, (g.settings or {}).get("enabled_forms"))
+        if options:
+            out.extend(
+                {"id": f"{g.type.value}@{form}", "label": f"{name} · {flabel}"}
+                for form, flabel in options
+            )
+        else:
+            out.append({"id": g.type.value, "label": name})
+    return out
 
 
 def _proxy_link(raw: str) -> str:
@@ -143,13 +167,9 @@ async def me(
         sales_mode = str(await cfg.value(uow, "SALES_MODE"))
         hide_link = bool(await cfg.value(uow, "HIDE_SUBSCRIPTION_LINK"))
         show_traffic = bool(await cfg.value(uow, "SHOW_TRAFFIC_USAGE"))
-        gateways = [
-            {"id": g.type.value, "label": g.display_name or g.type.value}
-            for g in await uow.payment_gateways.list()
-            if g.is_active
-            and g.type in container.gateway_factory.supported()
-            and g.type.value not in ("manual", "telegram_stars")
-        ]
+        gateways = _gateway_methods(
+            await uow.payment_gateways.list(), container.gateway_factory.supported()
+        )
         # Operator-controlled payment-method order + Balance/Stars labels (shared with the bot).
         from src.core.payment_order import order_rank
 
@@ -269,13 +289,9 @@ async def public_plans(container: AppContainer = Depends(get_container)) -> dict
     async with container.uow() as uow:
         if not bool(await container.bot_config.value(uow, "WEB_CABINET_ENABLED")):
             raise HTTPException(403, "web cabinet is disabled")
-        methods = [
-            {"id": g.type.value, "label": g.display_name or g.type.value}
-            for g in await uow.payment_gateways.list()
-            if g.is_active
-            and g.type in container.gateway_factory.supported()
-            and g.type.value not in ("manual", "telegram_stars")
-        ]
+        methods = _gateway_methods(
+            await uow.payment_gateways.list(), container.gateway_factory.supported()
+        )
     return {"currency": "RUB", "items": await _plan_items(container), "payment_methods": methods}
 
 
@@ -506,10 +522,12 @@ async def _pay_with_gateway(
     The provider webhook completes the transaction through the standard idempotent
     pipeline; nothing is fulfilled here.
     """
+    from src.application.services.pay_forms import split_method
     from src.core.enums import PaymentGatewayType
 
+    gateway_value, form = split_method(method)  # "platega@sbp" -> ("platega", "sbp")
     try:
-        gtype = PaymentGatewayType(method)
+        gtype = PaymentGatewayType(gateway_value)
     except ValueError as exc:
         raise HTTPException(400, "unknown payment method") from exc
 
@@ -540,6 +558,7 @@ async def _pay_with_gateway(
                     user_id=user.id,
                     telegram_id=user.telegram_id,
                     return_url=miniapp_url or None,
+                    metadata={"form": form} if form else {},
                 )
             )
         except Exception as exc:

@@ -1,6 +1,71 @@
-/* Shared primitives: Toggle, Segmented, KPI, Bars, Modal, Drawer, Prog. */
+/* Shared primitives: Toggle, Segmented, KPI, Bars, Modal, Drawer, Prog, SecretInput. */
 
-import { type ReactNode } from "react";
+import { type CSSProperties, type ReactNode, useState } from "react";
+
+/* A credential/secret input that (1) does NOT use type="password", so the browser never
+   autofills a saved login password into it, and (2) shows its value by default with a 👁
+   toggle to mask on demand. Masking uses -webkit-text-security (a CSS mask on a text field)
+   instead of type=password, keeping autofill off while still hiding the value when wanted. */
+export function SecretInput({
+  value,
+  onChange,
+  onBlur,
+  placeholder,
+  className,
+  style,
+}: {
+  value: string;
+  onChange: (v: string) => void;
+  onBlur?: (v: string) => void;
+  placeholder?: string;
+  className?: string;
+  style?: CSSProperties;
+}) {
+  const [show, setShow] = useState(true);
+  return (
+    <span style={{ position: "relative", display: "flex", flex: style?.flex, width: style?.width }}>
+      <input
+        className={className}
+        style={{
+          ...style,
+          width: "100%",
+          paddingRight: 30,
+          WebkitTextSecurity: show ? "none" : "disc",
+        } as CSSProperties}
+        type="text"
+        autoComplete="off"
+        autoCorrect="off"
+        autoCapitalize="off"
+        spellCheck={false}
+        data-lpignore="true"
+        data-1p-ignore="true"
+        value={value}
+        placeholder={placeholder}
+        onChange={(e) => onChange(e.target.value)}
+        onBlur={onBlur ? (e) => onBlur(e.target.value) : undefined}
+      />
+      <button
+        type="button"
+        onClick={() => setShow((s) => !s)}
+        title={show ? "Скрыть" : "Показать"}
+        style={{
+          position: "absolute",
+          right: 6,
+          top: "50%",
+          transform: "translateY(-50%)",
+          background: "none",
+          border: 0,
+          cursor: "pointer",
+          fontSize: 13,
+          lineHeight: 1,
+          color: "var(--dim)",
+        }}
+      >
+        {show ? "🙈" : "👁"}
+      </button>
+    </span>
+  );
+}
 
 export function Toggle({
   on,

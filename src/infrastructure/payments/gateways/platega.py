@@ -38,6 +38,11 @@ API = "https://app.platega.io"
 _PAID = {"CONFIRMED"}
 _CLOSED = {"CANCELED", "CANCELLED", "CHARGEBACKED", "EXPIRED", "REJECTED", "FAILED"}
 
+# Buyer-facing form -> Platega provider method id (2=SBP QR, 11=card acquiring, 13=crypto).
+# When several forms are enabled the owner offers each as its own payment button; the chosen
+# form arrives in the context metadata and selects the method here.
+_FORM_METHOD = {"sbp": 2, "card": 11, "crypto": 13}
+
 
 class PlategaGateway(BasePaymentGateway):
     gateway_type = PaymentGatewayType.PLATEGA
@@ -57,10 +62,17 @@ class PlategaGateway(BasePaymentGateway):
         mid, secret = self._creds()
         return {"X-MerchantId": mid, "X-Secret": secret}
 
+    def _method_id(self, ctx: PaymentContext) -> int:
+        # The buyer's chosen form (metadata['form']) wins; else the configured default; else SBP.
+        form = ctx.metadata.get("form")
+        if form and form in _FORM_METHOD:
+            return _FORM_METHOD[form]
+        return int(self.settings.get("payment_method") or 2)
+
     async def create_payment(self, ctx: PaymentContext) -> PaymentResult:
         value = float((Decimal(ctx.amount.amount_minor) / 100).quantize(Decimal("0.01")))
         payload: dict[str, Any] = {
-            "paymentMethod": int(self.settings.get("payment_method") or 2),
+            "paymentMethod": self._method_id(ctx),
             "paymentDetails": {"amount": value, "currency": ctx.amount.currency.value},
             "description": (ctx.description or "VPN subscription")[:128],
             "return": ctx.return_url or "https://t.me",

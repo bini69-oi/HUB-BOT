@@ -62,6 +62,46 @@ async def test_platega_create_and_webhook() -> None:
         )
 
 
+@respx.mock
+async def test_platega_form_selects_method() -> None:
+    # The buyer's chosen form (metadata['form']) picks Platega's provider method id:
+    # sbp -> 2, card -> 11, crypto -> 13. No form falls back to the configured default.
+    captured: dict[str, object] = {}
+
+    def _capture(request: httpx.Request) -> httpx.Response:
+        captured.update(json.loads(request.content))
+        return httpx.Response(200, json={"transactionId": "t", "redirect": "https://p/t"})
+
+    respx.post("https://app.platega.io/transaction/process").mock(side_effect=_capture)
+    gw = PlategaGateway({"merchant_id": "m", "secret": "s", "payment_method": 2})
+
+    ctx_card = PaymentContext(
+        payment_id=uuid.uuid4(),
+        amount=Money(19900, Currency.RUB),
+        description="x",
+        user_id=1,
+        metadata={"form": "card"},
+    )
+    await gw.create_payment(ctx_card)
+    assert captured["paymentMethod"] == 11  # card acquiring
+
+    await gw.create_payment(_ctx())  # no form -> configured default (2 = SBP)
+    assert captured["paymentMethod"] == 2
+
+
+def test_pay_forms_helpers() -> None:
+    from src.application.services.pay_forms import gateway_form_options, split_method
+    from src.core.enums import PaymentGatewayType
+
+    # several enabled Platega forms -> one option each; a single form -> no separate buttons
+    opts = gateway_form_options(PaymentGatewayType.PLATEGA, ["sbp", "card"])
+    assert opts == [("sbp", "СБП"), ("card", "Карта")]
+    assert gateway_form_options(PaymentGatewayType.PLATEGA, ["sbp"]) == []
+    assert gateway_form_options(PaymentGatewayType.YOOKASSA, ["card", "sbp"]) == []  # not routable
+    assert split_method("platega@sbp") == ("platega", "sbp")
+    assert split_method("yookassa") == ("yookassa", None)
+
+
 # --- Robokassa ----------------------------------------------------------------
 
 

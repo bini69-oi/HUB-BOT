@@ -12,8 +12,9 @@ from pathlib import Path
 
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import HTMLResponse, JSONResponse
+from fastapi.responses import HTMLResponse, JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
+from starlette.types import Scope
 
 from src.core.config import get_settings
 from src.core.logging import configure_logging, get_logger
@@ -37,6 +38,19 @@ _SITE_DIR = Path(__file__).resolve().parents[2] / "site"
 _UPLOADS_DIR = Path("uploads")
 
 log = get_logger(__name__)
+
+
+class NoCacheHTMLStatic(StaticFiles):
+    """StaticFiles that tells the browser never to cache .html (the SPA entry point),
+    while hashed JS/CSS assets keep their long cache. Without this a cached index.html
+    keeps loading the OLD asset hashes after a deploy, so the admin never sees the new
+    build — the exact «фронт не подхватывает свежую версию» complaint."""
+
+    async def get_response(self, path: str, scope: Scope) -> Response:
+        response = await super().get_response(path, scope)
+        if path.endswith(".html") or path in ("", "/", "."):
+            response.headers["Cache-Control"] = "no-cache, must-revalidate"
+        return response
 
 
 async def unhandled_error_handler(request: Request, exc: Exception) -> JSONResponse:
@@ -162,12 +176,19 @@ def create_app() -> FastAPI:
             f"<iframe src=\"{href}\" style='display:none' aria-hidden=true></iframe>"
         )
 
+    @app.get("/api/version")
+    async def _version() -> JSONResponse:
+        """Public build id — the SPA shows it and polls it to detect a fresh deploy."""
+        from src.core.constants import APP_VERSION
+
+        return JSONResponse({"version": APP_VERSION, "build": get_settings().app.build_sha or ""})
+
     if _ADMIN_DIST.is_dir():
-        app.mount("/admin", StaticFiles(directory=_ADMIN_DIST, html=True), name="admin-spa")
+        app.mount("/admin", NoCacheHTMLStatic(directory=_ADMIN_DIST, html=True), name="admin-spa")
     if _MINIAPP_DIR.is_dir():
-        app.mount("/app", StaticFiles(directory=_MINIAPP_DIR, html=True), name="miniapp")
+        app.mount("/app", NoCacheHTMLStatic(directory=_MINIAPP_DIR, html=True), name="miniapp")
     if _WEB_DIR.is_dir():
-        app.mount("/web", StaticFiles(directory=_WEB_DIR, html=True), name="web-cabinet")
+        app.mount("/web", NoCacheHTMLStatic(directory=_WEB_DIR, html=True), name="web-cabinet")
     _UPLOADS_DIR.mkdir(exist_ok=True)
     app.mount("/uploads", StaticFiles(directory=_UPLOADS_DIR), name="uploads")
     # The public site is a catch-all at "/", so it MUST mount last — after every API

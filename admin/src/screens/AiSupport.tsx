@@ -115,7 +115,11 @@ export default function AiSupport() {
               <Field label={t.aiKey}>
                 <input
                   className="input mono"
-                  type="password"
+                  type="text"
+                  autoComplete="off"
+                  spellCheck={false}
+                  data-lpignore="true"
+                  data-1p-ignore="true"
                   value={key}
                   placeholder="sk-ant-…"
                   onFocus={() => key === MASK && setKey("")}

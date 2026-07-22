@@ -4,7 +4,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 
 import { api, dtTime, money } from "../api/client";
-import { Kpi, Seg, Toggle } from "../components/ui";
+import { Kpi, SecretInput, Seg, Toggle } from "../components/ui";
 import { useApp } from "../state/app";
 
 type Stats = {
@@ -421,15 +421,12 @@ export default function Payments() {
                         <span className="caps" style={{ width: 130, flex: "0 0 auto" }}>
                           {k.replace(/_/g, " ")}
                         </span>
-                        <input
+                        <SecretInput
                           className="input mono"
                           style={{ flex: 1 }}
-                          type={/id$/.test(k) ? "text" : "password"}
                           placeholder={p.configured_keys.includes(k) ? "••••••••" : ""}
                           value={draft[`${p.type}.${k}`] ?? ""}
-                          onChange={(e) =>
-                            setDraft((d) => ({ ...d, [`${p.type}.${k}`]: e.target.value }))
-                          }
+                          onChange={(v) => setDraft((d) => ({ ...d, [`${p.type}.${k}`]: v }))}
                         />
                       </label>
                     ))}

@@ -2,7 +2,7 @@
    panel badge, theme/lang segments, avatar). */
 
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
 
 import { api, setToken } from "../api/client";
@@ -13,7 +13,61 @@ type Me = { user_id: number; username: string; role: string };
 type Counters = { all: number };
 type TicketsResp = { open_count: number };
 
-const VERSION = "CORE v0.1.0 · CABINET v0.2.0";
+/* Live build version, bottom-right. Polls /api/version; when the server ships a newer
+   build than the one this page loaded with, it offers a one-click reload (index.html is
+   served no-cache, so the reload pulls the fresh SPA). Fixes "фронт не подхватывает
+   свежую версию" + shows the actual running version. */
+function VersionBadge() {
+  const v = useQuery({
+    queryKey: ["app-version"],
+    queryFn: () => api.get<{ version: string; build: string }>("/api/version"),
+    refetchInterval: 60_000,
+    staleTime: 30_000,
+  });
+  const loaded = useRef<string | null>(null);
+  const current = v.data?.version ?? null;
+  if (current && loaded.current === null) loaded.current = current;
+  const stale = current !== null && loaded.current !== null && current !== loaded.current;
+  return (
+    <div
+      style={{
+        position: "fixed",
+        right: 12,
+        bottom: 10,
+        zIndex: 50,
+        fontSize: 11,
+        display: "flex",
+        alignItems: "center",
+        gap: 8,
+        pointerEvents: stale ? "auto" : "none",
+      }}
+    >
+      {stale && (
+        <button
+          onClick={() => window.location.reload()}
+          style={{
+            border: "1px solid var(--accent, #F7971D)",
+            background: "var(--accent, #F7971D)",
+            color: "#000",
+            borderRadius: 20,
+            padding: "4px 11px",
+            cursor: "pointer",
+            fontWeight: 600,
+            fontSize: 11,
+          }}
+        >
+          🔄 Новая версия — обновить
+        </button>
+      )}
+      <span
+        className="mono"
+        style={{ color: "var(--dim)", background: "var(--panel)", padding: "3px 8px", borderRadius: 6, opacity: 0.85 }}
+      >
+        v{current ?? "…"}
+      </span>
+    </div>
+  );
+}
 
 export function BrandLogo({ size = 15 }: { size?: number }) {
   return (
@@ -186,7 +240,6 @@ export default function Layout() {
             <span className="status-dot" />
             REMNAWAVE · SYNC
           </span>
-          <span className="caps">{VERSION}</span>
         </div>
       </aside>
 
@@ -238,6 +291,7 @@ export default function Layout() {
           </div>
         </main>
       </div>
+      <VersionBadge />
     </div>
   );
 }

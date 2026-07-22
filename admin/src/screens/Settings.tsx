@@ -6,7 +6,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
 
 import { api } from "../api/client";
-import { Toggle } from "../components/ui";
+import { SecretInput, Toggle } from "../components/ui";
 import { useApp } from "../state/app";
 
 type Param = {
@@ -123,11 +123,19 @@ export default function Settings() {
         <div className="row">
           {p.type === "bool" ? (
             <Toggle on={Boolean(v)} onChange={(nv) => setValue(p.key, nv)} />
+          ) : p.type === "secret" ? (
+            <SecretInput
+              className="input mono"
+              style={{ width: 220 }}
+              value={String(v ?? "")}
+              onChange={(nv) => setValue(p.key, nv)}
+            />
           ) : (
             <input
               className={`input ${p.type === "int" ? "num" : "mono"}`}
               style={{ width: p.type === "int" ? 110 : 220 }}
-              type={p.type === "secret" ? "password" : "text"}
+              type="text"
+              autoComplete="off"
               value={String(v ?? "")}
               onChange={(e) =>
                 setValue(p.key, p.type === "int" ? Number(e.target.value) || 0 : e.target.value)

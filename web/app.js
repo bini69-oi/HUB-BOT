@@ -76,8 +76,20 @@ function el(tag, attrs = {}, children = []) {
   return n;
 }
 
+// Owner brand title from /api/cabinet/config (falls back to «VPN HUB» until loaded / if unset).
+let brandTitle = "";
 function brand() {
+  if (brandTitle) return el("div", { class: "brand" }, [el("span", {}, brandTitle)]);
   return el("div", { class: "brand" }, [el("span", {}, "VPN"), el("span", { class: "b" }, "HUB")]);
+}
+async function loadBrand() {
+  try {
+    const c = await api("GET", `${C}/config`);
+    if (c && c.title) {
+      brandTitle = String(c.title);
+      document.title = brandTitle;
+    }
+  } catch {}
 }
 
 /* ---------- auth screens ---------- */
@@ -477,6 +489,7 @@ async function boot() {
       if (e && e.status === 401) localStorage.removeItem("wc_auto");
     }
   }
+  await loadBrand();  // owner title before first paint (falls back to VPN HUB)
   view = store.access ? "cabinet" : "auth";
   render();
 }
