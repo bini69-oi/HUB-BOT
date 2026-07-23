@@ -65,8 +65,12 @@ export default function BotImages() {
   // In «one» mode only the default slot matters; per_screen shows all.
   const shown = mode === "one" ? slots.filter((s) => s.key === "BANNER_DEFAULT") : slots;
 
+  function isVideo(v: string): boolean {
+    return /\.(mp4|webm)(\?|$)/i.test(v);
+  }
   function isImg(v: string): boolean {
-    return /\.(jpg|jpeg|png|webp|gif)$/i.test(v) || v.startsWith("http") || v.startsWith("uploads/");
+    if (!v || isVideo(v)) return false; // mp4/webm can't render in <img>
+    return /\.(jpg|jpeg|png|webp|gif)(\?|$)/i.test(v) || v.startsWith("http") || v.startsWith("uploads/");
   }
 
   return (
@@ -110,6 +114,8 @@ export default function BotImages() {
                 <div style={{ width: 90, height: 60, borderRadius: 8, border: "1px solid var(--border2)", overflow: "hidden", flex: "0 0 auto", display: "grid", placeItems: "center", background: "var(--panel2)" }}>
                   {v && isImg(v) ? (
                     <img src={v.startsWith("uploads/") ? "/" + v : v} alt="" style={{ maxWidth: "100%", maxHeight: "100%" }} />
+                  ) : v && isVideo(v) ? (
+                    <span title={v} style={{ fontSize: 20 }}>🎞</span>
                   ) : (
                     <span className="dim" style={{ fontSize: 20 }}>🚫</span>
                   )}

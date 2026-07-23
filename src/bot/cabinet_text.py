@@ -54,7 +54,9 @@ def _subst(template: str, values: dict[str, object]) -> str:
         tokens = _TOKEN.findall(line)
         if any(values.get(tok, "") is None for tok in tokens):
             continue  # a None-valued placeholder hides its entire line
-        out_lines.append(_TOKEN.sub(lambda m: str(values.get(m.group(1), "") or ""), line))
+        # str(value) — NOT `value or ""`: a legit 0 (e.g. «Друзей: 0», «Устройств: 0») must
+        # render as "0", not vanish. None is already handled by the line-drop above.
+        out_lines.append(_TOKEN.sub(lambda m: str(values.get(m.group(1), "")), line))
     return "\n".join(out_lines)
 
 

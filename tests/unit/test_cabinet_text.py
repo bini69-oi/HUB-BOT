@@ -90,3 +90,15 @@ def test_apply_custom_emoji() -> None:
     assert apply_custom_emoji("t", "") == "t"
     assert apply_custom_emoji("t", "notdigits 🔥") == "t"
     assert apply_custom_emoji("t", "123") == "t"  # id without fallback char
+
+
+def test_zero_placeholder_renders_as_zero_not_blank() -> None:
+    # regression: `str(v or "")` collapsed a legit 0 to "" — «Друзей: 0» / «Устройств: 0» vanished
+    out = render_cabinet_text(
+        main="Друзей: {друзей}",
+        sub_active="",
+        sub_inactive="",
+        is_active=False,
+        values={"друзей": 0},
+    )
+    assert out == "Друзей: 0"

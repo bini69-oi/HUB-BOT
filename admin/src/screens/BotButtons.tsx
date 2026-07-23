@@ -71,7 +71,7 @@ function BotTextsCard() {
   }
 
   const chip = { border: "1px solid var(--border2)", borderRadius: 20, padding: "3px 9px", fontSize: 12, cursor: "pointer", background: "var(--panel)", color: "var(--text)" } as const;
-  function Area({ field, label, rows = 4 }: { field: TextField; label: string; rows?: number }) {
+  function area({ field, label, rows = 4 }: { field: TextField; label: string; rows?: number }) {
     return (
       <div>
         <div className="caps" style={{ marginBottom: 4 }}>{label}</div>
@@ -95,13 +95,13 @@ function BotTextsCard() {
         <button className="btn primary sm" onClick={save}>{t.saveApply}</button>
       </div>
       <div className="grid" style={{ gap: 16, maxWidth: 720 }}>
-        <Area field="main_menu" label={t.mainMenuText} rows={4} />
+        {area({ field: "main_menu", label: t.mainMenuText, rows: 4 })}
         <div>
           <div className="caps" style={{ marginBottom: 4 }}>{t.textEmoji}</div>
           <input className="input mono" style={{ width: "100%" }} placeholder="5368324170671202286 🔥" value={val("menu_emoji")} onChange={(e) => set("menu_emoji", e.target.value)} />
           <div className="muted" style={{ fontSize: 11.5, marginTop: 3 }}>{t.textEmojiHint}</div>
         </div>
-        <Area field="cabinet" label={t.cabinetText} rows={5} />
+        {area({ field: "cabinet", label: t.cabinetText, rows: 5 })}
         <div>
           <div className="caps" style={{ marginBottom: 4 }}>{t.textEmoji}</div>
           <input className="input mono" style={{ width: "100%" }} placeholder="5368324170671202286 🔥" value={val("cabinet_emoji")} onChange={(e) => set("cabinet_emoji", e.target.value)} />
@@ -112,8 +112,8 @@ function BotTextsCard() {
           ))}
           <button style={{ ...chip, borderStyle: "dashed" }} onClick={() => set("cabinet", q.data!.defaults.cabinet)}>↺ {t.reset}</button>
         </div>
-        <Area field="cabinet_sub_active" label={t.cabinetSubActive} rows={4} />
-        <Area field="cabinet_sub_inactive" label={t.cabinetSubInactive} rows={2} />
+        {area({ field: "cabinet_sub_active", label: t.cabinetSubActive, rows: 4 })}
+        {area({ field: "cabinet_sub_inactive", label: t.cabinetSubInactive, rows: 2 })}
         <div className="row" style={{ flexWrap: "wrap", gap: 6 }}>
           {q.data.placeholders.sub.map((p) => (
             <span key={p} style={chip} onMouseDown={(e) => { e.preventDefault(); insert(p); }}>{p}</span>
@@ -266,6 +266,91 @@ const SWATCHES = ["", "#31A24C", "#2E63E7", "#E53935", "#F59E0B", "#7C5CFF", "#1
 let nextId = 1;
 function genId(): string {
   return `n${Date.now().toString(36)}${nextId++}`;
+}
+
+function kidsOf(nodes: Node[], parent: string | null): Node[] {
+  return nodes
+    .filter((n) => n.parent === parent)
+    .sort(
+      (a, b) => (a.row_index ?? 0) - (b.row_index ?? 0) || (a.order_index ?? 0) - (b.order_index ?? 0),
+    );
+}
+
+// Context passed to the module-level TreeRow. TreeRow MUST live at module scope (not nested in
+// BotButtons) — a component redefined every render remounts its DOM node, which aborts an
+// in-progress native drag. A stable component keeps the row's DOM node across re-renders.
+type TreeCtx = {
+  nodes: Node[];
+  selId: string | null;
+  dragId: string | null;
+  dropId: string | null;
+  select: (id: string) => void;
+  startDrag: (id: string) => void;
+  overDrag: (id: string) => void;
+  leaveDrag: (id: string) => void;
+  drop: (id: string) => void;
+  endDrag: () => void;
+  kindLabel: (k: Node["kind"]) => string;
+};
+
+function TreeRow({ node, depth, ctx }: { node: Node; depth: number; ctx: TreeCtx }) {
+  const children = kidsOf(ctx.nodes, node.id);
+  return (
+    <div style={{ position: "relative" }}>
+      <div
+        className="row click"
+        draggable
+        onDragStart={(e) => { ctx.startDrag(node.id); e.dataTransfer.effectAllowed = "move"; }}
+        onDragOver={(e) => { if (ctx.dragId && ctx.dragId !== node.id) { e.preventDefault(); ctx.overDrag(node.id); } }}
+        onDragLeave={() => ctx.leaveDrag(node.id)}
+        onDrop={(e) => { e.preventDefault(); ctx.drop(node.id); }}
+        onDragEnd={() => ctx.endDrag()}
+        style={{
+          padding: "8px 10px",
+          cursor: ctx.dragId ? "grabbing" : "grab",
+          background: node.id === ctx.selId ? "var(--pill)" : "var(--panel2)",
+          border:
+            node.id === ctx.dropId
+              ? "1px dashed var(--accent, #F7971D)"
+              : node.id === ctx.selId
+                ? "1px solid var(--muted)"
+                : "1px solid var(--border)",
+          borderRadius: 6,
+          marginBottom: 6,
+          opacity: node.id === ctx.dragId ? 0.5 : 1,
+        }}
+        onClick={() => ctx.select(node.id)}
+      >
+        <span style={{ color: "var(--dim)", cursor: "grab", flex: "0 0 auto" }}>⠿</span>
+        <span
+          style={{
+            width: 10,
+            height: 10,
+            borderRadius: node.kind === "screen" ? 2 : "50%",
+            background: node.color || "var(--border2)",
+            flex: "0 0 auto",
+          }}
+        />
+        <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+          {node.label}
+        </span>
+        {node.image_path && <span title="картинка/GIF экрана">🖼</span>}
+        <span className="cap-pill" style={{ marginLeft: "auto" }}>
+          {ctx.kindLabel(node.kind)}
+        </span>
+      </div>
+      {children.length > 0 && (
+        <div style={{ marginLeft: 14, paddingLeft: 16, borderLeft: "2px solid var(--border2)" }}>
+          {children.map((c) => (
+            <div key={c.id} style={{ position: "relative" }}>
+              <span style={{ position: "absolute", left: -16, top: 17, width: 12, height: 2, background: "var(--border2)" }} />
+              <TreeRow node={c} depth={depth + 1} ctx={ctx} />
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
 }
 
 export default function BotButtons() {
@@ -501,81 +586,6 @@ export default function BotButtons() {
     return out;
   }, [previewButtons]);
 
-  function TreeRow({ node, depth }: { node: Node; depth: number }) {
-    const children = kids(node.id);
-    return (
-      <div style={{ position: "relative" }}>
-        <div
-          className="row click"
-          draggable
-          onDragStart={(e) => { setDragId(node.id); e.dataTransfer.effectAllowed = "move"; }}
-          onDragOver={(e) => { if (dragId && dragId !== node.id) { e.preventDefault(); setDropId(node.id); } }}
-          onDragLeave={() => setDropId((d) => (d === node.id ? null : d))}
-          onDrop={(e) => { e.preventDefault(); dropOnNode(node.id); }}
-          onDragEnd={() => { setDragId(null); setDropId(null); }}
-          style={{
-            padding: "8px 10px",
-            cursor: dragId ? "grabbing" : "grab",
-            background: node.id === selId ? "var(--pill)" : "var(--panel2)",
-            border:
-              node.id === dropId
-                ? "1px dashed var(--accent, #F7971D)"
-                : node.id === selId
-                  ? "1px solid var(--muted)"
-                  : "1px solid var(--border)",
-            borderRadius: 6,
-            marginBottom: 6,
-            opacity: node.id === dragId ? 0.5 : 1,
-          }}
-          onClick={() => setSelId(node.id)}
-        >
-          <span style={{ color: "var(--dim)", cursor: "grab", flex: "0 0 auto" }}>⠿</span>
-          <span
-            style={{
-              width: 10,
-              height: 10,
-              borderRadius: node.kind === "screen" ? 2 : "50%",
-              background: node.color || "var(--border2)",
-              flex: "0 0 auto",
-            }}
-          />
-          <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-            {node.label}
-          </span>
-          {node.image_path && <span title="картинка/GIF экрана">🖼</span>}
-          <span className="cap-pill" style={{ marginLeft: "auto" }}>
-            {kindLabel(node.kind)}
-          </span>
-        </div>
-        {children.length > 0 && (
-          <div
-            style={{
-              marginLeft: 14,
-              paddingLeft: 16,
-              borderLeft: "2px solid var(--border2)",
-            }}
-          >
-            {children.map((c) => (
-              <div key={c.id} style={{ position: "relative" }}>
-                <span
-                  style={{
-                    position: "absolute",
-                    left: -16,
-                    top: 17,
-                    width: 12,
-                    height: 2,
-                    background: "var(--border2)",
-                  }}
-                />
-                <TreeRow node={c} depth={depth + 1} />
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
-    );
-  }
-
   function kindLabel(kind: Node["kind"]): string {
     return {
       screen: t.kindScreen,
@@ -585,6 +595,21 @@ export default function BotButtons() {
       back: t.kindBack,
     }[kind];
   }
+
+  // Stable-per-render context for the module-level TreeRow (see the note there).
+  const treeCtx: TreeCtx = {
+    nodes,
+    selId,
+    dragId,
+    dropId,
+    select: setSelId,
+    startDrag: setDragId,
+    overDrag: setDropId,
+    leaveDrag: (id) => setDropId((d) => (d === id ? null : d)),
+    drop: dropOnNode,
+    endDrag: () => { setDragId(null); setDropId(null); },
+    kindLabel,
+  };
 
   return (
     <>
@@ -605,7 +630,7 @@ export default function BotButtons() {
           </div>
           <div className="grid" style={{ gap: 2 }}>
             {kids(null).map((n) => (
-              <TreeRow key={n.id} node={n} depth={0} />
+              <TreeRow key={n.id} node={n} depth={0} ctx={treeCtx} />
             ))}
           </div>
           <button className="btn secondary" style={{ marginTop: 12, width: "100%" }} onClick={addNode}>

@@ -74,3 +74,16 @@ def test_parse_custom_buttons_validates() -> None:
     assert parse_custom_buttons('[{"label":"tg","url":"tg://resolve?domain=x"}]')[0][
         "url"
     ].startswith("tg://")
+
+
+def test_custom_buttons_normalize_scheme() -> None:
+    from src.bot.cabinet_menu import normalize_button_url, parse_custom_buttons
+
+    # bare t.me/… gets https:// (else Telegram BUTTON_URL_INVALID bricks the whole screen)
+    assert normalize_button_url("t.me/chan") == "https://t.me/chan"
+    assert normalize_button_url("https://a.b") == "https://a.b"
+    assert normalize_button_url("tg://resolve?domain=x") == "tg://resolve?domain=x"
+    assert normalize_button_url("example.com") is None  # scheme-less non-t.me -> rejected
+    assert normalize_button_url("javascript:alert(1)") is None
+    got = parse_custom_buttons('[{"label":"Канал","url":"t.me/chan"}]')
+    assert got == [{"label": "Канал", "url": "https://t.me/chan"}]

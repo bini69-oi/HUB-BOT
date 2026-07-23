@@ -65,13 +65,22 @@ def cabinet_buttons(raw: str | None, *, flags: dict[str, bool]) -> list[tuple[st
     return out
 
 
-def _valid_url(u: str) -> bool:
-    return u.startswith(("https://", "http://", "tg://")) or "t.me/" in u
+def normalize_button_url(u: str) -> str | None:
+    """A sendable button URL, or None if it can't be one. Telegram REQUIRES a scheme — a bare
+    ``t.me/x`` (which owners naturally type) has none and makes Telegram reject the ENTIRE
+    message (BUTTON_URL_INVALID), bricking the whole screen. Add https:// to a bare t.me/…;
+    otherwise require an explicit http(s)/tg scheme."""
+    u = u.strip()
+    if u.startswith(("https://", "http://", "tg://")):
+        return u
+    if u.startswith("t.me/") or u.startswith("www.t.me/"):
+        return "https://" + u
+    return None
 
 
 def parse_custom_buttons(raw: str | None) -> list[dict[str, str]]:
     """Owner's own cabinet link-buttons — a JSON list of {label, url}. Invalid entries dropped;
-    URL must be http(s)/tg/t.me so a bad value can't break the keyboard render."""
+    the URL is normalised to carry a scheme so a bad value can't break the keyboard render."""
     try:
         items = json.loads(raw) if raw else []
     except (ValueError, TypeError):
@@ -82,7 +91,7 @@ def parse_custom_buttons(raw: str | None) -> list[dict[str, str]]:
             if not isinstance(it, dict):
                 continue
             label = str(it.get("label") or "").strip()[:64]
-            url = str(it.get("url") or "").strip()
-            if label and _valid_url(url):
+            url = normalize_button_url(str(it.get("url") or ""))
+            if label and url:
                 out.append({"label": label, "url": url})
     return out
