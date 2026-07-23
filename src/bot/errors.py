@@ -76,13 +76,13 @@ def setup_error_handler(dp: Dispatcher, container: AppContainer) -> None:
         error_id = container.telemetry.report(event.exception, source="bot", context=context)
         log.error("unhandled bot error", error_id=error_id, exc_info=event.exception)
 
-        # Also DM the shop's own admins, so a self-hoster with telemetry disabled still
-        # learns of the crash. Best-effort — a notifier failure must not raise here.
+        # DM the shop's own admins directly (NOT via send_topic_report — that needs the DB, and
+        # the crash may BE a DB outage; the alert must still reach admins). Best-effort.
         with suppress(Exception):
             await container.notifier.notify_admins(
                 f"⚠️ Ошибка в боте (код <code>{error_id}</code>):\n"
                 f"{type(event.exception).__name__}: {str(event.exception)[:500]}",
-                topic="bug",
+                topic="alerts",
             )
 
         text = _USER_TEXT.format(error_id=error_id)

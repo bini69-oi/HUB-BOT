@@ -37,12 +37,22 @@ def fmt_amount(minor: int, currency: str = "RUB") -> str:
 
 
 async def send_topic_report(
-    container: AppContainer, code: str, text: str, *, document: Path | None = None
+    container: AppContainer,
+    code: str,
+    text: str,
+    *,
+    document: Path | None = None,
+    force_dm: bool = False,
 ) -> bool:
     """Send ``text`` (and optionally a file) into the report-group topic bound to ``code``.
 
     Returns True only when actually delivered. Skips silently when the topic is disabled,
     the group id is missing/malformed or there is no bot token.
+
+    ``force_dm=True`` guarantees the admin DM regardless of the REPORT_DM_ADMINS toggle — use it
+    for must-not-miss notices (withdrawals, crashes, payment problems) so converting them from a
+    plain ``notify_admins`` to topic routing never silently stops delivery on a setup without a
+    report group.
     """
     async with container.uow() as uow:
         group = str(await container.bot_config.value(uow, "REPORT_GROUP_ID") or "").strip()
@@ -53,11 +63,12 @@ async def send_topic_report(
     # A kind is "on" unless the owner explicitly disabled its topic. A not-yet-seeded topic
     # (None) defaults to on, so reports work on a fresh server before the first admin visit
     # (RPT-1/RPT-2). Group and DM are independent destinations; either alone is enough.
-    if topic is not None and not topic.enabled:
-        return False
+    # force_dm bypasses this gate for the DM below — a money/crash notice must reach admins even
+    # if the owner disabled that topic (else converting a plain notify_admins would drop it).
+    enabled = topic is None or topic.enabled
     delivered = False
-    # Group forum topic (only when both a group id and the topic are configured).
-    if topic is not None and group.lstrip("-").isdigit():
+    # Group forum topic (only when the topic is enabled AND a group id is configured).
+    if enabled and topic is not None and group.lstrip("-").isdigit():
         try:
             await _deliver(container.settings.bot.token, int(group), topic.topic_id, text, document)
             delivered = True
@@ -67,10 +78,10 @@ async def send_topic_report(
     # the file itself; a text report goes as a message. The backup archive additionally
     # DMs the admins as a LAST RESORT even when dm_admins is off — an operator who never
     # wired a report group must still get an off-host copy of their DB, or "backups" are
-    # unrecoverable if the host is lost.
+    # unrecoverable if the host is lost. force_dm always DMs (guaranteed delivery).
     import contextlib
 
-    if dm_admins or (code == "backups" and not delivered):
+    if force_dm or (enabled and (dm_admins or (code == "backups" and not delivered))):
         with contextlib.suppress(Exception):
             if document is not None:
                 from aiogram.types import FSInputFile

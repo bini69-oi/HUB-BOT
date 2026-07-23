@@ -20,8 +20,10 @@ const TOPIC_NAMES: Record<string, string> = {
   daily_report: "Отчёты · ежедневно",
   backups: "Бэкапы",
   payments: "Платежи · мгновенно",
+  withdrawals: "Выводы средств",
   tickets: "Тикеты",
-  alerts: "Алерты",
+  alerts: "Алерты · сбои/краши",
+  bugs: "Баг-репорты от юзеров",
   weekly_report: "Недельный отчёт",
   registrations: "Регистрации",
 };

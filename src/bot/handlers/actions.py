@@ -673,7 +673,9 @@ async def cmd_bug(message: Message, container: AppContainer, db_user: User) -> N
         return
     tg = message.from_user
     who = f"@{tg.username}" if tg and tg.username else f"id{db_user.telegram_id}"
-    await container.notifier.notify_admins(f"🐞 Баг-репорт от {who}:\n{text}", topic="bug")
+    from src.infrastructure.services.reports import send_topic_report
+
+    await send_topic_report(container, "bugs", f"🐞 Баг-репорт от {who}:\n{text}", force_dm=True)
     await message.answer("🐞 Спасибо! Отправил разработчикам — разберёмся.")
 
 

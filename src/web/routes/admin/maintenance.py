@@ -26,8 +26,10 @@ _TOPIC_SEED: tuple[tuple[str, str], ...] = (
     ("daily_report", "21:00"),
     ("backups", "04:00"),
     ("payments", "instant"),
+    ("withdrawals", "instant"),
     ("tickets", "instant"),
     ("alerts", "instant"),
+    ("bugs", "instant"),
     ("weekly_report", "Mon 10:00"),
     ("registrations", "hourly"),
 )

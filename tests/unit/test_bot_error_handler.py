@@ -126,7 +126,7 @@ async def test_genuine_error_reports_and_pings_admins() -> None:
     # Self-hoster with telemetry disabled still learns of the crash via their own admins.
     assert len(container.notifier.calls) == 1
     text, topic = container.notifier.calls[0]
-    assert topic == "bug"
+    assert topic == "alerts"  # crashes are «alerts», not user bug-reports
     assert "Edeadbeef" in text and "RuntimeError" in text
     # And the user gets the gentle message with the quotable id.
     assert msg.answer.calls and "Edeadbeef" in msg.answer.calls[0][0][0]

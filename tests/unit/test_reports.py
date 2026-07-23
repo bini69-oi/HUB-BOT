@@ -122,3 +122,49 @@ async def test_ticket_event_reports_into_thread(
     assert (chat_id, thread_id) == (-100777, 3)
     assert "#12" in text and "@vasya" in text
     assert "&lt;b&gt;help&lt;/b&gt;" in text  # user text is HTML-escaped
+
+
+class _DmNotifier:
+    def __init__(self) -> None:
+        self.dms: list[str] = []
+
+    async def notify_admins(self, text: str, *, topic: str | None = None) -> None:
+        self.dms.append(text)
+
+    async def notify_admins_document(self, document: object, *, caption: str | None = None) -> None:
+        self.dms.append(caption or "<doc>")
+
+
+def test_new_topic_kinds_seeded() -> None:
+    from src.web.routes.admin.maintenance import _TOPIC_SEED
+
+    codes = {c for c, _ in _TOPIC_SEED}
+    # every notification category is separable by its own topic, incl. the newly added ones
+    assert {"withdrawals", "bugs", "payments", "alerts", "tickets", "registrations"} <= codes
+
+
+@pytest.mark.asyncio
+async def test_force_dm_guarantees_dm_even_without_group_or_toggle(
+    uow: UnitOfWork, sent: list[tuple[int, int | None, str]]
+) -> None:
+    # REPORT_DM_ADMINS off and NO report group -> a normal report is silent, but force_dm still DMs
+    # (money/crash notices must never be lost when the owner hasn't wired a group).
+    async with uow:
+        await uow.report_topics.add(ReportTopic(code="withdrawals", schedule="instant"))
+        await uow.bot_config.upsert("REPORT_DM_ADMINS", False)
+        await uow.commit()
+    container = _container(uow)
+    notifier = _DmNotifier()
+    container.notifier = notifier  # type: ignore[attr-defined]
+
+    delivered = await reports.send_topic_report(
+        container, "withdrawals", "💸 вывод #1", force_dm=True
+    )
+    assert delivered is True
+    assert notifier.dms == ["💸 вывод #1"]  # DM'd despite no group + dm toggle off
+    assert sent == []  # no group configured -> nothing to the forum
+
+    notifier.dms.clear()
+    # without force_dm and with dm off + no group -> nothing delivered
+    assert await reports.send_topic_report(container, "withdrawals", "x") is False
+    assert notifier.dms == []

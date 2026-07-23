@@ -148,9 +148,13 @@ async def take_details(
         "Деньги зарезервированы; выплатим после проверки и напишем сюда.",
         parse_mode="HTML",
     )
-    await container.notifier.notify_admins(
+    from src.infrastructure.services.reports import send_topic_report
+
+    await send_topic_report(
+        container,
+        "withdrawals",
         f"💸 Заявка на вывод #{req_id}: {amount / 100:.2f} ₽ · {_METHODS[method]}\n"
         f"Юзер: {user.username or user.telegram_id}\nРеквизиты: {details}\n"
         "Обработка: кабинет → Платежи → Выводы.",
-        topic="payments",
+        force_dm=True,  # money — must reach admins even without a report group configured
     )
