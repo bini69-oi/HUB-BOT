@@ -275,6 +275,8 @@ export default function BotButtons() {
   const [selId, setSelId] = useState<string | null>(null);
   const [loaded, setLoaded] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [dragId, setDragId] = useState<string | null>(null);
+  const [dropId, setDropId] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
   async function uploadImage(f: File) {
@@ -406,6 +408,45 @@ export default function BotButtons() {
     setNodes((ns) => ns.map((n) => (patch.has(n.id) ? { ...n, ...patch.get(n.id)! } : n)));
   }
 
+  // True if `maybeChild` is `ancestor` or nested under it (blocks dropping a screen into itself).
+  function isSelfOrDescendant(ancestor: string, maybeChild: string): boolean {
+    let cur: string | null = maybeChild;
+    const byId = new Map(nodes.map((n) => [n.id, n]));
+    while (cur) {
+      if (cur === ancestor) return true;
+      cur = byId.get(cur)?.parent ?? null;
+    }
+    return false;
+  }
+
+  // Drag-drop reorder: move `dragId` to `targetId`'s position (into its parent), then re-stamp
+  // order_index + row_index for that parent exactly like the arrows do — so the bot renders the
+  // new order and the row grid re-flows instead of scrambling.
+  function dropOnNode(targetId: string) {
+    const dragged = dragId;
+    setDragId(null);
+    setDropId(null);
+    if (!dragged || dragged === targetId) return;
+    if (isSelfOrDescendant(dragged, targetId)) return; // can't drop a screen into its own subtree
+    const target = nodes.find((n) => n.id === targetId);
+    if (!target) return;
+    const newParent = target.parent;
+    const seq = kids(newParent).filter((n) => n.id !== dragged);
+    const ti = seq.findIndex((n) => n.id === targetId);
+    const draggedNode = nodes.find((n) => n.id === dragged)!;
+    seq.splice(ti < 0 ? seq.length : ti, 0, draggedNode); // insert at target's slot
+    const w = Math.max(1, rowWidth(newParent));
+    const pos = new Map(seq.map((n, i) => [n.id, i]));
+    setNodes((ns) =>
+      ns.map((n) => {
+        const i = pos.get(n.id);
+        if (i === undefined) return n;
+        return { ...n, parent: newParent, order_index: i, row_index: Math.floor(i / w) };
+      }),
+    );
+    setSelId(dragged);
+  }
+
   async function save() {
     try {
       const payload = nodes.map((n, i) => ({
@@ -466,17 +507,29 @@ export default function BotButtons() {
       <div style={{ position: "relative" }}>
         <div
           className="row click"
+          draggable
+          onDragStart={(e) => { setDragId(node.id); e.dataTransfer.effectAllowed = "move"; }}
+          onDragOver={(e) => { if (dragId && dragId !== node.id) { e.preventDefault(); setDropId(node.id); } }}
+          onDragLeave={() => setDropId((d) => (d === node.id ? null : d))}
+          onDrop={(e) => { e.preventDefault(); dropOnNode(node.id); }}
+          onDragEnd={() => { setDragId(null); setDropId(null); }}
           style={{
             padding: "8px 10px",
-            cursor: "pointer",
+            cursor: dragId ? "grabbing" : "grab",
             background: node.id === selId ? "var(--pill)" : "var(--panel2)",
             border:
-              node.id === selId ? "1px solid var(--muted)" : "1px solid var(--border)",
+              node.id === dropId
+                ? "1px dashed var(--accent, #F7971D)"
+                : node.id === selId
+                  ? "1px solid var(--muted)"
+                  : "1px solid var(--border)",
             borderRadius: 6,
             marginBottom: 6,
+            opacity: node.id === dragId ? 0.5 : 1,
           }}
           onClick={() => setSelId(node.id)}
         >
+          <span style={{ color: "var(--dim)", cursor: "grab", flex: "0 0 auto" }}>⠿</span>
           <span
             style={{
               width: 10,
@@ -558,6 +611,7 @@ export default function BotButtons() {
           <button className="btn secondary" style={{ marginTop: 12, width: "100%" }} onClick={addNode}>
             {t.addButton}
           </button>
+          <div className="muted" style={{ fontSize: 12, marginTop: 8 }}>⠿ {t.dragHint}</div>
         </div>
 
         {/* editor */}
